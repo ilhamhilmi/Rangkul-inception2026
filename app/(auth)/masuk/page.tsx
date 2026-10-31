@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { LoginForm } from "@/components/auth/login-form";
 import { ArrowLeftIcon } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
+import { safeNextPath } from "@/lib/utils/redirect";
 
 export const metadata: Metadata = {
   title: "Masuk",
@@ -9,7 +12,16 @@ export const metadata: Metadata = {
     "Masuk ke akun Rangkul untuk menjelajah tempat aksesibel, komunitas inklusif, dan kegiatan volunteer.",
 };
 
-export default function LoginPage() {
+async function LoginFormSection({
+  searchParams,
+}: Pick<PageProps<"/masuk">, "searchParams">) {
+  const params = await searchParams;
+  const next = safeNextPath(params.next, "/komunitas");
+
+  return <LoginForm nextPath={next} />;
+}
+
+export default function LoginPage({ searchParams }: PageProps<"/masuk">) {
   return (
     <div>
       <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary-700">
@@ -23,7 +35,17 @@ export default function LoginPage() {
       </p>
 
       <div className="mt-8">
-        <LoginForm />
+        <Suspense
+          fallback={
+            <div className="space-y-5" aria-hidden="true">
+              <Skeleton className="h-20 w-full rounded-input" />
+              <Skeleton className="h-20 w-full rounded-input" />
+              <Skeleton className="h-11 w-full rounded-button" />
+            </div>
+          }
+        >
+          <LoginFormSection searchParams={searchParams} />
+        </Suspense>
       </div>
 
       <p className="mt-6 text-center text-sm text-ink-muted">

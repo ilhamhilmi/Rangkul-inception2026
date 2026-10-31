@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  useActionState,
   useEffect,
   useRef,
   useState,
@@ -10,7 +11,6 @@ import {
 } from "react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { FieldError, FieldHint, Input, Label } from "@/components/ui/field";
-import { FileField } from "@/components/ui/file-field";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -22,6 +22,8 @@ import {
   communityFocusOptions,
   communityProvinceOptions,
 } from "@/lib/constants/communities";
+import { createCommunityAction } from "@/server/communities/actions";
+import type { CommunityFormState } from "@/types/community";
 
 type FieldKey =
   | "picName"
@@ -33,10 +35,13 @@ type FieldKey =
   | "city"
   | "focus"
   | "channel"
-  | "ktp"
+  | "instagram"
+  | "website"
   | "consent";
 
 type FormErrors = Partial<Record<FieldKey, string>>;
+
+const initialActionState: CommunityFormState = { status: "idle" };
 
 const focusTargets: Record<FieldKey, string> = {
   picName: "picName",
@@ -48,7 +53,8 @@ const focusTargets: Record<FieldKey, string> = {
   city: "city",
   focus: "fokus-0",
   channel: "channel",
-  ktp: "ktp",
+  instagram: "instagram",
+  website: "website",
   consent: "consent",
 };
 
@@ -90,22 +96,34 @@ function FormSection({
   );
 }
 
-export function CommunityRegistrationForm() {
+export function CommunityRegistrationForm({
+  defaultName,
+  defaultEmail,
+}: {
+  defaultName: string;
+  defaultEmail: string;
+}) {
+  const [state, formAction, isPending] = useActionState(
+    createCommunityAction,
+    initialActionState,
+  );
   const [errors, setErrors] = useState<FormErrors>({});
-  const [submitted, setSubmitted] = useState(false);
-  const [submittedName, setSubmittedName] = useState("");
   const [descriptionLength, setDescriptionLength] = useState(0);
   const successHeadingRef = useRef<HTMLHeadingElement>(null);
 
-  const errorCount = Object.keys(errors).length;
+  const serverErrors: FormErrors = {};
+  for (const [key, messages] of Object.entries(state.fieldErrors ?? {})) {
+    if (messages[0]) serverErrors[key as FieldKey] = messages[0];
+  }
+
+  const combinedErrors: FormErrors = { ...serverErrors, ...errors };
+  const errorCount = Object.keys(combinedErrors).length;
 
   useEffect(() => {
-    if (submitted) successHeadingRef.current?.focus();
-  }, [submitted]);
+    if (state.status === "success") successHeadingRef.current?.focus();
+  }, [state.status]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
     const form = event.currentTarget;
     const data = new FormData(form);
     const read = (key: string) => String(data.get(key) ?? "").trim();
@@ -163,15 +181,16 @@ export function CommunityRegistrationForm() {
       nextErrors.focus = "Pilih minimal satu fokus komunitas.";
     }
 
-    if (!read("channel")) {
-      nextErrors.channel = "Nama grup WA atau saluran wajib diisi.";
+    const channel = read("channel");
+    if (!channel) {
+      nextErrors.channel = "Tautan grup atau kanal wajib diisi.";
+    } else if (!/^https?:\/\/\S+$/i.test(channel)) {
+      nextErrors.channel = "Tulis tautan lengkap yang diawali https://";
     }
 
-    const ktpInput = form.elements.namedItem("ktp");
-    const ktpFiles =
-      ktpInput instanceof HTMLInputElement ? ktpInput.files : null;
-    if (!ktpFiles || ktpFiles.length === 0) {
-      nextErrors.ktp = "Foto KTP wajib diunggah untuk verifikasi.";
+    const website = read("website");
+    if (website && !/^https?:\/\/\S+$/i.test(website)) {
+      nextErrors.website = "Tulis tautan lengkap yang diawali https://";
     }
 
     if (!data.get("consent")) {
@@ -181,16 +200,13 @@ export function CommunityRegistrationForm() {
 
     setErrors(nextErrors);
 
-    const firstError = (Object.keys(nextErrors) as FieldKey[])[0];
-    if (firstError) {
+    if (Object.keys(nextErrors).length > 0) {
+      event.preventDefault();
+      const firstError = (Object.keys(nextErrors) as FieldKey[])[0];
       const target = document.getElementById(focusTargets[firstError]);
       target?.focus();
       target?.scrollIntoView({ block: "center" });
-      return;
     }
-
-    setSubmittedName(name);
-    setSubmitted(true);
   }
 
   function clearError(key: FieldKey) {
@@ -202,14 +218,7 @@ export function CommunityRegistrationForm() {
     });
   }
 
-  function handleReset() {
-    setErrors({});
-    setSubmitted(false);
-    setSubmittedName("");
-    setDescriptionLength(0);
-  }
-
-  if (submitted) {
+  if (state.status === "success") {
     return (
       <div
         role="status"
@@ -224,11 +233,12 @@ export function CommunityRegistrationForm() {
           tabIndex={-1}
           className="mt-5 text-2xl font-bold tracking-tight text-ink outline-none"
         >
-          Pendaftaran diterima (simulasi)
+          Pendaftaran diterima
         </h2>
         <p className="mt-2 max-w-xl leading-relaxed text-ink-muted">
-          Terima kasih, {submittedName}. Data komunitasmu akan diperiksa admin
-          sebelum tampil di direktori publik.
+          Terima kasih, {state.submittedName}. Data komunitasmu sudah masuk
+          antrean verifikasi admin. Profil akan tampil di direktori setelah
+          disetujui.
         </p>
 
         <ol className="mt-5 space-y-3 rounded-card border border-success-600/20 bg-surface p-4 text-sm">
@@ -237,7 +247,7 @@ export function CommunityRegistrationForm() {
               1
             </span>
             <span className="text-ink-muted">
-              Admin memeriksa data pengurus, profil komunitas, dan foto KTP.
+              Admin memeriksa data pengurus dan profil komunitas.
             </span>
           </li>
           <li className="flex items-start gap-3">
@@ -260,24 +270,35 @@ export function CommunityRegistrationForm() {
           </li>
         </ol>
 
-        <p className="mt-4 flex items-start gap-2 text-xs leading-relaxed text-ink-muted">
-          <ShieldCheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-          Catatan: pengiriman data belum tersambung pada versi UI ini. Tidak ada
-          data yang benar-benar dikirim atau disimpan.
-        </p>
-
         <div className="mt-6 flex flex-col gap-2 sm:flex-row">
           <ButtonLink href="/komunitas">Kembali ke direktori</ButtonLink>
-          <Button type="button" variant="secondary" onClick={handleReset}>
-            Isi formulir lagi
-          </Button>
+          <ButtonLink href="/komunitas/daftar" variant="secondary">
+            Daftarkan komunitas lain
+          </ButtonLink>
         </div>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-4">
+    <form
+      action={formAction}
+      onSubmit={handleSubmit}
+      noValidate
+      className="space-y-4"
+    >
+      {state.status === "error" && state.message ? (
+        <div
+          role="alert"
+          className="rounded-card border border-danger-600/30 bg-danger-50 p-4 text-sm text-danger-700"
+        >
+          <p className="flex items-start gap-2">
+            <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{state.message}</span>
+          </p>
+        </div>
+      ) : null}
+
       {errorCount > 0 ? (
         <div
           role="alert"
@@ -310,19 +331,23 @@ export function CommunityRegistrationForm() {
               id="picName"
               name="picName"
               autoComplete="name"
+              defaultValue={defaultName}
               placeholder="Nama kamu"
               required
-              aria-invalid={errors.picName ? true : undefined}
+              aria-invalid={combinedErrors.picName ? true : undefined}
               aria-describedby={describedBy(
                 "picName-hint",
-                errors.picName && "picName-error",
+                combinedErrors.picName && "picName-error",
               )}
+              onChange={() => clearError("picName")}
             />
             <FieldHint id="picName-hint">
               Nama orang yang bisa dihubungi admin.
             </FieldHint>
-            {errors.picName ? (
-              <FieldError id="picName-error">{errors.picName}</FieldError>
+            {combinedErrors.picName ? (
+              <FieldError id="picName-error">
+                {combinedErrors.picName}
+              </FieldError>
             ) : null}
           </div>
 
@@ -341,17 +366,20 @@ export function CommunityRegistrationForm() {
               autoComplete="tel"
               placeholder="0812-3456-7890"
               required
-              aria-invalid={errors.picPhone ? true : undefined}
+              aria-invalid={combinedErrors.picPhone ? true : undefined}
               aria-describedby={describedBy(
                 "picPhone-hint",
-                errors.picPhone && "picPhone-error",
+                combinedErrors.picPhone && "picPhone-error",
               )}
+              onChange={() => clearError("picPhone")}
             />
             <FieldHint id="picPhone-hint">
               Nomor aktif WhatsApp agar admin bisa menghubungi.
             </FieldHint>
-            {errors.picPhone ? (
-              <FieldError id="picPhone-error">{errors.picPhone}</FieldError>
+            {combinedErrors.picPhone ? (
+              <FieldError id="picPhone-error">
+                {combinedErrors.picPhone}
+              </FieldError>
             ) : null}
           </div>
         </div>
@@ -368,19 +396,23 @@ export function CommunityRegistrationForm() {
             name="picEmail"
             type="email"
             autoComplete="email"
+            defaultValue={defaultEmail}
             placeholder="nama@email.com"
             required
-            aria-invalid={errors.picEmail ? true : undefined}
+            aria-invalid={combinedErrors.picEmail ? true : undefined}
             aria-describedby={describedBy(
               "picEmail-hint",
-              errors.picEmail && "picEmail-error",
+              combinedErrors.picEmail && "picEmail-error",
             )}
+            onChange={() => clearError("picEmail")}
           />
           <FieldHint id="picEmail-hint">
-            Email untuk korespondensi verifikasi.
+            Email untuk korespondensi verifikasi dan kontak publik komunitas.
           </FieldHint>
-          {errors.picEmail ? (
-            <FieldError id="picEmail-error">{errors.picEmail}</FieldError>
+          {combinedErrors.picEmail ? (
+            <FieldError id="picEmail-error">
+              {combinedErrors.picEmail}
+            </FieldError>
           ) : null}
         </div>
       </FormSection>
@@ -402,11 +434,12 @@ export function CommunityRegistrationForm() {
             name="name"
             placeholder="Contoh: Gerak Bersama"
             required
-            aria-invalid={errors.name ? true : undefined}
-            aria-describedby={errors.name ? "name-error" : undefined}
+            aria-invalid={combinedErrors.name ? true : undefined}
+            aria-describedby={combinedErrors.name ? "name-error" : undefined}
+            onChange={() => clearError("name")}
           />
-          {errors.name ? (
-            <FieldError id="name-error">{errors.name}</FieldError>
+          {combinedErrors.name ? (
+            <FieldError id="name-error">{combinedErrors.name}</FieldError>
           ) : null}
         </div>
 
@@ -422,22 +455,23 @@ export function CommunityRegistrationForm() {
             name="description"
             placeholder="Ceritakan siapa yang kamu dampingi, kegiatan rutin, dan hal yang membuat komunitas ini unik."
             required
-            maxLength={600}
-            onChange={(event) =>
-              setDescriptionLength(event.currentTarget.value.length)
-            }
-            aria-invalid={errors.description ? true : undefined}
+            maxLength={3000}
+            onChange={(event) => {
+              setDescriptionLength(event.currentTarget.value.length);
+              clearError("description");
+            }}
+            aria-invalid={combinedErrors.description ? true : undefined}
             aria-describedby={describedBy(
               "description-hint",
-              errors.description && "description-error",
+              combinedErrors.description && "description-error",
             )}
           />
           <FieldHint id="description-hint">
-            Minimal 40 karakter. {descriptionLength}/600 karakter.
+            Minimal 40 karakter. {descriptionLength}/3000 karakter.
           </FieldHint>
-          {errors.description ? (
+          {combinedErrors.description ? (
             <FieldError id="description-error">
-              {errors.description}
+              {combinedErrors.description}
             </FieldError>
           ) : null}
         </div>
@@ -455,8 +489,11 @@ export function CommunityRegistrationForm() {
               name="province"
               defaultValue=""
               required
-              aria-invalid={errors.province ? true : undefined}
-              aria-describedby={errors.province ? "province-error" : undefined}
+              aria-invalid={combinedErrors.province ? true : undefined}
+              aria-describedby={
+                combinedErrors.province ? "province-error" : undefined
+              }
+              onChange={() => clearError("province")}
             >
               <option value="" disabled>
                 Pilih provinsi
@@ -467,8 +504,10 @@ export function CommunityRegistrationForm() {
                 </option>
               ))}
             </Select>
-            {errors.province ? (
-              <FieldError id="province-error">{errors.province}</FieldError>
+            {combinedErrors.province ? (
+              <FieldError id="province-error">
+                {combinedErrors.province}
+              </FieldError>
             ) : null}
           </div>
 
@@ -485,18 +524,21 @@ export function CommunityRegistrationForm() {
               autoComplete="address-level2"
               placeholder="Contoh: Bandung"
               required
-              aria-invalid={errors.city ? true : undefined}
-              aria-describedby={errors.city ? "city-error" : undefined}
+              aria-invalid={combinedErrors.city ? true : undefined}
+              aria-describedby={combinedErrors.city ? "city-error" : undefined}
+              onChange={() => clearError("city")}
             />
-            {errors.city ? (
-              <FieldError id="city-error">{errors.city}</FieldError>
+            {combinedErrors.city ? (
+              <FieldError id="city-error">{combinedErrors.city}</FieldError>
             ) : null}
           </div>
         </div>
 
         <fieldset
-          aria-invalid={errors.focus ? true : undefined}
-          aria-describedby={errors.focus ? "focus-error" : "focus-hint"}
+          aria-invalid={combinedErrors.focus ? true : undefined}
+          aria-describedby={
+            combinedErrors.focus ? "focus-error" : "focus-hint"
+          }
         >
           <legend className="text-sm font-medium text-ink">
             Fokus komunitas
@@ -520,19 +562,20 @@ export function CommunityRegistrationForm() {
                   type="checkbox"
                   value={option}
                   className="h-4 w-4 shrink-0 rounded border-line-strong accent-primary-600"
+                  onChange={() => clearError("focus")}
                 />
                 {option}
               </label>
             ))}
           </div>
-          {errors.focus ? (
-            <FieldError id="focus-error">{errors.focus}</FieldError>
+          {combinedErrors.focus ? (
+            <FieldError id="focus-error">{combinedErrors.focus}</FieldError>
           ) : null}
         </fieldset>
 
         <div className="space-y-2">
           <Label htmlFor="channel">
-            Grup WA atau saluran
+            Tautan grup atau kanal
             <span className="ml-1 text-danger-700" aria-hidden="true">
               *
             </span>
@@ -540,52 +583,80 @@ export function CommunityRegistrationForm() {
           <Input
             id="channel"
             name="channel"
-            placeholder="Tautan grup atau @nama_saluran"
+            type="url"
+            inputMode="url"
+            placeholder="https://chat.whatsapp.com/..."
             required
-            aria-invalid={errors.channel ? true : undefined}
+            aria-invalid={combinedErrors.channel ? true : undefined}
             aria-describedby={describedBy(
               "channel-hint",
-              errors.channel && "channel-error",
+              combinedErrors.channel && "channel-error",
             )}
+            onChange={() => clearError("channel")}
           />
           <FieldHint id="channel-hint">
-            Tautan grup atau nama saluran tempat anggota baru bergabung.
+            Tautan lengkap grup atau kanal tempat anggota baru bergabung.
           </FieldHint>
-          {errors.channel ? (
-            <FieldError id="channel-error">{errors.channel}</FieldError>
+          {combinedErrors.channel ? (
+            <FieldError id="channel-error">
+              {combinedErrors.channel}
+            </FieldError>
           ) : null}
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="instagram">Instagram (opsional)</Label>
+            <Input
+              id="instagram"
+              name="instagram"
+              placeholder="@nama_komunitas"
+              aria-invalid={combinedErrors.instagram ? true : undefined}
+              aria-describedby={
+                combinedErrors.instagram ? "instagram-error" : undefined
+              }
+              onChange={() => clearError("instagram")}
+            />
+            {combinedErrors.instagram ? (
+              <FieldError id="instagram-error">
+                {combinedErrors.instagram}
+              </FieldError>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="website">Situs web (opsional)</Label>
+            <Input
+              id="website"
+              name="website"
+              type="url"
+              inputMode="url"
+              placeholder="https://contoh.id"
+              aria-invalid={combinedErrors.website ? true : undefined}
+              aria-describedby={
+                combinedErrors.website ? "website-error" : undefined
+              }
+              onChange={() => clearError("website")}
+            />
+            {combinedErrors.website ? (
+              <FieldError id="website-error">
+                {combinedErrors.website}
+              </FieldError>
+            ) : null}
+          </div>
         </div>
       </FormSection>
 
       <FormSection
         step={3}
-        title="Verifikasi dan media"
-        description="KTP hanya dilihat admin. Sampul akan tampil di kartu komunitas."
+        title="Pernyataan pengurus"
+        description="Pastikan data benar dan kamu berwenang mewakili komunitas."
       >
-        <div className="grid gap-6 sm:grid-cols-2">
-          <FileField
-            id="ktp"
-            name="ktp"
-            label="Foto KTP pengurus"
-            required
-            hint="Digunakan hanya untuk verifikasi admin, tidak ditampilkan di profil publik."
-            error={errors.ktp}
-            onFileChange={() => clearError("ktp")}
-          />
-
-          <FileField
-            id="cover"
-            name="cover"
-            label="Sampul komunitas"
-            hint="Tampil sebagai sampul di direktori. Rasio mendatar paling optimal."
-          />
-        </div>
-
         <div className="flex items-start gap-2.5 rounded-input bg-surface-muted p-3.5 text-sm text-ink-muted">
           <ShieldCheckIcon className="mt-0.5 h-5 w-5 shrink-0 text-primary-700" />
           <p>
-            Data KTP disimpan terbatas untuk verifikasi. Jangan mengunggah foto
-            KTP orang lain tanpa izin.
+            Data pengurus dipakai admin untuk verifikasi. Email pengurus menjadi
+            kontak publik komunitas, sedangkan nomor telepon tidak ditampilkan.
           </p>
         </div>
 
@@ -596,10 +667,11 @@ export function CommunityRegistrationForm() {
               name="consent"
               type="checkbox"
               className="mt-0.5 h-4 w-4 rounded border-line-strong accent-primary-600"
-              aria-invalid={errors.consent ? true : undefined}
+              aria-invalid={combinedErrors.consent ? true : undefined}
               aria-describedby={
-                errors.consent ? "consent-error" : undefined
+                combinedErrors.consent ? "consent-error" : undefined
               }
+              onChange={() => clearError("consent")}
             />
             <label htmlFor="consent" className="text-sm leading-5 text-ink-muted">
               Saya menyatakan data ini benar dan bersedia dihubungi admin untuk
@@ -609,9 +681,9 @@ export function CommunityRegistrationForm() {
               </span>
             </label>
           </div>
-          {errors.consent ? (
+          {combinedErrors.consent ? (
             <FieldError id="consent-error" className="mt-2">
-              {errors.consent}
+              {combinedErrors.consent}
             </FieldError>
           ) : null}
         </div>
@@ -621,8 +693,13 @@ export function CommunityRegistrationForm() {
             Pengajuan akan masuk antrean verifikasi admin sebelum tampil di
             direktori.
           </p>
-          <Button type="submit" size="lg" className="w-full sm:w-auto">
-            Ajukan komunitas
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full sm:w-auto"
+            disabled={isPending}
+          >
+            {isPending ? "Mengirim..." : "Ajukan komunitas"}
           </Button>
         </div>
       </FormSection>

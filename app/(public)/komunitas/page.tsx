@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/icons";
 import { CommunityCard } from "@/components/communities/community-card";
 import { CommunityFilters } from "@/components/communities/community-filters";
-import { communities } from "@/lib/constants/communities";
+import { getCommunityDirectory } from "@/server/communities/queries";
 
 export const metadata: Metadata = {
   title: "Komunitas",
@@ -79,28 +79,9 @@ async function CommunityDirectory({
   const query = firstValue(params.q).trim();
   const province = firstValue(params.wilayah);
   const focus = firstValue(params.fokus);
-  const normalizedQuery = query.toLowerCase();
 
-  const filtered = communities.filter((community) => {
-    if (province && community.province !== province) return false;
-    if (focus && !(community.focus as readonly string[]).includes(focus)) {
-      return false;
-    }
-    if (!normalizedQuery) return true;
-
-    const haystack = [
-      community.name,
-      community.city,
-      community.province,
-      community.description,
-      community.tagline,
-      ...community.focus,
-    ]
-      .join(" ")
-      .toLowerCase();
-
-    return haystack.includes(normalizedQuery);
-  });
+  const { items: filtered, filteredTotal, totalVerified } =
+    await getCommunityDirectory({ q: query, province, focus });
 
   const filterLabels = [
     query ? `kata kunci “${query}”` : "",
@@ -108,7 +89,7 @@ async function CommunityDirectory({
     focus ? `fokus ${focus}` : "",
   ].filter(Boolean);
 
-  const summary = `Menampilkan ${filtered.length} dari ${communities.length} komunitas terverifikasi${
+  const summary = `Menampilkan ${filteredTotal} dari ${totalVerified} komunitas terverifikasi${
     filterLabels.length ? ` untuk ${filterLabels.join(", ")}` : ""
   }.`;
 
@@ -129,7 +110,7 @@ async function CommunityDirectory({
             {summary}
           </p>
         </div>
-        <Badge tone="secondary">Data contoh</Badge>
+        <Badge tone="success">Terverifikasi admin</Badge>
       </div>
 
       {filtered.length > 0 ? (

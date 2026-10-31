@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { SignupForm } from "@/components/auth/signup-form";
 import { ArrowLeftIcon } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
+import { safeNextPath } from "@/lib/utils/redirect";
 
 export const metadata: Metadata = {
   title: "Daftar",
@@ -9,7 +12,16 @@ export const metadata: Metadata = {
     "Buat akun Rangkul untuk menambah info aksesibilitas tempat, mengajukan komunitas, dan mendaftar kegiatan volunteer.",
 };
 
-export default function SignupPage() {
+async function SignupFormSection({
+  searchParams,
+}: Pick<PageProps<"/daftar">, "searchParams">) {
+  const params = await searchParams;
+  const next = safeNextPath(params.next, "/komunitas/daftar");
+
+  return <SignupForm nextPath={next} />;
+}
+
+export default function SignupPage({ searchParams }: PageProps<"/daftar">) {
   return (
     <div>
       <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary-700">
@@ -24,7 +36,18 @@ export default function SignupPage() {
       </p>
 
       <div className="mt-8">
-        <SignupForm />
+        <Suspense
+          fallback={
+            <div className="space-y-5" aria-hidden="true">
+              <Skeleton className="h-20 w-full rounded-input" />
+              <Skeleton className="h-20 w-full rounded-input" />
+              <Skeleton className="h-20 w-full rounded-input" />
+              <Skeleton className="h-11 w-full rounded-button" />
+            </div>
+          }
+        >
+          <SignupFormSection searchParams={searchParams} />
+        </Suspense>
       </div>
 
       <p className="mt-6 text-center text-sm text-ink-muted">

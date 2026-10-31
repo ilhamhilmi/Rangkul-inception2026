@@ -1,9 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import {
-  CalendarIcon,
+  MailIcon,
   MapPinIcon,
   ShieldCheckIcon,
-  UserIcon,
 } from "@/components/ui/icons";
 import type { Community } from "@/types/community";
 import {
@@ -49,13 +48,14 @@ export function CommunityProfileHeader({
 
           <JoinCommunityButton
             communityName={community.name}
+            joinUrl={community.joinUrl}
             size="lg"
             className="w-full sm:mb-1 sm:w-auto sm:min-w-44"
           />
         </div>
 
-        <p className="mt-4 max-w-2xl text-lg leading-relaxed text-ink-muted">
-          {community.tagline}
+        <p className="mt-4 line-clamp-3 max-w-2xl text-lg leading-relaxed text-ink-muted">
+          {community.description}
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-ink-muted">
@@ -64,12 +64,8 @@ export function CommunityProfileHeader({
             {community.city}, {community.province}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <CalendarIcon className="h-4 w-4 shrink-0 text-primary-700" />
-            Berdiri sejak {community.foundedYear}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <UserIcon className="h-4 w-4 shrink-0 text-primary-700" />
-            Pengurus: {community.contact.personName}
+            <MailIcon className="h-4 w-4 shrink-0 text-primary-700" />
+            {community.contact}
           </span>
         </div>
 

@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  USER
+  ORGANIZER
+  ADMIN
+}
+
+enum CommunityStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum VerificationType {
+  COMMUNITY
+  ORGANIZER
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Profile {
+  id        String   @id @db.Uuid
+  email     String
+  name      String
+  role      UserRole @default(USER)
+  avatarUrl String?  @map("avatar_url")
+  bio       String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  communities                Community[]           @relation("CommunityOwner")
+  verifiedCommunities        Community[]           @relation("CommunityVerifier")
+  verificationRequests       VerificationRequest[] @relation("VerificationRequester")
+  reviewedVerificationRequests VerificationRequest[] @relation("VerificationReviewer")
+
+  @@index([role], map: "idx_profiles_role")
+  @@map("profiles")
+}
+
+model Community {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String          @unique(map: "uq_communities_slug")
+  name        String
+  description String
+  province    String
+  city        String
+  focus       String[]        @default([])
+  contact     String
+  socials     Json            @default("{}")
+  joinUrl     String          @map("join_url")
+  logoUrl     String?         @map("logo_url")
+  status      CommunityStatus @default(PENDING)
+  ownerId     String          @map("owner_id") @db.Uuid
+  verifiedAt  DateTime?       @map("verified_at") @db.Timestamptz(6)
+  verifiedBy  String?         @map("verified_by") @db.Uuid
+  archivedAt  DateTime?       @map("archived_at") @db.Timestamptz(6)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  owner      Profile  @relation("CommunityOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  verifiedByProfile Profile? @relation("CommunityVerifier", fields: [verifiedBy], references: [id], onDelete: SetNull)
+
+  @@index([status], map: "idx_communities_status")
+  @@index([province, city], map: "idx_communities_location")
+  @@map("communities")
+}
+
+model VerificationRequest {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String             @map("user_id") @db.Uuid
+  type        VerificationType
+  payload     Json               @default("{}")
+  documentUrl String?            @map("document_url")
+  status      VerificationStatus @default(PENDING)
+  reviewerId  String?            @map("reviewer_id") @db.Uuid
+  reviewNote  String?            @map("review_note")
+  submittedAt DateTime           @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  reviewedAt  DateTime?          @map("reviewed_at") @db.Timestamptz(6)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user     Profile  @relation("VerificationRequester", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer Profile? @relation("VerificationReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([status, submittedAt], map: "idx_verification_requests_status")
+  @@map("verification_requests")
+}
