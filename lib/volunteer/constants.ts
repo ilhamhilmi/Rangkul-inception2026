@@ -8,6 +8,7 @@ export const VOLUNTEER_CATEGORIES: VolunteerCategory[] = [
   "Pendataan Aksesibilitas",
   "Kegiatan Sosial",
   "Program Inklusif",
+  "Lainnya",
 ];
 
 export const VOLUNTEER_TIME_FILTERS: {

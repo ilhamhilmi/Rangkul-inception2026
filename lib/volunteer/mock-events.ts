@@ -20,11 +20,8 @@ export const volunteerEvents: VolunteerEvent[] = [
     slots: 80,
     description:
       "Bantu menyambut peserta, mendampingi tamu yang membutuhkan bantuan, dan menjaga alur acara tetap nyaman untuk semua orang. Kamu akan bekerja bersama tim acara yang sudah berpengalaman.",
-    requirements: [
-      "Ramah dan komunikatif",
-      "Bersedia mengikuti briefing pagi",
-      "Mampu bekerja dalam tim",
-    ],
+    requirements:
+      "Ramah dan komunikatif\nBersedia mengikuti briefing pagi\nMampu bekerja dalam tim",
     accessibilityNotes:
       "Lokasi memiliki ramp, toilet aksesibel, area istirahat, dan jalur khusus kursi roda. Relawan dengan disabilitas sangat didorong untuk ikut.",
     coverImage: "/images/volunteer/event-1.svg",
@@ -44,11 +41,8 @@ export const volunteerEvents: VolunteerEvent[] = [
     slots: 30,
     description:
       "Bersama tim Relawan Akses Nusantara, catat kondisi ramp, lift, toilet, dan jalur masuk stasiun. Data yang kamu kumpulkan akan membantu penyandang disabilitas merencanakan perjalanan dengan lebih percaya diri.",
-    requirements: [
-      "Teliti dan senang mencatat detail",
-      "Bisa menggunakan ponsel untuk dokumentasi",
-      "Bersedia berjalan mengelilingi area stasiun",
-    ],
+    requirements:
+      "Teliti dan senang mencatat detail\nBisa menggunakan ponsel untuk dokumentasi\nBersedia berjalan mengelilingi area stasiun",
     accessibilityNotes:
       "Area pendataan dapat dijangkau dengan kursi roda. Tersedia pendamping dan waktu istirahat yang cukup.",
     coverImage: "/images/volunteer/event-2.svg",
@@ -68,11 +62,8 @@ export const volunteerEvents: VolunteerEvent[] = [
     slots: 100,
     description:
       "Festival seni yang menampilkan karya seniman disabilitas dan inklusif. Relawan membantu menyambut pengunjung, mendampingi panggung, dan memastikan area festival mudah diakses semua orang.",
-    requirements: [
-      "Antusias membantu acara seni",
-      "Bersedia bertugas bergantian",
-      "Mengikuti arahan koordinator acara",
-    ],
+    requirements:
+      "Antusias membantu acara seni\nBersedia bertugas bergantian\nMengikuti arahan koordinator acara",
     accessibilityNotes:
       "Seluruh area utama menggunakan jalur datar, tersedia area khusus kursi roda, juru bahasa isyarat, dan toilet aksesibel.",
     coverImage: "/images/volunteer/event-3.svg",
@@ -92,11 +83,8 @@ export const volunteerEvents: VolunteerEvent[] = [
     slots: 40,
     description:
       "Ikut dalam sesi berbagi cerita yang hangat bersama teman-teman Tuli. Relawan membantu memfasilitasi diskusi, menyiapkan ruang, dan mendukung komunikasi yang inklusif.",
-    requirements: [
-      "Terbuka untuk belajar bahasa isyarat dasar",
-      "Sabar dan empatik",
-      "Bersedia hadir tepat waktu",
-    ],
+    requirements:
+      "Terbuka untuk belajar bahasa isyarat dasar\nSabar dan empatik\nBersedia hadir tepat waktu",
     accessibilityNotes:
       "Tersedia juru bahasa isyarat, teks real-time, dan ruang yang tenang. Kegiatan ramah untuk peserta dengan sensitivitas sensorik.",
     coverImage: "/images/volunteer/event-4.svg",
@@ -116,11 +104,8 @@ export const volunteerEvents: VolunteerEvent[] = [
     slots: 25,
     description:
       "Dampingi anak-anak disabilitas dalam kelas seni, menggambar, dan membuat prakarya. Relawan membantu menyiapkan alat, mendampingi anak, dan merayakan setiap karya yang dibuat.",
-    requirements: [
-      "Sabar dan hangat terhadap anak",
-      "Bersedia membantu kegiatan seni",
-      "Tidak perlu pengalaman mengajar",
-    ],
+    requirements:
+      "Sabar dan hangat terhadap anak\nBersedia membantu kegiatan seni\nTidak perlu pengalaman mengajar",
     accessibilityNotes:
       "Ruang kelas dapat diakses kursi roda. Alat seni disesuaikan untuk kebutuhan motorik yang berbeda, dan tersedia area istirahat.",
     coverImage: "/images/volunteer/event-5.svg",
@@ -140,11 +125,8 @@ export const volunteerEvents: VolunteerEvent[] = [
     slots: 60,
     description:
       "Bersih-bersih pantai bersama komunitas dan warga sekitar. Relawan membantu memilah sampah, membagikan alat, dan memastikan jalur pantai tetap bisa dilalui semua orang.",
-    requirements: [
-      "Bersedia mengenakan pakaian yang nyaman",
-      "Siap beraktivitas di area pantai",
-      "Membawa botol minum sendiri",
-    ],
+    requirements:
+      "Bersedia mengenakan pakaian yang nyaman\nSiap beraktivitas di area pantai\nMembawa botol minum sendiri",
     accessibilityNotes:
       "Tersedia jalur boardwalk menuju area kegiatan, toilet aksesibel, dan pendampingan untuk peserta dengan kebutuhan khusus.",
     coverImage: "/images/volunteer/event-6.svg",

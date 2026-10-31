@@ -14,7 +14,8 @@ type VolunteerHeroProps = {
   eventCount: number;
   cityCount: number;
   categoryCount: number;
-  featuredEvent: VolunteerEvent;
+  featuredEvent?: VolunteerEvent;
+  unavailable?: boolean;
 };
 
 export function VolunteerHero({
@@ -22,8 +23,9 @@ export function VolunteerHero({
   cityCount,
   categoryCount,
   featuredEvent,
+  unavailable = false,
 }: VolunteerHeroProps) {
-  const quota = getQuotaStatus(featuredEvent);
+  const quota = featuredEvent ? getQuotaStatus(featuredEvent) : null;
 
   return (
     <section
@@ -133,51 +135,89 @@ export function VolunteerHero({
             <div className="p-5 sm:p-6">
               <p className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-primary-700">
                 <SparklesIcon className="h-3.5 w-3.5" />
-                Kegiatan mendatang
-              </p>
-              <p className="mt-2 text-xl font-semibold leading-snug text-ink">
-                {featuredEvent.title}
+                {featuredEvent
+                  ? "Kegiatan mendatang"
+                  : unavailable
+                    ? "Status data"
+                    : "Mulai dari sini"}
               </p>
 
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="rounded-full border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-800">
-                  {featuredEvent.category}
-                </span>
-                <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-ink-muted">
-                  {featuredEvent.city}
-                </span>
-              </div>
+              {featuredEvent && quota ? (
+                <>
+                  <p className="mt-2 text-xl font-semibold leading-snug text-ink">
+                    {featuredEvent.title}
+                  </p>
 
-              <div className="mt-4 grid gap-3 border-t border-line pt-4 text-sm sm:grid-cols-2">
-                <div className="flex items-start gap-2">
-                  <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-                  <div>
-                    <span className="block text-xs text-ink-muted">Lokasi</span>
-                    <span className="font-medium text-ink">
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="rounded-full border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-800">
+                      {featuredEvent.category}
+                    </span>
+                    <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-ink-muted">
                       {featuredEvent.city}
                     </span>
                   </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <UsersIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-                  <div>
-                    <span className="block text-xs text-ink-muted">Peserta</span>
-                    <span className="font-mono font-medium text-ink">
-                      {featuredEvent.registeredCount}/{featuredEvent.slots}
+
+                  <div className="mt-4 grid gap-3 border-t border-line pt-4 text-sm sm:grid-cols-2">
+                    <div className="flex items-start gap-2">
+                      <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+                      <div>
+                        <span className="block text-xs text-ink-muted">
+                          Lokasi
+                        </span>
+                        <span className="font-medium text-ink">
+                          {featuredEvent.city}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <UsersIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+                      <div>
+                        <span className="block text-xs text-ink-muted">
+                          Peserta
+                        </span>
+                        <span className="font-mono font-medium text-ink">
+                          {featuredEvent.registeredCount}/{featuredEvent.slots}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4 text-sm">
+                    <span className="text-ink-muted">
+                      {formatEventShortDate(featuredEvent.startsAt)}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 font-medium text-primary-700">
+                      <AccessibilityIcon className="h-4 w-4" />
+                      {quota.label}
                     </span>
                   </div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-4 text-sm">
-                <span className="text-ink-muted">
-                  {formatEventShortDate(featuredEvent.startsAt)}
-                </span>
-                <span className="inline-flex items-center gap-1.5 font-medium text-primary-700">
-                  <AccessibilityIcon className="h-4 w-4" />
-                  {quota.label}
-                </span>
-              </div>
+                </>
+              ) : (
+                <>
+                  <p className="mt-2 text-xl font-semibold leading-snug text-ink">
+                    {unavailable
+                      ? "Data kegiatan belum tersedia"
+                      : "Belum ada kegiatan yang terbit"}
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+                    {unavailable
+                      ? "Tabel Volunteer belum ada di database. Kegiatan akan tampil setelah migration modul Volunteer diterapkan."
+                      : "Punya ide kegiatan inklusif? Ajukan diri sebagai penyelenggara dan publikasikan kegiatanmu di Rangkul."}
+                  </p>
+                  {!unavailable ? (
+                    <div className="mt-4 border-t border-line pt-4">
+                      <ButtonLink
+                        href="/volunteer/jadi-penyelenggara"
+                        variant="secondary"
+                        size="sm"
+                      >
+                        Ajukan penyelenggara
+                        <ArrowRightIcon className="h-4 w-4" />
+                      </ButtonLink>
+                    </div>
+                  ) : null}
+                </>
+              )}
             </div>
           </div>
 
