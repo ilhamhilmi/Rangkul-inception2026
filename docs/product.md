@@ -2,6 +2,9 @@
 
 **Membantu Sesama, Ruang untuk Semua**
 
+> **Status:** menggambarkan implementasi MVP saat ini (31 Oktober 2026)
+> **Dokumen teknis:** [`docs/architecture.md`](./architecture.md) · **Skema data:** [`docs/database.md`](./database.md)
+
 Rangkul adalah platform web berbasis komunitas yang menyatukan tiga hal dalam satu tempat: informasi aksesibilitas tempat umum, direktori komunitas disabilitas, dan kegiatan volunteer inklusif.
 
 ---
@@ -31,29 +34,53 @@ Data aksesibilitas dikumpulkan lewat **kontribusi pengguna** (crowdsourcing), bu
 
 ### A. Informasi & Navigasi Tempat Ramah Disabilitas
 
-Pengguna bisa mencari dan menambahkan info aksesibilitas tempat umum: tempat wisata, makan, transportasi umum, tempat ibadah, dan fasilitas kesehatan.
+Pengguna bisa mencari dan menambahkan info aksesibilitas tempat umum. Feed **Jelajahi** menampilkan satu kartu per postingan; satu postingan mewakili satu lokasi dengan satu titik peta.
 
-- Kontribusi berupa foto, lokasi, deskripsi, ulasan, dan daftar fasilitas aksesibilitas (ramp, lift, toilet aksesibel, guiding block, parkir, kondisi pintu masuk dan jalur).
-- Pencarian berdasarkan lokasi, kategori, dan kebutuhan aksesibilitas tertentu.
-- **Pembeda utama:** info sampai level **pintu masuk**. Kalau sebuah bangunan punya beberapa pintu dengan kondisi berbeda, pengguna bisa tahu pintu mana yang ber-ramp dan langsung diarahkan ke sana lewat navigasi.
-- Rating aksesibilitas opsional di akhir posting, sebagai tolok ukur bagi pengguna lain.
+Kategori yang tersedia: **Wisata, Kuliner, Transportasi, Ibadah, Fasilitas Umum, Fasilitas Kesehatan, dan Lainnya**.
+
+**Membuat postingan** (wajib login, lewat `/tambah-info`):
+
+- Nama tempat, kategori, dan cerita pengalaman aksesibilitas (minimal 40 karakter).
+- **Rating pemosting** 1–5 bintang. Rating ini wajib diisi dan menggambarkan penilaian pengunggah, bukan rata-rata ulasan pengguna lain.
+- **Fasilitas disabilitas** berupa checkbox: ramp, lift, toilet aksesibel, guiding block, parkir aksesibel, pintu otomatis, dan pintu lebar. Fasilitas boleh dikosongkan bila belum terverifikasi.
+- Minimal satu foto (maksimal 4 foto, JPG/PNG/WebP, maksimal 5 MB per foto).
+- Titik lokasi di peta atau koordinat manual.
+
+**Melihat postingan:**
+
+- Feed `/jelajahi` selalu diurutkan dari jumlah **“Paling membantu”** terbanyak, lalu postingan terbaru. Pencarian dan filter kategori dilakukan di sisi klien tanpa mengubah urutan tersebut.
+- Kartu menampilkan foto sampul, kategori, lokasi, ringkasan, jumlah like, dan fasilitas yang tercatat.
+- Detail tempat menampilkan carousel foto, rating pemosting, badge **“Ramah Disabilitas”** bila rating ≥ 4, fasilitas yang tercatat, peta lokasi, dan tombol menuju navigasi.
+- Tidak ada lagi halaman atau form ulasan pengguna. Rating komunitas digantikan rating pemosting.
+- Tidak ada pemilihan pintu masuk. Navigasi langsung menuju koordinat lokasi.
+
+**Navigasi** (`/jelajahi/[slug]/navigasi`):
+
+- Rute pejalan kaki dihitung dari **lokasi perangkat** (GPS) ke titik lokasi.
+- Peta Leaflet, garis rute, petunjuk arah teks, estimasi jarak/waktu, dan panduan suara opsional.
+- Bila izin lokasi ditolak atau GPS gagal, pengguna mendapat pesan dan tombol coba lagi; rute tidak digambar dengan titik karangan.
 
 ### B. Direktori Komunitas Inklusif
 
 Direktori komunitas disabilitas dan komunitas inklusif di berbagai daerah Indonesia.
 
-- Pencarian berdasarkan wilayah, fokus kegiatan, dan minat.
-- Tiap komunitas punya profil: nama, deskripsi, wilayah, kontak, media sosial, tautan pendaftaran atau grup komunikasi, dan kegiatan.
-- Pengurus komunitas bisa mendaftarkan komunitasnya lewat formulir, lalu **diverifikasi admin** sebelum tampil di direktori.
+- Hanya komunitas berstatus **VERIFIED** yang tampil publik.
+- Pencarian berdasarkan kata kunci, wilayah, dan fokus kegiatan. Filter berjalan di sisi klien dan disimpan di URL (`q`, `wilayah`, `fokus`).
+- Tiap komunitas punya profil: nama, deskripsi, wilayah, kontak, media sosial, tautan gabung, logo, dan kegiatan terkait.
+- Pengurus komunitas mendaftarkan komunitasnya lewat `/komunitas/daftar` (wajib login). Pengajuan membuat baris `communities` berstatus `PENDING` dan `verification_requests` tipe `COMMUNITY`.
+- Admin memverifikasi lewat `/admin/komunitas`. Setelah disetujui, komunitas tampil di direktori.
 
 ### C. Volunteer Inklusif
 
-Menghubungkan orang yang ingin berkontribusi dengan komunitas atau penyelenggara yang butuh bantuan.
+Menghubungkan orang yang ingin berkontribusi dengan penyelenggara yang butuh bantuan.
 
-- Jenis kegiatan: pendampingan acara, pendataan aksesibilitas tempat, kegiatan sosial, program inklusif lainnya.
-- Penyelenggara (setelah terverifikasi) mempublikasikan dan mengelola kegiatan: lokasi, jadwal, deskripsi tugas, persyaratan, jumlah volunteer yang dibutuhkan, serta mengekspor data pendaftar ke Excel.
-- Pengguna melihat detail kegiatan dan mendaftar langsung di platform.
-- Penyandang disabilitas didorong ikut berpartisipasi, baik sebagai peserta maupun volunteer.
+- Jenis kegiatan: pendampingan acara, pendataan aksesibilitas, kegiatan sosial, program inklusif, dan lainnya.
+- Halaman `/volunteer` menampilkan kegiatan `PUBLISHED` yang belum berakhir. Pencarian dan filter kategori/lokasi/waktu berjalan di sisi klien; detail kegiatan dapat dibuka lewat dialog atau halaman `/volunteer/[slug]`.
+- Pengguna yang login dapat mendaftar sebagai volunteer. Pendaftaran berstatus **PENDING** sampai dikonfirmasi penyelenggara; pengguna dapat membatalkan pendaftaran.
+- Calon penyelenggara mengajukan verifikasi lewat `/volunteer/jadi-penyelenggara` dengan data organisasi, kontak, pengalaman, dan dokumen pendukung. Pengajuan masuk ke `verification_requests` tipe `ORGANIZER`.
+- Setelah disetujui admin, akun berrole **ORGANIZER** dapat membuat kegiatan lewat dashboard (`/dashboard/kegiatan`), mengajukan penerbitan ke admin, menutup kegiatan, mengarsipkan kegiatan, melihat pendaftar, dan mengekspor data pendaftar ke Excel.
+- Perubahan detail kegiatan yang sudah terbit mengirim **notifikasi in-app** ke peserta aktif.
+- Kegiatan yang diarsipkan juga mengirim notifikasi ke peserta.
 
 Ketiga fitur saling terhubung: pengguna yang mencari tempat juga bisa menemukan komunitas dan kegiatan, dan volunteer bisa membantu memperkaya data tempat.
 
@@ -68,30 +95,34 @@ Ketiga fitur saling terhubung: pengguna yang mencari tempat juga bisa menemukan 
 
 ## 5. Alur Pengguna Singkat
 
-**Cari tempat:** buka Jelajahi, cari tempat dengan filter fasilitas, lihat detail dan foto, pilih pintu ber-ramp, lalu navigasi.
+**Cari tempat:** buka Jelajahi, cari atau filter kategori, buka detail, lihat rating pemosting dan fasilitas, lalu mulai navigasi dari lokasi perangkat.
 
-**Tambah info tempat:** pilih Tambah Info, isi detail tempat, tandai lokasi di peta, centang fasilitas, tambahkan pintu masuk dan foto, lalu opsional beri rating.
+**Tambah info tempat:** masuk, buka Tambah Info, isi nama/kategori/cerita, pilih rating 1–5, centang fasilitas yang tersedia, unggah 1–4 foto, tandai titik lokasi, lalu kirim. Postingan langsung tayang bila moderasi AI dimatikan.
 
-**Cari komunitas:** buka Direktori Komunitas, filter wilayah atau fokus, lihat profil, lalu hubungi atau gabung lewat tautan yang tersedia.
+**Cari komunitas:** buka Direktori Komunitas, cari atau filter wilayah/fokus, buka profil, lalu hubungi atau gabung lewat tautan yang tersedia.
 
-**Daftarkan komunitas:** isi formulir pendaftaran, tunggu verifikasi admin, lalu komunitas tampil di direktori.
+**Daftarkan komunitas:** masuk, isi formulir dan unggah logo, tunggu verifikasi admin, lalu komunitas tampil di direktori.
 
-**Jadi volunteer:** buka Volunteer, pilih kegiatan, daftar.
+**Jadi volunteer:** buka Volunteer, pilih kegiatan, masuk bila belum, isi data pendaftaran, lalu tunggu konfirmasi penyelenggara.
 
-**Jadi penyelenggara:** pilih "Daftar Menjadi Penyelenggara", tunggu verifikasi admin, lalu kelola kegiatan lewat dashboard.
+**Jadi penyelenggara:** buka “Jadi penyelenggara”, masuk, kirim pengajuan beserta dokumen, tunggu verifikasi admin, lalu kelola kegiatan lewat dashboard.
 
 ## 6. Kepercayaan & Keamanan
 
 Karena kontennya dari pengguna, platform menjaga kualitas dan keamanan lewat:
 
-- **Moderasi berbantuan AI** untuk menyaring unggahan (info tempat, ulasan, komunitas, kegiatan) dari konten tidak relevan, tidak senonoh, spam, atau berpotensi melanggar hukum. Konten yang terindikasi ditahan untuk ditinjau admin. Prosesnya berjalan di belakang layar, tidak ditampilkan ke pengguna.
+- **Moderasi AI opsional** untuk postingan Jelajahi memakai Gemini. **Saat ini default mati** (`AI_MODERATION_ENABLED=false`), sehingga postingan langsung `PUBLISHED`. Bila diaktifkan, hasil `SAFE` tayang, `REVIEW` ditahan sebagai `PENDING`, `BLOCK` ditolak, dan kegagalan moderasi selalu ditahan (`PENDING`).
 - **Verifikasi admin** untuk komunitas dan penyelenggara kegiatan.
-- **Moderasi kegiatan dan mekanisme pelaporan** untuk konten yang bermasalah.
+- **Moderasi kegiatan** oleh admin sebelum kegiatan tampil publik.
+- **Notifikasi in-app** untuk perubahan atau pengarsipan kegiatan yang diikuti.
+- **Otorisasi di server** untuk semua mutasi; role dibaca dari database, bukan dari client.
+
+Belum tersedia: mekanisme laporan konten (report), antrean moderasi tempat di dashboard admin, dan rate limiting submission.
 
 ## 7. Prinsip Produk
 
 - **Aksesibel sejak awal:** antarmuka sendiri harus ramah penyandang disabilitas (kontras, navigasi keyboard, label jelas, responsif).
-- **Detail lebih berguna daripada rating umum:** informasi spesifik (pintu mana, ramp di mana) lebih berharga daripada sekadar bintang.
+- **Detail lebih berguna daripada rating umum:** fasilitas spesifik dan titik lokasi lebih berharga daripada sekadar bintang. Rating pemosting tetap ditampilkan sebagai konteks, bukan pengganti detail.
 - **Dibangun bersama komunitas:** data dan kegiatan tumbuh dari kontribusi pengguna dan komunitas.
 - **Sederhana dulu:** fokus pada tiga fitur inti, bukan semua hal sekaligus.
 
@@ -99,20 +130,25 @@ Karena kontennya dari pengguna, platform menjaga kualitas dan keamanan lewat:
 
 Halaman yang tersedia:
 
-1. **Beranda:** CTA utama dan jalan pintas ke fitur.
-2. **Jelajahi & Navigasi:** katalog tempat dengan peta, pencarian, detail fasilitas, foto, ulasan, dan petunjuk ke jalur aksesibel.
-3. **Direktori Komunitas:** pencarian komunitas dan formulir pendaftaran komunitas baru.
-4. **Volunteer:** cari dan daftar kegiatan, serta dashboard pengelolaan untuk penyelenggara terverifikasi.
-5. **Tambah / Posting Informasi:** tambah tempat baru dengan titik lokasi, detail, dan foto.
-6. **Ulasan Tempat:** rating aksesibilitas opsional setelah posting.
+1. **Beranda** (`/`): penjelasan platform dan jalan pintas ke tiga fitur.
+2. **Jelajahi** (`/jelajahi`): feed postingan dengan pencarian, filter kategori, dan like.
+3. **Detail tempat** (`/jelajahi/[slug]`): foto, rating pemosting, badge ramah disabilitas, fasilitas, peta, dan tautan navigasi.
+4. **Navigasi** (`/jelajahi/[slug]/navigasi`): rute pejalan kaki dari lokasi perangkat.
+5. **Tambah Info** (`/tambah-info`): form posting tempat bertahap.
+6. **Komunitas** (`/komunitas`, `/komunitas/[slug]`, `/komunitas/daftar`): direktori, profil, dan pendaftaran komunitas.
+7. **Volunteer** (`/volunteer`, `/volunteer/[slug]`, `/volunteer/jadi-penyelenggara`): daftar kegiatan, detail, pendaftaran peserta, dan pengajuan penyelenggara.
+8. **Dashboard penyelenggara** (`/dashboard/kegiatan`): CRUD kegiatan, pendaftar, dan ekspor Excel.
+9. **Dashboard admin** (`/admin`, `/admin/komunitas`, `/admin/penyelenggara`, `/admin/kegiatan`): verifikasi komunitas/penyelenggara dan moderasi kegiatan.
+10. **Auth** (`/masuk`, `/daftar`, `/admin/masuk`, `/auth/callback`): login, registrasi, konfirmasi email, dan login admin.
 
-Dilengkapi desain responsif untuk berbagai perangkat dan penyaringan konten berbantuan AI.
+Dilengkapi desain responsif, navigasi keyboard, dan notifikasi in-app.
 
 ## 9. Pengembangan Lanjutan (Setelah MVP)
 
 - Menyempurnakan produk berdasarkan masukan pengguna dan perwakilan komunitas.
 - Memperluas data tempat dan komunitas.
-- Memperkuat mekanisme verifikasi informasi.
+- Menambahkan mekanisme laporan konten dan antrean moderasi tempat di dashboard admin.
+- Memperkuat verifikasi informasi dan moderasi konten.
 - Menjajaki kolaborasi dengan komunitas disabilitas dan organisasi terkait.
 
 **Target akhir:** MVP Rangkul yang bisa didemonstrasikan di kompetisi, diuji oleh pengguna, dan dikembangkan berdasarkan kebutuhan nyata penyandang disabilitas.

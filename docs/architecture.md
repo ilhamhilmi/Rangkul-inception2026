@@ -1,6 +1,6 @@
 # Arsitektur Rangkul
 
-> **Status:** fondasi desain & arsitektur
+> **Status:** menggambarkan implementasi MVP saat ini
 > **Terakhir diperbarui:** 31 Oktober 2026
 > **Dokumen produk:** [`docs/product.md`](./product.md)
 
@@ -37,27 +37,32 @@ Data tempat dikumpulkan lewat crowdsourcing dan saat ini langsung tayang setelah
 | Framework | Next.js `16.4.3` | App Router, React Server Components |
 | UI runtime | React `19.3.0` | |
 | Bahasa | TypeScript `5.x` strict | `noEmit`, path alias `@/*` |
-| Styling | Tailwind CSS `4.x` | Via `@tailwindcss/turbopack` |
+| Styling | Tailwind CSS `4.x` | Via `@tailwindcss/turbopack`, token di `app/globals.css` |
 | Database | Supabase Postgres | |
-| ORM | Prisma | Runtime pakai pooled URL, migrasi pakai direct URL |
+| ORM | Prisma `6.19.x` | Runtime pakai pooled URL, migrasi pakai direct URL |
 | Auth | Supabase Auth | `@supabase/ssr`, cookie-based |
-| Storage | Supabase Storage | Foto tempat, logo komunitas, cover kegiatan |
-| Peta | Leaflet + OpenStreetMap | Client-only, tanpa API key |
-| Routing | OSRM (profil `foot`) + `Polyline` | Panggilan `fetch` langsung dari client |
-| UI primitives | Radix UI + Tailwind | Bukan shadcn penuh, komponen milik sendiri |
-| Ikon | Lucide React | |
-| Form | React Hook Form + Zod | Validasi ganda client & server |
-| Tanggal | date-fns + locale `id` | Simpan UTC, tampilkan `Asia/Jakarta` |
+| Storage | Supabase Storage | Foto tempat, logo komunitas, cover kegiatan, dokumen verifikasi |
+| Peta | Leaflet + React Leaflet | Client-only, tanpa API key |
+| Routing | OSRM (profil `foot`) | Panggilan `fetch` langsung dari client |
+| UI primitives | Komponen sendiri + Tailwind | Tanpa Radix/cva; ikon SVG di `components/ui/icons.tsx` |
+| Form | React `useActionState` + Server Action + Zod | Validasi ganda client & server |
+| Tanggal & angka | `Intl.DateTimeFormat` / `Intl.NumberFormat` | Locale `id-ID`; tanpa date-fns |
 | Export | ExcelJS | Export pendaftar kegiatan |
+| Moderasi | Gemini API | Opsional; aktif hanya bila `AI_MODERATION_ENABLED=true` |
 
 ### Konfigurasi Next.js yang sudah aktif
 
 `next.config.ts` sudah memakai:
 
 ```ts
+experimental: {
+  agentFeedback: true,
+  serverActions: { bodySizeLimit: "16mb" },
+}
 cacheComponents: true
 partialPrefetching: true
 turbopack.rules["*.css"] = @tailwindcss/turbopack
+turbopack.root = process.cwd()
 ```
 
 Implikasi yang **wajib** dipatuhi:
@@ -274,12 +279,15 @@ Semua komponen di `components/ui` adalah primitif presentational:
 - Tidak melakukan fetch/data access.
 - Tidak mengimpor Prisma, Supabase, atau `server/`.
 - Menerima `className` dan meneruskan props native.
-- Memakai Radix untuk perilaku aksesibel (dialog, select, tabs, tooltip).
-- Varian memakai `class-variance-authority`; penggabungan class memakai `cn()` (`clsx` + `tailwind-merge`).
+- Varian didefinisikan sebagai objek `Record` biasa di dalam komponen (mis. `variants` dan `sizes` di `button.tsx`). Proyek **tidak** memakai Radix, `class-variance-authority`, `clsx`, atau `tailwind-merge`.
+- Penggabungan class memakai `cn()` di `lib/utils/cn.ts`, yang hanya memfilter nilai falsy lalu menggabungkannya dengan spasi.
+- Perilaku aksesibel (dialog, menu, dsb.) ditulis langsung di komponen domain dengan elemen native dan atribut ARIA.
 
-Daftar primitif yang direncanakan:
+Primitif yang **sudah ada** di `components/ui`:
 
-`Button`, `IconButton`, `Input`, `Textarea`, `Select`, `Checkbox`, `RadioGroup`, `Field`, `Label`, `Badge`, `Card`, `Dialog`, `Sheet`, `Tabs`, `Accordion`, `Alert`, `Toast`, `Skeleton`, `Pagination`, `Breadcrumb`, `EmptyState`, `Avatar`, `Tooltip`, `Switch`, `Rating`, `FileDropzone`, `Stepper`.
+`Button`/`ButtonLink`, `Badge`, `Breadcrumb`, `EmptyState`, `Field` (+ hint/error), `FileField`, `Select`, `Skeleton`, `Textarea`, `VerifiedBadge`, `Icons`.
+
+Primitif lain (mis. `Dialog`, `Sheet`, `Tabs`, `Accordion`, `Toast`, `Pagination`, `Avatar`, `Tooltip`, `Switch`, `Stepper`) belum dibuat sebagai komponen `ui`; beberapa perilaku dialog/menu ditulis langsung di komponen domain.
 
 ### 3.8 Checklist aksesibilitas
 
@@ -310,36 +318,40 @@ Setiap halaman dan komponen wajib memenuhi:
 | Route | File | Akses | Keterangan |
 |---|---|---|---|
 | `/` | `app/(public)/page.tsx` | Publik | Beranda, CTA ke 3 fitur |
-| `/jelajahi` | `app/(public)/jelajahi/page.tsx` | Publik | Katalog tempat + filter + peta |
-| `/jelajahi/[slug]` | `app/(public)/jelajahi/[slug]/page.tsx` | Publik | Detail tempat, pintu masuk, foto, ulasan |
-| `/jelajahi/[slug]/navigasi` | `app/(public)/jelajahi/[slug]/navigasi/page.tsx` | Publik | Peta, pilihan pintu, petunjuk arah, panduan suara |
-| `/komunitas` | `app/(public)/komunitas/page.tsx` | Publik | Direktori komunitas |
+| `/jelajahi` | `app/(public)/jelajahi/page.tsx` | Publik | Feed postingan + pencarian + filter kategori di client |
+| `/jelajahi/[slug]` | `app/(public)/jelajahi/[slug]/page.tsx` | Publik | Detail tempat: foto, rating pemosting, fasilitas, peta |
+| `/jelajahi/[slug]/navigasi` | `app/(public)/jelajahi/[slug]/navigasi/page.tsx` | Publik | Navigasi GPS, rute OSRM, petunjuk arah |
+| `/komunitas` | `app/(public)/komunitas/page.tsx` | Publik | Direktori komunitas `VERIFIED` |
 | `/komunitas/[slug]` | `app/(public)/komunitas/[slug]/page.tsx` | Publik | Profil komunitas |
 | `/komunitas/daftar` | `app/(public)/komunitas/daftar/page.tsx` | Login | Formulir pendaftaran komunitas |
-| `/volunteer` | `app/(public)/volunteer/page.tsx` | Publik | Daftar kegiatan |
-| `/volunteer/[slug]` | `app/(public)/volunteer/[slug]/page.tsx` | Publik | Detail kegiatan + daftar |
-| `/tambah-info` | `app/(public)/tambah-info/page.tsx` | Login | Formulir tempat baru |
+| `/volunteer` | `app/(public)/volunteer/page.tsx` | Publik | Daftar kegiatan `PUBLISHED` |
+| `/volunteer/[slug]` | `app/(public)/volunteer/[slug]/page.tsx` | Publik | Detail kegiatan + panel pendaftaran |
+| `/volunteer/jadi-penyelenggara` | `app/(public)/volunteer/jadi-penyelenggara/page.tsx` | Publik (form wajib login) | Pengajuan verifikasi penyelenggara |
+| `/tambah-info` | `app/(public)/tambah-info/page.tsx` | Login | Formulir posting tempat |
 | `/masuk` | `app/(auth)/masuk/page.tsx` | Guest | Login |
 | `/daftar` | `app/(auth)/daftar/page.tsx` | Guest | Registrasi |
-| `/dashboard` | `app/(dashboard)/dashboard/page.tsx` | Organizer/Admin | Ringkasan penyelenggara |
-| `/dashboard/kegiatan` | `app/(dashboard)/dashboard/kegiatan/page.tsx` | Organizer/Admin | Daftar kegiatan milik sendiri |
-| `/dashboard/kegiatan/baru` | `app/(dashboard)/dashboard/kegiatan/baru/page.tsx` | Organizer/Admin | Buat kegiatan |
-| `/dashboard/kegiatan/[id]/edit` | `app/(dashboard)/dashboard/kegiatan/[id]/edit/page.tsx` | Organizer/Admin | Edit kegiatan |
-| `/dashboard/kegiatan/[id]/pendaftar` | `app/(dashboard)/dashboard/kegiatan/[id]/pendaftar/page.tsx` | Organizer/Admin | Tabel pendaftar + export Excel |
-| `/admin` | `app/admin/page.tsx` | Admin | Antrean moderasi |
-| `/admin/tempat` | `app/admin/tempat/page.tsx` | Admin | Moderasi tempat |
-| `/admin/komunitas` | `app/admin/komunitas/page.tsx` | Admin | Verifikasi komunitas |
-| `/admin/penyelenggara` | `app/admin/penyelenggara/page.tsx` | Admin | Verifikasi penyelenggara |
-| `/admin/laporan` | `app/admin/laporan/page.tsx` | Admin | Laporan konten |
-| `/api/health` | `app/api/health/route.ts` | Internal | Health check |
-| `/api/moderasi` | `app/api/moderasi/route.ts` | Internal | Webhook moderasi (opsional) |
+| `/auth/callback` | `app/auth/callback/route.ts` | Publik | Tukar kode konfirmasi Supabase, buat profil, redirect `next` |
+| `/dashboard` | `app/dashboard/page.tsx` | Organizer/Admin | Redirect ke `/dashboard/kegiatan` |
+| `/dashboard/kegiatan` | `app/dashboard/kegiatan/page.tsx` | Organizer/Admin | Daftar kegiatan milik sendiri |
+| `/dashboard/kegiatan/baru` | `app/dashboard/kegiatan/baru/page.tsx` | Organizer/Admin | Buat kegiatan |
+| `/dashboard/kegiatan/[id]/edit` | `app/dashboard/kegiatan/[id]/edit/page.tsx` | Organizer/Admin | Edit kegiatan |
+| `/dashboard/kegiatan/[id]/pendaftar` | `app/dashboard/kegiatan/[id]/pendaftar/page.tsx` | Organizer/Admin | Tabel pendaftar |
+| `/dashboard/kegiatan/[id]/pendaftar/export` | route handler | Organizer/Admin | Export Excel pendaftar |
+| `/admin/masuk` | `app/admin/(auth)/masuk/page.tsx` | Guest | Login khusus admin |
+| `/admin` | `app/admin/(dashboard)/page.tsx` | Admin | Ringkasan antrean verifikasi |
+| `/admin/komunitas` | `app/admin/(dashboard)/komunitas/page.tsx` | Admin | Verifikasi komunitas |
+| `/admin/penyelenggara` | `app/admin/(dashboard)/penyelenggara/page.tsx` | Admin | Verifikasi penyelenggara |
+| `/admin/kegiatan` | `app/admin/(dashboard)/kegiatan/page.tsx` | Admin | Moderasi/penerbitan kegiatan |
+
+Tidak ada route `/admin/tempat`, `/admin/laporan`, `/api/health`, atau `/api/moderasi` pada implementasi saat ini.
 
 Aturan akses:
 
-- **Guest** boleh menjelajah tempat, komunitas, dan kegiatan.
-- **User** (login) boleh menambah tempat, memberi ulasan, mendaftar volunteer, dan mengajukan komunitas.
-- **Organizer** (terverifikasi) boleh mengelola kegiatan dan mengekspor pendaftar.
-- **Admin** boleh memoderasi konten, memverifikasi komunitas/penyelenggara, dan menangani laporan.
+- **Guest** boleh menjelajah tempat, komunitas, kegiatan, dan melihat halaman pengajuan penyelenggara.
+- **User** (login) boleh menambah tempat, memberi “Paling membantu”, mendaftar volunteer, dan mengajukan komunitas/penyelenggara.
+- **Organizer** (terverifikasi) boleh mengelola kegiatan miliknya, melihat pendaftar, dan mengekspor data.
+- **Admin** boleh memverifikasi komunitas/penyelenggara, menerbitkan/menolak kegiatan, dan melihat seluruh kegiatan.
+- Semua guard halaman memakai `getAuthorizedProfile()` + `redirect` atau `requireOrganizer()`/`requireAdmin()`; server action memakai guard yang sama.
 
 ---
 
@@ -349,11 +361,10 @@ Aturan akses:
 app/
   layout.tsx                    # html lang="id", font, metadata, skip link
   globals.css                   # design tokens + base + components + utilities
-  not-found.tsx
-  error.tsx
+  icon.svg
   (public)/
     layout.tsx                  # SiteHeader + main#konten-utama + SiteFooter
-    page.tsx
+    page.tsx                    # landing
     jelajahi/
       page.tsx
       [slug]/page.tsx
@@ -365,41 +376,43 @@ app/
     volunteer/
       page.tsx
       [slug]/page.tsx
+      jadi-penyelenggara/page.tsx
     tambah-info/page.tsx
   (auth)/
     layout.tsx                  # layout minimal tanpa header publik
     masuk/page.tsx
     daftar/page.tsx
-  (dashboard)/
-    dashboard/
-      layout.tsx                # shell + sidebar + guard organizer
+  dashboard/                    # bukan route group; guard ada di layout.tsx
+    layout.tsx
+    page.tsx                    # redirect ke /dashboard/kegiatan
+    kegiatan/
       page.tsx
-      kegiatan/
-        page.tsx
-        baru/page.tsx
-        [id]/edit/page.tsx
-        [id]/pendaftar/page.tsx
+      baru/page.tsx
+      [id]/edit/page.tsx
+      [id]/pendaftar/page.tsx
+      [id]/pendaftar/export/route.ts
   admin/
-    layout.tsx                  # guard admin
-    page.tsx
-    tempat/page.tsx
-    komunitas/page.tsx
-    penyelenggara/page.tsx
-    laporan/page.tsx
-  api/
-    health/route.ts
-    moderasi/route.ts
+    (auth)/
+      layout.tsx
+      masuk/page.tsx
+    (dashboard)/
+      layout.tsx                # guard admin + navigasi
+      page.tsx
+      komunitas/page.tsx
+      penyelenggara/page.tsx
+      kegiatan/page.tsx
+  auth/callback/route.ts
 
 components/
   ui/                           # primitif desain, tanpa data
-  layout/                       # header, footer, nav, container, skip link
-  places/                       # komponen domain tempat
-  communities/                  # komponen domain komunitas
-  volunteer/                    # komponen domain kegiatan
-  admin/                        # komponen moderasi & verifikasi
-  map/                          # Leaflet, marker, routing, fallback
-  auth/                         # form auth, role badge
-  feedback/                     # empty state, error state, skeleton
+  layout/                       # header, footer, brand, auth nav, notification menu
+  places/                       # feed, form posting, kartu, rating, badge, filter
+  communities/                  # direktori, filter, kartu, form, profil
+  volunteer/                    # eksplorasi, kartu, dialog, form, pendaftaran
+  admin/                        # form login admin, aksi review
+  map/                          # Leaflet, marker, routing, fallback, navigasi
+  auth/                         # form login/daftar
+  feedback/                     # (belum ada komponen terpisah; empty state di ui/)
 
 lib/
   db/prisma.ts                  # singleton Prisma
@@ -407,46 +420,58 @@ lib/
     server.ts                   # createServerClient + cookies
     client.ts                   # browser client
     admin.ts                    # service role (server-only)
-    storage.ts                  # helper upload & URL
+    storage.ts                  # signed upload/download URL
+    buckets.ts                  # nama bucket
   auth/
-    session.ts                  # getCurrentUser
-    guards.ts                   # requireUser/requireOrganizer/requireAdmin
-  validation/                   # skema Zod per domain
-  moderation/                   # client AI + policy
-  map/                          # konfigurasi tile, OSRM
-  constants/                    # site config, nav, kategori, fitur
-  utils/                        # cn, format tanggal, slug, pagination
-  env.ts                        # validasi environment
+    session.ts                  # getAuthUser/getCurrentUser/getCurrentProfile
+    guards.ts                   # requireUser/requireOrganizer/requireAdmin/getAuthorizedProfile
+  ai/moderation.ts              # klien Gemini + fallback
+  volunteer/                    # action, data, schema, status, filter, upload
+  validation/                   # skema Zod komunitas & posting
+  storage/place-photos.ts       # upload foto posting via sesi server
+  constants/                    # site config, kategori, fitur, komunitas, foto
+  map/                          # OSRM, geo, tile
+  utils/                        # cn, format, slug, redirect, image
+  env.ts / env/public.ts        # validasi environment
 
 server/
   places/queries.ts             # "use cache" + cacheTag
   places/actions.ts             # "use server" + auth + Zod + revalidate
+  places/mappers.ts             # Prisma → tipe UI
   communities/queries.ts
   communities/actions.ts
-  volunteer/queries.ts
-  volunteer/actions.ts
   admin/queries.ts
   admin/actions.ts
-  moderation/actions.ts
+  admin/auth-actions.ts
+  auth/actions.ts
+  notifications/queries.ts
+  notifications/actions.ts
 
 hooks/                          # client hooks saja
 types/                          # tipe domain bersama
 prisma/
   schema.prisma
   seed.ts
+  seed-data.ts
 public/
   images/
-  icons/
-  og/
 docs/
   product.md
   architecture.md
+  database.md
+  design-system.md
+  volunteer-admin-integration.md
 proxy.ts                        # refresh sesi Supabase (Next 16)
 ```
 
-Struktur di atas sudah dibuat sebagai direktori kosong (tanpa `.gitkeep`). Ingat: Git tidak melacak folder kosong, jadi folder baru hanya akan muncul di riwayat commit setelah ada file pertama di dalamnya. Folder route tanpa `page.tsx` tidak menghasilkan URL, aman dibuat sejak awal.
+Catatan struktur:
 
-Gunakan daftar ini sebagai peta saat menambahkan file: letakkan file di folder yang sama dengan tanggung jawabnya, dan jangan membuat folder baru tanpa alasan di `architecture.md`.
+- Route dashboard berada di `app/dashboard`, bukan route group `(dashboard)`.
+- Modul Volunteer tidak memakai `server/volunteer`; logikanya ada di `lib/volunteer`.
+- Notifikasi memakai `server/notifications`.
+- Folder route tanpa `page.tsx` tidak menghasilkan URL; jangan menambahkan folder baru tanpa alasan yang jelas.
+- `error.tsx`/`not-found.tsx` hanya ada di route yang membutuhkannya saat ini: `app/(public)/volunteer/error.tsx`, `app/dashboard/error.tsx`, serta `not-found.tsx` di detail komunitas dan detail volunteer. Tidak ada error boundary global di root.
+- Folder kosong sisa scaffold (`app/api`, `app/admin/tempat`, `app/admin/laporan`, `app/(dashboard)`) tidak menghasilkan route dan tidak dilacak Git; jangan dianggap fitur yang sudah ada.
 
 ---
 
@@ -462,11 +487,11 @@ components/ ┘
 
 Aturan konkret:
 
-1. **`app/**/page.tsx`** hanya menyusun UI dan memanggil `server/<domain>/queries.ts`. Tidak boleh mengimpor Prisma.
-2. **`components/ui/*`** tidak boleh mengimpor domain, `server/`, Prisma, atau Supabase. Hanya props, Tailwind, Radix.
-3. **`components/<domain>/*`** boleh mengimpor `ui`, `lib/utils`, `types`, dan server action dari `server/<domain>/actions.ts`. Tidak boleh mengimpor query atau Prisma.
+1. **`app/**/page.tsx`** hanya menyusun UI dan memanggil query dari `server/<domain>/queries.ts` atau `lib/volunteer/data.ts`. Tidak boleh mengimpor Prisma.
+2. **`components/ui/*`** tidak boleh mengimpor domain, `server/`, Prisma, atau Supabase. Hanya props dan Tailwind.
+3. **`components/<domain>/*`** boleh mengimpor `ui`, `lib/utils`, `types`, dan server action dari `server/<domain>/actions.ts`, `lib/volunteer/actions.ts`, atau `server/notifications/actions.ts`. Tidak boleh mengimpor query atau Prisma.
 4. **`server/*`** boleh mengimpor `lib`, Prisma, dan `types`. Tidak boleh mengimpor komponen React.
-5. **`lib/*`** harus framework-agnostic. Pengecualian: `lib/supabase/server.ts`, `lib/supabase/admin.ts`, dan `lib/db/prisma.ts` hanya untuk server bundle.
+5. **`lib/*`** harus framework-agnostic dengan pengecualian: modul server-only (`lib/supabase/server.ts`, `lib/supabase/admin.ts`, `lib/db/prisma.ts`, `lib/storage/*`, `lib/volunteer/actions.ts`, `lib/volunteer/data.ts`, `lib/ai/moderation.ts`) hanya untuk server bundle.
 6. **`hooks/*`** selalu client (`"use client"`), tidak boleh mengimpor `server/`.
 7. **`types/*`** tidak boleh mengimpor runtime code.
 8. **Tidak ada barrel `index.ts`.** Impor langsung ke file untuk menghindari circular dependency dan bundle bloat.
@@ -494,21 +519,31 @@ Page (Server Component)
 ### 7.2 Menulis data
 
 ```text
-Client form (React Hook Form + Zod)
+Client form (useActionState + Zod)
   └─ server/<domain>/actions.ts  ("use server")
        ├─ requireUser / requireOrganizer / requireAdmin
        ├─ Zod parse (sumber kebenaran)
-       ├─ moderasi AI (fail-closed → PENDING)
+       ├─ moderasi AI bila aktif (fail-closed → PENDING)
        ├─ Prisma write
        └─ updateTag / revalidatePath → redirect
 ```
 
-Setiap action mengembalikan `ActionResult<T>`:
+Saat `AI_MODERATION_ENABLED=false` (default), postingan tempat langsung `PUBLISHED` tanpa memanggil Gemini. Saat aktif, kegagalan moderasi selalu menghasilkan `PENDING`.
+
+Bentuk hasil action mengikuti domainnya:
 
 ```ts
-type ActionResult<T> =
+// Posting tempat & pendaftaran komunitas
+type FormState = {
+  status: "idle" | "success" | "error";
+  message?: string;
+  fieldErrors?: Record<string, string[]>;
+};
+
+// Volunteer (lib/volunteer/action-state.ts)
+type VolunteerActionResult<T = undefined> =
   | { ok: true; data: T }
-  | { ok: false; message: string; fieldErrors?: Record<string, string[]> };
+  | { ok: false; code: VolunteerActionCode; message: string; fieldErrors?: VolunteerFieldErrors };
 ```
 
 Jangan melempar error mentah ke client. Pesan error harus ramah pengguna dan tidak membocorkan detail internal.
@@ -518,23 +553,44 @@ Jangan melempar error mentah ke client. Pesan error harus ramah pengguna dan tid
 ```ts
 "use server";
 
-export async function createPlace(input: unknown): Promise<ActionResult<{ slug: string }>> {
-  const user = await requireUser();
-  const parsed = placeSchema.safeParse(input);
+export async function createPlacePostAction(
+  _previousState: PlacePostFormState,
+  formData: FormData,
+): Promise<PlacePostFormState> {
+  const user = await requireUser("/tambah-info");
+  const parsed = placePostSchema.safeParse({
+    name: formData.get("name"),
+    category: formData.get("category"),
+    description: formData.get("description"),
+    rating: formData.get("rating"),
+    facilities: formData.getAll("facilities"),
+    latitude: formData.get("lat"),
+    longitude: formData.get("lng"),
+  });
   if (!parsed.success) {
-    return { ok: false, message: "Periksa kembali data tempat.", fieldErrors: parsed.error.flatten().fieldErrors };
+    return { status: "error", message: "Periksa kembali isian postinganmu.", fieldErrors: /* ... */ };
   }
 
-  const moderation = await moderateContent({ type: "place", text: parsed.data.description });
-  const status = moderation.decision === "APPROVED" ? "PUBLISHED" : "PENDING";
+  const moderation = isModerationEnabled()
+    ? await moderatePlacePost(parsed.data)
+    : null;
+  const status = moderation
+    ? moderation.verdict === "SAFE" ? "PUBLISHED" : moderation.verdict === "BLOCK" ? "REJECTED" : "PENDING"
+    : "PUBLISHED";
 
-  const place = await prisma.place.create({
-    data: { ...parsed.data, status, createdById: user.id },
+  await prisma.place.create({
+    data: {
+      ...parsed.data,
+      slug,
+      status,
+      posterRating: parsed.data.rating,
+      facilities: parsed.data.facilities,
+      createdById: user.id,
+    },
   });
 
   updateTag("places");
-  updateTag(`place:${place.slug}`);
-  redirect(`/jelajahi/${place.slug}`);
+  updateTag(`place:${slug}`);
 }
 ```
 
@@ -546,29 +602,27 @@ Karena `cacheComponents: true`:
 
 | Kebutuhan | Pola |
 |---|---|
-| Katalog tempat/komunitas/kegiatan | `"use cache"` + `cacheTag("places")` + `cacheLife("hours")` |
-| Detail tempat | `"use cache"` + `cacheTag(\`place:${slug}\`)` + `cacheLife("days")` |
-| Hasil filter/pencarian | Query request-time di dalam `<Suspense>`; boleh `"use cache"` dengan tag + `cacheLife("minutes")` |
-| Dashboard/admin | Tanpa cache; bungkus bagian dinamis dengan `<Suspense>` |
-| Setelah create/update/delete | `updateTag(tag)` untuk read-your-own-writes, atau `revalidateTag(tag, "max")` untuk background |
-| Setelah perubahan yang memengaruhi banyak halaman | `revalidatePath("/jelajahi")` |
+| Feed tempat (`getPlaceSummaries`, `getPlaceCount`) | `"use cache"` + `cacheTag("places")` + `cacheLife("minutes")` |
+| Detail tempat (`getPlaceBySlug`) | `"use cache"` + `cacheTag("places")`, `cacheTag(\`place:${slug}\`)`, `cacheLife("days")` |
+| Direktori komunitas | `"use cache"` + `cacheTag("communities")` + `cacheLife("minutes")` |
+| Detail komunitas | `"use cache"` + `cacheTag(\`community:${slug}\`)` + `cacheLife("days")` |
+| Komunitas terkait | `"use cache"` + `cacheTag("communities")` + `cacheLife("hours")` |
+| Volunteer, dashboard, admin, notifikasi | Tanpa cache; bagian dinamis memakai `connection()` dan/atau `<Suspense>` |
+| Setelah create/update/delete | `updateTag(tag)` untuk data ter-cache, atau `revalidatePath()` untuk halaman volunteer/admin |
+| Setelah like | `updateTag("places")` + `updateTag(\`place:${slug}\`)` |
 
-Tag yang disepakati:
+Tag yang dipakai saat ini:
 
 ```text
 places
 place:{slug}
 communities
 community:{slug}
-events
-event:{slug}
-reviews:{placeId}
-admin:moderation
-admin:verifications
 ```
 
-Aturan:
+Catatan penting:
 
+- `getPlaceBySlug` di-cache hingga berhari-hari. Hasil `null` (404) juga dapat tersimpan di cache sampai `.next/cache` dibersihkan atau tag terkait diinvalidasi. Saat menguji halaman yang baru dibuat, pastikan cache tidak menyimpan 404 lama.
 - Jangan memakai `export const dynamic/revalidate/fetchCache`.
 - Jangan memanggil `cookies()`/`headers()` di dalam fungsi `"use cache"`.
 - Jangan menyimpan data sensitif di cache publik.
@@ -582,10 +636,11 @@ Aturan:
 
 1. Login/registrasi lewat Supabase Auth.
 2. Sesi disimpan di cookie HTTP-only oleh `@supabase/ssr`.
-3. `proxy.ts` me-refresh sesi pada request yang cocok.
+3. `proxy.ts` me-refresh sesi pada request yang cocok (hanya bila env Supabase terisi).
 4. `lib/auth/session.ts` memanggil `supabase.auth.getUser()` di server.
-5. Profil aplikasi disimpan di tabel `Profile` dengan `id` = UUID Supabase Auth.
-6. `ensureProfile()` membuat profil jika belum ada (dipanggil di layout authenticated atau callback).
+5. Profil aplikasi disimpan di tabel `profiles` dengan `id` = UUID Supabase Auth.
+6. `getCurrentProfile()`/`ensureProfile()` membuat profil jika belum ada. Profil juga dibuat di `/auth/callback` setelah konfirmasi email.
+7. Redirect setelah login memakai `safeNextPath()`: hanya path internal yang diawali `/` dan bukan halaman auth. Login admin memakai `safeAdminNextPath()` yang membatasi tujuan ke area `/admin`.
 
 ### 9.2 Role
 
@@ -599,13 +654,10 @@ enum Role {
 
 - Role disimpan di database, bukan di cookie/client.
 - Setiap server action memanggil guard sebelum menyentuh data.
-- Guard mengembalikan user atau `redirect("/masuk?next=...")`.
-
-```ts
-export async function requireUser() { /* ... */ }
-export async function requireOrganizer() { /* ... */ }
-export async function requireAdmin() { /* ... */ }
-```
+- `requireUser(nextPath)` me-redirect ke `/masuk?next=...` bila belum login.
+- `requireOrganizer()` dan `requireAdmin()` melempar `AuthorizationError` bila role tidak cocok.
+- `getAuthorizedProfile(roles)` dipakai untuk mengecek tanpa redirect; halaman dashboard/admin menampilkan pesan “tidak memiliki akses” alih-alih error.
+- Login admin (`/admin/masuk`) memverifikasi role `ADMIN` setelah Supabase auth; akun non-admin langsung di-sign-out.
 
 ### 9.3 Catatan Supabase + Prisma
 
@@ -626,19 +678,20 @@ Prisma terhubung langsung ke Postgres, sehingga **RLS Supabase tidak berlaku unt
 
 | Entitas | Field penting |
 |---|---|
-| `Profile` | `id` (UUID auth), `name`, `role`, `avatarUrl`, `createdAt` |
-| `Place` | `slug`, `name`, `category`, `description`, `address`, `city`, `province`, `lat`, `lng`, `status`, `createdById`, `ratingAvg`, `reviewCount` |
-| `Entrance` | `placeId`, `label`, `lat`, `lng`, `photoUrl`, `isMain`, `notes` |
-| `AccessibilityFeature` | `key`, `label`, `category`, `icon` |
-| `EntranceFeature` | `entranceId`, `featureId`, `value` (`AVAILABLE/NOT_AVAILABLE/UNKNOWN`), `notes` |
-| `PlacePhoto` | `placeId`, `url`, `alt`, `order` |
-| `Review` | `placeId`, `authorId`, `rating` (1–5), `body`, `status` |
+| `Profile` | `id` (UUID auth), `name`, `email`, `role`, `avatarUrl`, `bio`, `createdAt` |
+| `Place` | `slug`, `name`, `category`, `description`, `address`, `city`, `province`, `lat`, `lng`, `status`, `createdById`, `posterRating`, `facilities[]`, `ratingAvg`/`reviewCount` (legacy) |
+| `Entrance` | `placeId`, `label`, `latitude`, `longitude`, `photoUrl`, `isMain`, `notes` (data legacy) |
+| `AccessibilityFeature` | `key`, `label`, `shortLabel`, `category`, `icon` |
+| `EntranceFeature` | `entranceId`, `featureId`, `value` (`AVAILABLE/NOT_AVAILABLE/UNKNOWN`), `notes` (legacy) |
+| `PlacePhoto` | `placeId`, `url`, `alt`, `sortOrder`, `createdById` |
+| `Review` | `placeId`, `authorId`, `rating` (1–5), `body`, `status` — **legacy, tidak dipakai UI** |
+| `PlaceLike` | `placeId`, `userId`, unik `(placeId, userId)` |
 | `Community` | `slug`, `name`, `description`, `province`, `city`, `focus[]`, `contact`, `socials`, `joinUrl`, `logoUrl`, `status`, `ownerId`, `verifiedAt` |
-| `VolunteerEvent` | `slug`, `organizerId`, `communityId?`, `title`, `description`, `category`, `location`, `lat`, `lng`, `startsAt`, `endsAt`, `requirements`, `slots`, `status` |
+| `VolunteerEvent` | `slug`, `organizerId`, `communityId?`, `title`, `description`, `category`, `locationName`, `address`, `lat`, `lng`, `startsAt`, `endsAt`, `requirements`, `slots`, `registeredCount`, `status`, `moderationNote` |
 | `EventRegistration` | `eventId`, `userId`, `name`, `email`, `phone`, `accessibilityNeeds`, `status`; unik `(eventId, userId)` |
-| `VerificationRequest` | `type` (`COMMUNITY/ORGANIZER`), `payload`, `status`, `reviewedById`, `reviewedAt` |
-| `Report` | `reporterId`, `targetType`, `targetId`, `reason`, `status` |
-| `ModerationLog` | `contentType`, `contentId`, `provider`, `score`, `labels`, `decision`, `reviewedById`, `createdAt` |
+| `VerificationRequest` | `type` (`COMMUNITY/ORGANIZER`), `payload`, `documentUrl`, `status`, `reviewerId`, `reviewedAt` |
+| `Notification` | `userId`, `type` (`EVENT_UPDATED/EVENT_ARCHIVED`), `title`, `body`, `href`, `eventId?`, `readAt`, `createdAt` |
+| `Report`, `ModerationLog` | **belum ada di schema**; rencana |
 
 ### 10.2 Relasi
 
@@ -646,34 +699,38 @@ Prisma terhubung langsung ke Postgres, sehingga **RLS Supabase tidak berlaku unt
 Profile 1─* Place
 Place   1─* Entrance 1─* EntranceFeature *─1 AccessibilityFeature
 Place   1─* PlacePhoto
-Place   1─* Review *─1 Profile
+Place   1─* PlaceLike *─1 Profile
+Place   1─* Review *─1 Profile (legacy)
 Profile 1─* Community (owner)
-Community 1─* VolunteerEvent
 Profile 1─* VolunteerEvent (organizer)
 VolunteerEvent 1─* EventRegistration *─1 Profile
+VolunteerEvent 1─* Notification
 Profile 1─* VerificationRequest
-Profile 1─* Report
+Profile 1─* Notification
 ```
+
+`Community` dan `VolunteerEvent` belum terhubung lewat FK; `volunteer_events.community_id` masih kolom nullable tanpa relasi.
 
 ### 10.3 Status konten
 
 | Entitas | Status |
 |---|---|
 | `Place` | `PENDING`, `PUBLISHED`, `REJECTED`, `ARCHIVED` |
-| `Review` | `PENDING`, `PUBLISHED`, `REJECTED` |
+| `Review` (legacy) | `PENDING`, `PUBLISHED`, `REJECTED` |
 | `Community` | `PENDING`, `VERIFIED`, `REJECTED`, `SUSPENDED` |
 | `VolunteerEvent` | `DRAFT`, `PENDING`, `PUBLISHED`, `CLOSED`, `REJECTED` |
 | `EventRegistration` | `PENDING`, `CONFIRMED`, `CANCELLED` |
-| `Report` | `OPEN`, `REVIEWING`, `RESOLVED`, `DISMISSED` |
+| `VerificationRequest` | `PENDING`, `APPROVED`, `REJECTED` |
 
 ### 10.4 Aturan data
 
 - Semua ID memakai `uuid` atau `cuid`; jangan auto-increment yang bisa ditebak.
 - `slug` unik dan stabil; jangan berubah setelah publikasi tanpa redirect.
 - Simpan waktu dalam UTC (`timestamptz`).
-- Rating agregat dihitung ulang setelah review dipublikasikan.
-- `EntranceFeature` adalah sumber kebenaran untuk filter fasilitas. Jangan menyimpan duplikasi daftar fasilitas di `Place` kecuali sebagai cache agregat yang punya mekanisme sinkronisasi.
+- Rating tempat yang ditampilkan berasal dari `places.posterRating` (1–5). `ratingAvg`/`reviewCount` adalah agregat legacy dari `reviews` dan tidak dibaca UI.
+- Fasilitas postingan baru disimpan di `places.facilities`; fasilitas `entrance_features` hanya untuk data legacy dan digabung saat mapping.
 - Hapus data memakai soft delete (`archivedAt`) untuk konten publik.
+- Status kegiatan hanya boleh diubah lewat server action dengan guard; `published_at` diisi admin saat menerbitkan.
 
 ---
 
@@ -683,24 +740,33 @@ Bucket Supabase Storage:
 
 | Bucket | Isi | Akses |
 |---|---|---|
-| `place-photos` | foto tempat & pintu masuk | public read, authenticated write |
-| `community-logos` | logo komunitas | public read, authenticated write |
-| `event-covers` | cover kegiatan | public read, authenticated write |
+| `place-photos` | foto postingan tempat | public read, authenticated write (folder milik sendiri) |
+| `community-logos` | logo komunitas | public read, authenticated write (folder milik sendiri) |
+| `event-covers` | cover kegiatan | public read, authenticated write (folder milik sendiri) |
+| `verification-docs` | dokumen verifikasi penyelenggara | privat; hanya admin lewat signed URL |
 
-Alur upload (menghindari limit body server action):
+Aturan upload per bucket:
+
+Alur upload saat ini:
 
 ```text
-1. Client minta signed upload URL → server action (guard + validasi tipe/ukuran)
+Foto postingan Jelajahi:
+1. Form mengirim file ke Server Action createPlacePostAction (body limit 16 MB)
+2. Server Action memvalidasi tipe/ukuran, mengunggah ke Storage memakai sesi pengguna
+3. Baris place + place_photos dibuat; jika gagal, foto yang sudah terunggah dihapus (best-effort)
+
+Logo komunitas, cover kegiatan, dokumen verifikasi:
+1. Client minta signed upload URL ke Server Action (guard + validasi tipe/ukuran)
 2. Client upload langsung ke Supabase Storage
-3. Client kirim URL + alt text → server action simpan record
-4. Server action revalidate cache terkait
+3. Client mengirim path → Server Action menyimpan record
+4. Server Action revalidasi cache/path terkait
 ```
 
 Aturan:
 
-- Format: JPEG, PNG, WebP. **Tidak menerima SVG.**
+- Format gambar: JPEG, PNG, WebP. **Tidak menerima SVG.** Dokumen verifikasi juga menerima PDF.
 - Ukuran maksimal 5MB per file.
-- Nama file acak: `{userId}/{uuid}.{ext}`.
+- Nama file acak: `{userId}/{uuid}.{ext}` atau `{prefix}/{userId}/{uuid}.{ext}`.
 - Alt text wajib untuk foto konten; foto dekoratif `alt=""`.
 - Validasi MIME di server, bukan hanya `accept` di input.
 - Jangan pernah mengekspos service role key ke client.
@@ -712,37 +778,34 @@ Aturan:
 
 ### 12.1 Tujuan
 
-Menyaring konten pengguna (tempat, ulasan, komunitas, kegiatan) dari spam, konten tidak senonoh, ujaran kebencian, dan potensi pelanggaran hukum. Proses berjalan di belakang layar dan tidak ditampilkan ke pengguna.
+Menyaring **postingan tempat** dari spam, konten tidak senonoh, ujaran kebencian, dan potensi pelanggaran hukum. Moderasi berjalan di belakang layar dan tidak menampilkan alasan mentah ke pengguna.
+
+Saat ini moderasi AI **default mati** (`AI_MODERATION_ENABLED=false`). Komunitas dan kegiatan tetap melewati verifikasi/moderasi admin, bukan AI.
 
 ### 12.2 Kontrak
 
 ```ts
-type ModerationInput = {
-  type: "place" | "review" | "community" | "event";
-  text: string;
-  images?: string[];
-};
+type ModerationVerdict = "SAFE" | "REVIEW" | "BLOCK";
 
 type ModerationResult = {
-  decision: "APPROVED" | "PENDING" | "REJECTED";
-  score: number;
-  labels: string[];
-  reason?: string;
-  provider: string;
+  verdict: ModerationVerdict;
+  reason: string;
+  source: "ai" | "fallback";
 };
 ```
 
-Implementasi di `lib/moderation/client.ts` dengan antarmuka provider-agnostic. Provider dipilih lewat env.
+Implementasi: `lib/ai/moderation.ts` memakai Gemini `generateContent` dengan `responseSchema` JSON. Provider dan model diatur lewat `GEMINI_API_KEY` dan `GEMINI_MODERATION_MODEL` (default `gemini-3.1-flash-lite`).
 
 ### 12.3 Aturan
 
-- **Fail-closed:** timeout, error jaringan, atau respons tidak valid → `PENDING`.
-- Moderasi berjalan **sebelum** konten dipublikasikan.
-- `APPROVED` → status publikasi; `PENDING`/`REJECTED` → masuk antrean admin.
-- Admin bisa override keputusan; semua override dicatat di `ModerationLog`.
+- **Fail-closed:** key belum diisi, timeout (20 detik), error HTTP, atau respons tidak valid → `REVIEW`, yang dipetakan action menjadi `PENDING`.
+- Moderasi berjalan **sebelum** postingan disimpan bila diaktifkan.
+- `SAFE` → `PUBLISHED`; `REVIEW` → `PENDING`; `BLOCK` → `REJECTED`.
+- Saat moderasi mati, postingan langsung `PUBLISHED`, `moderated_at = NULL`, dan catatan “Moderasi AI dinonaktifkan sementara.”.
+- Admin belum memiliki antrean moderasi tempat; postingan `PENDING` belum punya UI peninjauan.
 - Jangan menampilkan alasan moderasi mentah ke pengguna.
-- Rate limit submission untuk mencegah spam (lihat risiko terbuka).
-- Moderasi bukan pengganti verifikasi admin untuk komunitas/penyelenggara.
+- Rate limit submission belum diterapkan (lihat risiko terbuka).
+- Moderasi bukan pengganti verifikasi admin untuk komunitas/penyelenggara/kegiatan.
 
 ---
 
@@ -865,34 +928,42 @@ Buat `.env.local` (tidak di-commit):
 # App
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
-# Supabase (dipakai pada fase auth; belum diperlukan Fitur 1)
+# Supabase Auth & Storage
 NEXT_PUBLIC_SUPABASE_URL=
+# Isi salah satu: publishable key (project baru) atau anon key (project lama)
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
 # Database (Prisma)
-# Runtime: pooled connection Supabase (port 6543, transaction mode)
+# Runtime: pooled connection Supabase (port 6543, pgbouncer=true)
 DATABASE_URL=
-# Migrasi: session/direct connection (port 5432)
+# Migrasi: direct/session connection (port 5432)
 DIRECT_URL=
 
-# Moderasi AI
-MODERATION_PROVIDER=
-MODERATION_API_KEY=
+# Moderasi AI (Gemini)
+AI_MODERATION_ENABLED=false
+GEMINI_API_KEY=
+GEMINI_MODERATION_MODEL=gemini-3.1-flash-lite
 
 # Peta & routing
 NEXT_PUBLIC_MAP_TILE_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
 NEXT_PUBLIC_MAP_ATTRIBUTION=&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors
-# Harus mendukung profil pejalan kaki.
 NEXT_PUBLIC_OSRM_URL=https://routing.openstreetmap.de/routed-foot
+
+# Seed opsional
+SEED_ADMIN_EMAIL=
+SEED_ORGANIZER_EMAIL=
+SEED_ALLOW_ROLE_PROMOTION=false
 ```
 
 Aturan:
 
 - Hanya variabel `NEXT_PUBLIC_*` yang boleh dipakai di client.
-- `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL`, dan `MODERATION_API_KEY` hanya di server.
-- `lib/env.ts` memvalidasi env dengan Zod. `mapEnv` dibaca langsung dari `process.env.NEXT_PUBLIC_*` saat modul dimuat agar bisa di-inline; `assertDatabaseEnv()` dipanggil lazy di `lib/db/prisma.ts` supaya `next build` tidak butuh koneksi database.
-- Prisma CLI tidak membaca `.env.local`. Script `db:*` di `package.json` memakai `dotenv-cli` (`dotenv -e .env.local -- prisma ...`).
+- `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL`, dan `GEMINI_API_KEY` hanya di server.
+- `lib/env.ts` memvalidasi env dengan Zod. Env publik dibaca lewat `lib/env/public.ts`; `assertDatabaseEnv()` dipanggil lazy di `lib/db/prisma.ts` supaya `next build` tidak butuh koneksi database.
+- Prisma CLI tidak membaca `.env.local`. Script `db:*` memakai `scripts/with-env.mjs` untuk memuat env tersebut.
+- `AI_MODERATION_ENABLED=false` membuat postingan langsung tayang. Set `true` hanya setelah `GEMINI_API_KEY` tersedia, karena tanpa key semua postingan akan ditahan `PENDING`.
 - Jangan commit `.env.local`. Template ada di `.env.example`.
 
 ---
@@ -911,7 +982,7 @@ Aturan:
 ```bash
 npm install
 npm run dev
-npm run build
+npm run build          # prisma generate && next build
 npm run lint
 npm run typecheck
 npm run db:generate
@@ -921,142 +992,64 @@ npm run db:seed
 npm run db:studio
 ```
 
-Semua script `db:*` membungkus Prisma dengan `dotenv -e .env.local --` karena Prisma CLI tidak membaca `.env.local`.
+Semua script `db:*` memakai `scripts/with-env.mjs` untuk memuat `.env.local`. `npm run build` menjalankan `prisma generate` terlebih dahulu; hentikan dev server sebelum build agar DLL Prisma tidak terkunci (`EPERM`).
 
 ### 16.3 Urutan setup lokal
 
 1. `npm install`
-2. Salin `.env.example` → `.env.local`, isi `DATABASE_URL`, `DIRECT_URL`, dan kredensial Supabase.
+2. Salin `.env.example` → `.env.local`, isi `DATABASE_URL`, `DIRECT_URL`, kredensial Supabase, dan opsional Gemini/seed.
 3. `npm run db:generate`
 4. `npm run db:deploy` (database bersama) atau `npm run db:migrate` (membuat migrasi baru)
 5. `npm run db:seed`
 6. `npm run dev`
 7. Buka `http://localhost:3000/jelajahi`
+8. Login admin lewat `http://localhost:3000/admin/masuk` memakai akun berrole `ADMIN`.
 
 ---
 
 ## 17. Rencana Implementasi
 
-### Status fondasi saat ini
+### Status implementasi saat ini
 
 | Item | Status |
 |---|---|
-| `docs/architecture.md` | ✅ selesai |
+| `docs/architecture.md` | ✅ diperbarui |
 | Token desain di `app/globals.css` | ✅ selesai |
 | Font & metadata di `app/layout.tsx` | ✅ selesai |
 | Skip link + landmark dasar | ✅ selesai |
 | Kerangka folder | ✅ selesai |
-| Dependency (Prisma, Leaflet, Zod) | ✅ terpasang untuk Fitur 1; Supabase SDK belum |
+| Dependency (Prisma, Leaflet, Zod, Supabase, ExcelJS) | ✅ terpasang |
 | `lib/env.ts` + `.env.example` | ✅ selesai |
-| Skema Prisma + seed | ✅ Fitur 1; komunitas/volunteer masih rencana |
-| Komponen UI inti | ✅ dipakai Fitur 1 |
-| Halaman fitur | 🟡 Fitur 1 dari database; komunitas/volunteer masih mock |
-| Auth Supabase + guard | ⏳ belum |
-| Moderasi AI | ⏳ belum |
+| Skema Prisma + migration + seed | ✅ Fitur 1, komunitas, volunteer, notifikasi |
+| Komponen UI inti | ✅ dipakai seluruh fitur |
+| Halaman fitur | ✅ semua route di §4 memakai database |
+| Auth Supabase + guard | ✅ selesai, termasuk login admin dan konfirmasi email |
+| Moderasi AI | 🟡 tersedia tetapi default mati |
+| Dashboard admin tempat/laporan | ⬜ belum |
+| Laporan konten & rate limiting | ⬜ belum |
 
-### Fase 0 — Fondasi desain & arsitektur (sekarang)
+### Ringkasan fase
 
-**Deliverable:**
+| Fase | Status |
+|---|---|
+| 0 — Fondasi desain & arsitektur | ✅ selesai |
+| 1 — Tooling & data layer | ✅ selesai |
+| 2 — UI kit & layout | ✅ selesai untuk komponen yang dipakai |
+| 3 — Tempat & peta | ✅ selesai (feed, detail, navigasi, form posting) |
+| 4 — Komunitas | ✅ selesai (direktori, pendaftaran, verifikasi admin) |
+| 5 — Volunteer & dashboard | ✅ selesai (CRUD, pengajuan, pendaftar, export, notifikasi) |
+| 6 — Admin & moderasi AI | 🟡 admin komunitas/penyelenggara/kegiatan selesai; moderasi tempat, laporan, dan rate limit belum |
+| 7 — Polish & peluncuran | 🟡 audit aksesibilitas dan operasional masih berjalan |
 
-- Dokumen arsitektur.
-- Token warna, font, spacing, radius, shadow, motion.
-- Root layout dengan font, metadata, `lang="id"`, skip link.
-- Kerangka folder.
+### Pekerjaan yang belum selesai
 
-**Selesai jika:** `npm run dev` menampilkan halaman placeholder dengan font dan warna yang benar; `npm run lint` lolos.
-
-### Fase 1 — Tooling & data layer
-
-**Deliverable:**
-
-- Install dependency inti.
-- `lib/env.ts` + `.env.example`.
-- `prisma/schema.prisma` (semua entitas MVP).
-- `lib/db/prisma.ts`, `lib/supabase/{server,client,admin}.ts`.
-- `proxy.ts` untuk refresh sesi.
-- `lib/auth/{session,guards}.ts`.
-- Seed data: fitur aksesibilitas, kategori, contoh tempat/komunitas/kegiatan, admin.
-- Script `typecheck`, `db:*`.
-
-**Selesai jika:** migrasi berhasil, seed berjalan, login Supabase menghasilkan `Profile`, guard menolak akses tanpa role.
-
-### Fase 2 — UI kit & layout
-
-**Deliverable:**
-
-- `cn()` + varian `cva`.
-- Primitif: Button, Input, Textarea, Select, Checkbox, RadioGroup, Field, Badge, Card, Dialog, Sheet, Alert, Skeleton, EmptyState, Pagination, Rating.
-- `SiteHeader`, `SiteFooter`, `MobileNav`, `Container`, `PageHeader`, `DashboardShell`.
-- Halaman error/not-found/loading.
-- Audit keyboard + kontras.
-
-**Selesai jika:** semua primitif punya state focus/hover/disabled/error; lolos audit keyboard; tidak ada hex langsung di komponen.
-
-### Fase 3 — Tempat & peta
-
-**Deliverable:**
-
-- `/jelajahi`: grid + filter kategori/fasilitas/wilayah dari database.
-- `/jelajahi/[slug]`: detail, fasilitas per pintu, ulasan, peta Leaflet.
-- `/jelajahi/[slug]/navigasi`: rute OSRM + petunjuk teks + panduan suara.
-- `/tambah-info`: form bertahap (belum terhubung database).
-- Map shell Leaflet + marker + popup. ✅
-- Routing OSRM profil `foot` + `Polyline` + instruksi teks. ✅
-- Query `"use cache"` + tag `places`. ✅
-
-**Selesai jika:** pengguna bisa mencari tempat, melihat pintu ber-ramp, menambah tempat, dan mendapatkan rute; peta punya fallback daftar.
-
-### Fase 4 — Komunitas
-
-**Deliverable:**
-
-- `/komunitas`: direktori + filter wilayah/fokus.
-- `/komunitas/[slug]`: profil + kontak + sosial + kegiatan terkait.
-- `/komunitas/daftar`: form + upload logo.
-- Admin verifikasi komunitas.
-- Tag `communities`.
-
-**Selesai jika:** komunitas baru berstatus `PENDING`, admin bisa verifikasi, dan hanya komunitas `VERIFIED` yang tampil publik.
-
-### Fase 5 — Volunteer & dashboard
-
-**Deliverable:**
-
-- `/volunteer`: daftar + filter kategori/wilayah/waktu.
-- `/volunteer/[slug]`: detail + form daftar.
-- `/dashboard`: ringkasan kegiatan.
-- CRUD kegiatan untuk organizer.
-- Tabel pendaftar + export Excel.
-- Guard organizer.
-
-**Selesai jika:** organizer hanya bisa mengelola kegiatannya sendiri; pendaftar unik per kegiatan; export berisi kolom yang benar.
-
-### Fase 6 — Admin & moderasi AI
-
-**Deliverable:**
-
-- `/admin`: antrean moderasi.
-- Verifikasi komunitas/penyelenggara.
-- Laporan konten.
-- Integrasi provider moderasi + fallback `PENDING`.
-- `ModerationLog` + audit override.
-- Rate limit submission.
-
-**Selesai jika:** konten berisiko tidak tayang otomatis; admin bisa approve/reject dengan catatan; semua keputusan tercatat.
-
-### Fase 7 — Polish & peluncuran
-
-**Deliverable:**
-
-- Audit WCAG 2.2 AA (axe + manual keyboard + screen reader).
-- Optimasi gambar & font.
-- Metadata/OG image per halaman.
-- `sitemap.ts`, `robots.ts`.
-- Uji responsif 360px–1440px.
-- Uji performa (Lighthouse).
-- Dokumentasi operasional (deploy, backup, env).
-
-**Selesai jika:** Lighthouse accessibility ≥ 95, tidak ada pelanggaran kontras, build production bersih, dan alur utama bisa diselesaikan dengan keyboard saja.
+- Halaman admin untuk memoderasi postingan tempat berstatus `PENDING`/`REJECTED`.
+- Mekanisme laporan konten (`reports`) dan log moderasi (`moderation_logs`).
+- Rate limiting submission.
+- Audit WCAG menyeluruh dan uji screen reader.
+- `sitemap.ts`/`robots.ts` dan metadata OG per halaman.
+- Notifikasi email/push.
+- FK `volunteer_events.community_id` → `communities.id`.
 
 ---
 
@@ -1066,7 +1059,7 @@ Setiap PR/fitur dianggap selesai jika:
 
 - [ ] `npm run lint` lolos.
 - [ ] `npm run typecheck` lolos.
-- [ ] `npm run build` lolos.
+- [ ] `npm run build` lolos (hentikan dev server agar `prisma generate` tidak kena `EPERM`).
 - [ ] Tidak ada `any` baru.
 - [ ] Otorisasi dicek di server, bukan hanya UI.
 - [ ] Input divalidasi dengan Zod di server.
@@ -1075,9 +1068,10 @@ Setiap PR/fitur dianggap selesai jika:
 - [ ] Kontras teks dan UI lolos WCAG AA.
 - [ ] Target sentuh ≥ 44px.
 - [ ] Responsif di 360px dan 1440px.
-- [ ] Cache tag diinvalidasi setelah mutasi.
+- [ ] Cache tag diinvalidasi setelah mutasi (`updateTag` untuk data ter-cache, `revalidatePath` untuk halaman volunteer/admin).
 - [ ] Tidak ada secret di client bundle.
-- [ ] Dokumentasi diperbarui jika mengubah arsitektur/token.
+- [ ] Perubahan skema disertai migration baru di `prisma/migrations` dan sudah diterapkan.
+- [ ] Dokumentasi diperbarui jika mengubah arsitektur, alur, skema, atau token.
 
 ---
 
@@ -1085,18 +1079,25 @@ Setiap PR/fitur dianggap selesai jika:
 
 | Topik | Status | Catatan |
 |---|---|---|
-| Provider moderasi AI | Terbuka | Antarmuka disiapkan; provider dipilih saat implementasi |
+| Provider moderasi AI | Diputuskan | Gemini `generateContent`; kode sudah ada dan default dimatikan lewat `AI_MODERATION_ENABLED` |
 | Tile peta produksi | Terbuka | OSM publik hanya untuk dev; perlu provider/self-host |
 | OSRM produksi | Terbuka | `routing.openstreetmap.de` dipakai untuk dev; rate limit/SLA perlu self-host |
 | Database lokal/bersama | Diputuskan | Supabase hosted + Prisma; `DATABASE_URL` pooler, `DIRECT_URL` migrasi |
-| RLS | Ditunda | Prisma bypass RLS; auth & RLS masuk fase berikutnya |
-| Rate limiting | Terbuka | Perlu Upstash/Redis atau edge function |
-| Notifikasi email | Terbuka | Supabase Auth email vs Resend |
+| RLS | Sebagian | Prisma bypass RLS; semua mutasi lewat server action. Policy `profiles`/`communities` masih perlu hardening (lihat `docs/database.md` §8) |
+| Rate limiting | Terbuka | Belum ada; perlu Upstash/Redis atau edge function |
+| Notifikasi in-app | Diputuskan | Tabel `notifications` + `NotificationType` untuk update/arsip kegiatan |
+| Notifikasi email/push | Terbuka | Supabase Auth email vs Resend |
 | Export Excel | Diputuskan | ExcelJS di server |
 | Dark mode | Ditunda | Light-first; high contrast + forced-colors didukung |
 | Login untuk daftar komunitas | Diputuskan | Wajib login agar kepemilikan bisa diverifikasi |
 | Login untuk tambah tempat | Diputuskan | Wajib login untuk mencegah spam |
-| Pencarian teks | Terbuka | Postgres `ILIKE` dulu; pertimbangkan full-text/trigram |
+| Login untuk daftar volunteer | Diputuskan | Wajib login; pendaftaran `PENDING` lalu dikonfirmasi penyelenggara |
+| Antrean moderasi tempat | Terbuka | Postingan `PENDING` belum punya UI admin |
+| Laporan konten (`reports`) | Terbuka | Tabel dan alur belum dibuat |
+| Log moderasi (`moderation_logs`) | Terbuka | Belum dibuat; keputusan moderator belum tersimpan sebagai audit |
+| Pencarian teks | Terbuka | Feed Jelajahi mengambil semua data lalu memfilter di client; pertimbangkan full-text server-side saat volume naik |
+| Rating tempat | Diputuskan | `places.poster_rating` (1–5) dari pemosting; badge “Ramah Disabilitas” bila ≥ 4. `reviews` legacy tidak dipakai |
+| Fasilitas tempat | Diputuskan | `places.facilities` untuk postingan baru, digabung dengan `entrance_features` legacy saat mapping |
 | PWA/offline | Ditunda | Dipertimbangkan setelah MVP |
 
 ---
