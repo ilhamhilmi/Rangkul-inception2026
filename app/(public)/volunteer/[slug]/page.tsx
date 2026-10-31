@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { ButtonLink } from "@/components/ui/button";
+import { VerifiedBadge } from "@/components/ui/verified-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -195,8 +196,12 @@ async function VolunteerDetail({ params }: VolunteerDetailPageProps) {
                 <UsersIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
                 <div>
                   <dt className="text-xs text-ink-muted">Penyelenggara</dt>
-                  <dd className="mt-0.5 text-sm font-medium text-ink">
+                  <dd className="mt-0.5 flex items-center gap-1.5 text-sm font-medium text-ink">
                     {event.organizer.name}
+                    {event.organizer.role === "ORGANIZER" ||
+                    event.organizer.role === "ADMIN" ? (
+                      <VerifiedBadge />
+                    ) : null}
                   </dd>
                 </div>
               </div>
@@ -309,7 +314,13 @@ async function VolunteerDetail({ params }: VolunteerDetailPageProps) {
                 <HeartHandshakeIcon className="h-5 w-5" />
               </span>
               <div>
-                <p className="font-medium text-ink">{event.organizer.name}</p>
+                <p className="flex items-center gap-1.5 font-medium text-ink">
+                  {event.organizer.name}
+                  {event.organizer.role === "ORGANIZER" ||
+                  event.organizer.role === "ADMIN" ? (
+                    <VerifiedBadge />
+                  ) : null}
+                </p>
                 <p className="text-xs text-ink-muted">Penyelenggara Rangkul</p>
               </div>
             </div>

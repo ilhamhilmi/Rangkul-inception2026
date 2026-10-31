@@ -3,16 +3,17 @@ import Link from "next/link";
 type BrandProps = {
   inverse?: boolean;
   className?: string;
+  href?: string;
 };
 
-export function Brand({ inverse = false, className }: BrandProps) {
+export function Brand({ inverse = false, className, href = "/" }: BrandProps) {
   return (
     <Link
-      href="/"
+      href={href}
       className={["inline-flex items-center gap-2.5 rounded-button", className]
         .filter(Boolean)
         .join(" ")}
-      aria-label="Rangkul — kembali ke beranda"
+      aria-label="Rangkul"
     >
       <span
         aria-hidden="true"

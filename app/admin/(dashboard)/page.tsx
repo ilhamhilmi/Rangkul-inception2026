@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import {
+  CalendarIcon,
   CheckIcon,
   ClockIcon,
   ShieldCheckIcon,
@@ -33,6 +34,14 @@ const cards = [
     tone: "bg-info-50 text-info-700" as const,
   },
   {
+    key: "pendingEvents" as const,
+    label: "Kegiatan menunggu",
+    description: "Pengadaan volunteer perlu ditinjau.",
+    href: "/admin/kegiatan",
+    icon: CalendarIcon,
+    tone: "bg-secondary-50 text-secondary-700" as const,
+  },
+  {
     key: "verifiedCommunities" as const,
     label: "Komunitas terverifikasi",
     description: "Tampil di direktori publik.",
@@ -52,7 +61,8 @@ const cards = [
 
 export default async function AdminOverviewPage() {
   const stats = await getAdminOverview();
-  const needsAttention = stats.pendingCommunities + stats.pendingOrganizers;
+  const needsAttention =
+    stats.pendingCommunities + stats.pendingOrganizers + stats.pendingEvents;
 
   return (
     <div className="container-page py-8 lg:py-10">
@@ -65,8 +75,9 @@ export default async function AdminOverviewPage() {
             Dashboard Admin
           </h1>
           <p className="mt-2 max-w-2xl leading-relaxed text-ink-muted">
-            Tinjau pengajuan komunitas dan penyelenggara. Setelah disetujui,
-            data langsung tampil di halaman publik yang sesuai.
+            Tinjau pengajuan komunitas, penyelenggara, dan kegiatan volunteer.
+            Setelah disetujui, data langsung tampil di halaman publik yang
+            sesuai.
           </p>
         </div>
         <Badge tone={needsAttention > 0 ? "info" : "success"}>
@@ -76,7 +87,7 @@ export default async function AdminOverviewPage() {
         </Badge>
       </div>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {cards.map((card) => {
           const Icon = card.icon;
           const value = stats[card.key];
@@ -113,7 +124,7 @@ export default async function AdminOverviewPage() {
         })}
       </div>
 
-      <div className="mt-8 grid gap-4 lg:grid-cols-2">
+      <div className="mt-8 grid gap-4 lg:grid-cols-3">
         <section className="rounded-card border border-line bg-surface p-6 shadow-xs">
           <div className="flex items-start gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-info-50 text-info-700">
@@ -156,6 +167,32 @@ export default async function AdminOverviewPage() {
                 size="sm"
               >
                 Tinjau penyelenggara
+              </ButtonLink>
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-card border border-line bg-surface p-6 shadow-xs">
+          <div className="flex items-start gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary-50 text-secondary-700">
+              <CalendarIcon className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-lg font-semibold text-ink">
+                Antrean kegiatan
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-ink-muted">
+                {stats.pendingEvents > 0
+                  ? `${stats.pendingEvents} kegiatan volunteer menunggu tinjauan sebelum terbit.`
+                  : "Tidak ada kegiatan volunteer yang menunggu tinjauan."}
+              </p>
+              <ButtonLink
+                href="/admin/kegiatan"
+                variant="secondary"
+                className="mt-4"
+                size="sm"
+              >
+                Tinjau kegiatan
               </ButtonLink>
             </div>
           </div>

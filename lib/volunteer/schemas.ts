@@ -25,21 +25,6 @@ const dateTimeString = z
       : `${value.length === 16 ? `${value}:00` : value}+07:00`,
   );
 
-const optionalCoordinate = (label: string, limit: number) =>
-  z
-    .string()
-    .trim()
-    .optional()
-    .default("")
-    .refine(
-      (value) =>
-        value === "" ||
-        (!Number.isNaN(Number(value)) &&
-          Number(value) >= -limit &&
-          Number(value) <= limit),
-      { message: `${label} harus berada di antara -${limit} dan ${limit}.` },
-    );
-
 export const eventFormSchema = z
   .object({
     title: z
@@ -65,8 +50,6 @@ export const eventFormSchema = z
       .max(300, "Alamat maksimal 300 karakter."),
     city: z.string().trim().min(1, "Kota wajib diisi.").max(80),
     province: z.string().trim().min(1, "Provinsi wajib dipilih.").max(80),
-    latitude: optionalCoordinate("Latitude", 90),
-    longitude: optionalCoordinate("Longitude", 180),
     startsAt: dateTimeString,
     endsAt: dateTimeString,
     requirements: z

@@ -1,5 +1,6 @@
-import Link from "next/link";
-import { Button, ButtonLink } from "@/components/ui/button";
+"use client";
+
+import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/field";
 import { Select } from "@/components/ui/select";
 import {
@@ -16,30 +17,20 @@ type CommunityFiltersProps = {
   query: string;
   province: string;
   focus: string;
+  onQueryChange: (value: string) => void;
+  onProvinceChange: (value: string) => void;
+  onFocusChange: (value: string) => void;
+  onReset: () => void;
 };
-
-function buildHref({
-  query,
-  province,
-  focus,
-}: {
-  query: string;
-  province: string;
-  focus: string;
-}) {
-  const params = new URLSearchParams();
-  if (query) params.set("q", query);
-  if (province) params.set("wilayah", province);
-  if (focus) params.set("fokus", focus);
-
-  const queryString = params.toString();
-  return queryString ? `/komunitas?${queryString}` : "/komunitas";
-}
 
 export function CommunityFilters({
   query,
   province,
   focus,
+  onQueryChange,
+  onProvinceChange,
+  onFocusChange,
+  onReset,
 }: CommunityFiltersProps) {
   const hasFilter = Boolean(query || province || focus);
 
@@ -60,9 +51,7 @@ export function CommunityFilters({
         </h2>
       </div>
 
-      <form
-        action="/komunitas"
-        method="get"
+      <div
         role="search"
         aria-label="Filter direktori komunitas"
         className="mt-4"
@@ -76,16 +65,23 @@ export function CommunityFilters({
                 id="q"
                 name="q"
                 type="search"
-                defaultValue={query}
+                value={query}
+                onChange={(event) => onQueryChange(event.currentTarget.value)}
                 placeholder="Nama, kota, atau fokus"
                 className="pl-11"
+                autoComplete="off"
               />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="wilayah">Wilayah</Label>
-            <Select id="wilayah" name="wilayah" defaultValue={province}>
+            <Select
+              id="wilayah"
+              name="wilayah"
+              value={province}
+              onChange={(event) => onProvinceChange(event.currentTarget.value)}
+            >
               <option value="">Semua wilayah</option>
               {communityProvinceOptions.map((option) => (
                 <option key={option} value={option}>
@@ -95,25 +91,19 @@ export function CommunityFilters({
             </Select>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row lg:justify-end">
-            <Button type="submit" className="w-full sm:w-auto">
-              Terapkan
-            </Button>
-            {hasFilter ? (
-              <ButtonLink
-                href="/komunitas"
+          {hasFilter ? (
+            <div className="flex flex-col gap-2 sm:flex-row lg:justify-end">
+              <Button
+                type="button"
                 variant="ghost"
                 className="w-full sm:w-auto"
+                onClick={onReset}
               >
                 Hapus filter
-              </ButtonLink>
-            ) : null}
-          </div>
+              </Button>
+            </div>
+          ) : null}
         </div>
-
-        {focus ? (
-          <input type="hidden" name="fokus" value={focus} />
-        ) : null}
 
         <fieldset className="mt-5 border-t border-line pt-4">
           <legend className="text-sm font-medium text-ink">
@@ -122,23 +112,22 @@ export function CommunityFilters({
           <ul className="mt-3 flex flex-wrap gap-2">
             {communityFocusOptions.map((option) => {
               const active = focus === option;
-              const href = buildHref({
-                query,
-                province,
-                focus: active ? "" : option,
-              });
 
               return (
                 <li key={option}>
-                  <Link
-                    href={href}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onFocusChange(active ? "" : option)
+                    }
+                    aria-pressed={active}
                     aria-label={
                       active
                         ? `Fokus ${option} aktif. Klik untuk menghapus filter.`
                         : `Filter fokus ${option}.`
                     }
                     className={[
-                      "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors",
+                      "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-sm font-medium transition-colors focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-focus",
                       active
                         ? "border-primary-700 bg-primary-700 text-white hover:bg-primary-800"
                         : "border-line-strong/60 bg-surface text-ink hover:bg-surface-muted",
@@ -146,13 +135,13 @@ export function CommunityFilters({
                   >
                     {active ? <CheckIcon className="h-3.5 w-3.5" /> : null}
                     {option}
-                  </Link>
+                  </button>
                 </li>
               );
             })}
           </ul>
         </fieldset>
-      </form>
+      </div>
     </section>
   );
 }

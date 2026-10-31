@@ -26,8 +26,6 @@ export type EventFormValues = {
   address: string;
   city: string;
   province: string;
-  latitude: string;
-  longitude: string;
   startsAt: string;
   endsAt: string;
   requirements: string;
@@ -113,8 +111,6 @@ export function EventForm({ event }: EventFormProps) {
         "address",
         "city",
         "province",
-        "latitude",
-        "longitude",
         "startsAt",
         "endsAt",
         "requirements",
@@ -346,39 +342,6 @@ export function EventForm({ event }: EventFormProps) {
             ) : null}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="event-latitude">Latitude</Label>
-            <Input
-              id="event-latitude"
-              name="latitude"
-              inputMode="decimal"
-              defaultValue={event?.latitude}
-              aria-describedby="coordinate-hint"
-              aria-invalid={fieldErrors.latitude ? true : undefined}
-            />
-            {fieldErrors.latitude ? (
-              <FieldError>{fieldErrors.latitude[0]}</FieldError>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="event-longitude">Longitude</Label>
-            <Input
-              id="event-longitude"
-              name="longitude"
-              inputMode="decimal"
-              defaultValue={event?.longitude}
-              aria-describedby="coordinate-hint"
-              aria-invalid={fieldErrors.longitude ? true : undefined}
-            />
-            {fieldErrors.longitude ? (
-              <FieldError>{fieldErrors.longitude[0]}</FieldError>
-            ) : null}
-          </div>
-
-          <FieldHint id="coordinate-hint" className="sm:col-span-2">
-            Koordinat opsional, membantu relawan menemukan titik lokasi.
-          </FieldHint>
         </div>
       </section>
 

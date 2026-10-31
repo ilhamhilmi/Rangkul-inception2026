@@ -126,6 +126,13 @@ export default async function ManagedEventsPage() {
                       {meta.description}
                     </p>
 
+                    {event.status === "REJECTED" && event.moderationNote ? (
+                      <p className="mt-3 rounded-input border border-danger-600/30 bg-danger-50 px-3.5 py-2.5 text-sm leading-relaxed text-danger-700">
+                        <span className="font-semibold">Catatan admin:</span>{" "}
+                        {event.moderationNote}
+                      </p>
+                    ) : null}
+
                     <div className="mt-4">
                       <EventManageActions
                         eventId={event.id}

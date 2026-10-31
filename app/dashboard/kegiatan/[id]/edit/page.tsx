@@ -39,8 +39,6 @@ export default async function EditEventPage({
     address: event.address,
     city: event.city,
     province: event.province,
-    latitude: event.latitude ? String(event.latitude) : "",
-    longitude: event.longitude ? String(event.longitude) : "",
     startsAt: event.startsAt.toISOString(),
     endsAt: event.endsAt.toISOString(),
     requirements: event.requirements ?? "",
@@ -104,9 +102,24 @@ export default async function EditEventPage({
           </p>
         </div>
       ) : (
-        <div className="mt-6">
-          <EventForm event={values} />
-        </div>
+        <>
+          {event.status === "REJECTED" && event.moderationNote ? (
+            <div className="mt-6 rounded-card border border-danger-600/30 bg-danger-50 p-5">
+              <p className="flex items-start gap-2 text-sm leading-relaxed text-danger-700">
+                <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  <span className="font-semibold">Catatan admin:</span>{" "}
+                  {event.moderationNote} Setelah diperbaiki, ajukan penerbitan
+                  kembali dari halaman ini.
+                </span>
+              </p>
+            </div>
+          ) : null}
+
+          <div className="mt-6">
+            <EventForm event={values} />
+          </div>
+        </>
       )}
     </div>
   );

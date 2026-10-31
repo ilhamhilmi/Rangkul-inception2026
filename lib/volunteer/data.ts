@@ -17,7 +17,7 @@ const DEFAULT_COVER = "/images/volunteer/event-1.svg";
 
 const publicEventInclude = {
   organizer: {
-    select: { id: true, name: true, avatarUrl: true },
+    select: { id: true, name: true, avatarUrl: true, role: true },
   },
 } satisfies Prisma.VolunteerEventInclude;
 

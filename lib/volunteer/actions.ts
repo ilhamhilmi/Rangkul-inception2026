@@ -338,6 +338,84 @@ export async function submitOrganizerApplicationAction(
 // Kegiatan
 // ---------------------------------------------------------------------------
 
+type EventNotificationRecipient = { userId: string };
+
+function eventDetailsChanged(
+  existing: {
+    title: string;
+    description: string;
+    category: string;
+    locationName: string;
+    address: string;
+    city: string;
+    province: string;
+    startsAt: Date;
+    endsAt: Date;
+    requirements: string | null;
+    accessibilityNotes: string | null;
+    slots: number;
+    coverUrl: string | null;
+    coverAlt: string | null;
+  },
+  next: {
+    title: string;
+    description: string;
+    category: string;
+    locationName: string;
+    address: string;
+    city: string;
+    province: string;
+    startsAt: Date;
+    endsAt: Date;
+    requirements: string | null;
+    accessibilityNotes: string | null;
+    slots: number;
+    coverUrl: string | null;
+    coverAlt: string | null;
+  },
+) {
+  return (
+    existing.title !== next.title ||
+    existing.description !== next.description ||
+    existing.category !== next.category ||
+    existing.locationName !== next.locationName ||
+    existing.address !== next.address ||
+    existing.city !== next.city ||
+    existing.province !== next.province ||
+    existing.startsAt.getTime() !== next.startsAt.getTime() ||
+    existing.endsAt.getTime() !== next.endsAt.getTime() ||
+    existing.requirements !== next.requirements ||
+    existing.accessibilityNotes !== next.accessibilityNotes ||
+    existing.slots !== next.slots ||
+    existing.coverUrl !== next.coverUrl ||
+    existing.coverAlt !== next.coverAlt
+  );
+}
+
+function eventUpdateNotifications(
+  event: { id: string; slug: string; title: string },
+  recipients: EventNotificationRecipient[],
+  excludedUserIds: string[],
+) {
+  const excluded = new Set(excludedUserIds);
+  const userIds = [
+    ...new Set(
+      recipients
+        .map((recipient) => recipient.userId)
+        .filter((userId) => !excluded.has(userId)),
+    ),
+  ];
+
+  return userIds.map((userId) => ({
+    userId,
+    eventId: event.id,
+    type: "EVENT_UPDATED" as const,
+    title: "Detail kegiatan diperbarui",
+    body: `Penyelenggara memperbarui detail kegiatan "${event.title}". Periksa jadwal, lokasi, dan informasi terbaru sebelum berangkat.`,
+    href: `/volunteer/${event.slug}`,
+  }));
+}
+
 export async function saveEventAction(
   formData: FormData,
 ): Promise<VolunteerActionResult<{ id: string; slug: string }>> {
@@ -358,8 +436,6 @@ export async function saveEventAction(
     address: readString(formData, "address"),
     city: readString(formData, "city"),
     province: readString(formData, "province"),
-    latitude: readString(formData, "latitude"),
-    longitude: readString(formData, "longitude"),
     startsAt: readString(formData, "startsAt"),
     endsAt: readString(formData, "endsAt"),
     requirements: readString(formData, "requirements"),
@@ -400,8 +476,6 @@ export async function saveEventAction(
     address: data.address,
     city: data.city,
     province: data.province,
-    latitude: data.latitude === "" ? null : Number(data.latitude),
-    longitude: data.longitude === "" ? null : Number(data.longitude),
     startsAt: new Date(data.startsAt),
     endsAt: new Date(data.endsAt),
     requirements: data.requirements || null,
@@ -415,7 +489,35 @@ export async function saveEventAction(
     if (eventId) {
       const existing = await prisma.volunteerEvent.findUnique({
         where: { id: eventId },
-        select: { id: true, slug: true, status: true, archivedAt: true, organizerId: true },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          description: true,
+          category: true,
+          locationName: true,
+          address: true,
+          city: true,
+          province: true,
+          startsAt: true,
+          endsAt: true,
+          requirements: true,
+          accessibilityNotes: true,
+          slots: true,
+          coverUrl: true,
+          coverAlt: true,
+          status: true,
+          archivedAt: true,
+          organizerId: true,
+          registrations: {
+            where: {
+              status: {
+                in: [RegistrationStatus.PENDING, RegistrationStatus.CONFIRMED],
+              },
+            },
+            select: { userId: true },
+          },
+        },
       });
 
       if (!existing) return actionError("NOT_FOUND", "Kegiatan tidak ditemukan.");
@@ -431,14 +533,38 @@ export async function saveEventAction(
           ? data.intent
           : existing.status;
 
-      const updated = await prisma.volunteerEvent.update({
-        where: { id: eventId },
-        data: { ...baseData, status: nextStatus },
-        select: { id: true, slug: true },
+      const detailsChanged = eventDetailsChanged(existing, baseData);
+      const shouldNotify =
+        detailsChanged &&
+        !existing.archivedAt &&
+        (existing.status === EventStatus.PUBLISHED ||
+          existing.status === EventStatus.CLOSED) &&
+        existing.registrations.length > 0;
+
+      const updated = await prisma.$transaction(async (tx) => {
+        const saved = await tx.volunteerEvent.update({
+          where: { id: eventId },
+          data: { ...baseData, status: nextStatus },
+          select: { id: true, slug: true, title: true },
+        });
+
+        if (shouldNotify) {
+          const notifications = eventUpdateNotifications(
+            saved,
+            existing.registrations,
+            [existing.organizerId, profile.id],
+          );
+
+          if (notifications.length > 0) {
+            await tx.notification.createMany({ data: notifications });
+          }
+        }
+
+        return saved;
       });
 
       revalidateVolunteerPaths(updated.slug);
-      return { ok: true, data: updated };
+      return { ok: true, data: { id: updated.id, slug: updated.slug } };
     }
 
     const slug = await uniqueSlug(data.title);
@@ -540,9 +666,55 @@ export async function archiveEventAction(
     return { ok: true, data: { id: event.id } };
   }
 
-  await prisma.volunteerEvent.update({
-    where: { id: event.id },
-    data: { archivedAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.volunteerEvent.findUnique({
+      where: { id: event.id },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        organizerId: true,
+        registrations: {
+          where: {
+            status: {
+              in: [RegistrationStatus.PENDING, RegistrationStatus.CONFIRMED],
+            },
+          },
+          select: { userId: true },
+        },
+      },
+    });
+
+    if (!existing) return;
+
+    await tx.volunteerEvent.update({
+      where: { id: existing.id },
+      data: { archivedAt: new Date() },
+    });
+
+    const userIds = [
+      ...new Set(
+        existing.registrations
+          .map((registration) => registration.userId)
+          .filter(
+            (userId) =>
+              userId !== existing.organizerId && userId !== profile.id,
+          ),
+      ),
+    ];
+
+    if (userIds.length > 0) {
+      await tx.notification.createMany({
+        data: userIds.map((userId) => ({
+          userId,
+          eventId: existing.id,
+          type: "EVENT_ARCHIVED" as const,
+          title: "Kegiatan diarsipkan",
+          body: `Kegiatan "${existing.title}" telah diarsipkan oleh penyelenggara. Hubungi penyelenggara bila kamu masih membutuhkan informasi lanjutan.`,
+          href: "/volunteer",
+        })),
+      });
+    }
   });
 
   revalidateVolunteerPaths(event.slug);
@@ -558,6 +730,7 @@ export async function adminModerateEventAction(
 
   const eventId = readString(formData, "eventId");
   const nextStatus = readString(formData, "status");
+  const note = readString(formData, "note");
   const parsedId = uuidSchema.safeParse(eventId);
   const parsedStatus = z
     .enum(["PUBLISHED", "REJECTED", "PENDING"])
@@ -565,6 +738,17 @@ export async function adminModerateEventAction(
 
   if (!parsedId.success || !parsedStatus.success) {
     return actionError("VALIDATION", "Data moderasi tidak valid.");
+  }
+
+  if (parsedStatus.data === "REJECTED" && note.length < 3) {
+    return actionError(
+      "VALIDATION",
+      "Tulis alasan penolakan minimal 3 karakter.",
+    );
+  }
+
+  if (note.length > 500) {
+    return actionError("VALIDATION", "Catatan moderasi maksimal 500 karakter.");
   }
 
   const event = await prisma.volunteerEvent.findUnique({
@@ -585,12 +769,15 @@ export async function adminModerateEventAction(
     where: { id: event.id },
     data: {
       status: parsedStatus.data,
+      moderationNote: parsedStatus.data === "REJECTED" ? note : null,
       publishedAt:
         parsedStatus.data === "PUBLISHED" ? event.publishedAt ?? new Date() : event.publishedAt,
     },
   });
 
   revalidateVolunteerPaths(event.slug);
+  revalidatePath("/admin");
+  revalidatePath("/admin/kegiatan");
   return { ok: true, data: { id: event.id } };
 }
 

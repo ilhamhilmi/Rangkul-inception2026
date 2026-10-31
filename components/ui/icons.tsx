@@ -198,6 +198,15 @@ export function ClockIcon(props: IconProps) {
   );
 }
 
+export function BellIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </IconBase>
+  );
+}
+
 export function MapIcon(props: IconProps) {
   return (
     <IconBase {...props}>

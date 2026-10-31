@@ -2,8 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense, type ReactNode } from "react";
+import { Brand } from "@/components/layout/brand";
+import { VerifiedBadge } from "@/components/ui/verified-badge";
 import { ButtonLink } from "@/components/ui/button";
-import { ArrowLeftIcon, HeartHandshakeIcon, ShieldCheckIcon } from "@/components/ui/icons";
+import { ArrowLeftIcon, ShieldCheckIcon } from "@/components/ui/icons";
 import { getAuthorizedProfile } from "@/lib/auth/guards";
 
 function DashboardSkeleton() {
@@ -59,15 +61,7 @@ async function DashboardShell({ children }: { children: ReactNode }) {
       <header className="border-b border-line bg-surface">
         <div className="container-page flex flex-wrap items-center justify-between gap-3 py-4">
           <div className="flex items-center gap-3">
-            <Link
-              href="/dashboard/kegiatan"
-              className="inline-flex items-center gap-2 rounded-button text-lg font-bold tracking-tight text-ink focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-focus"
-            >
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-primary-700 text-white">
-                <HeartHandshakeIcon className="h-5 w-5" />
-              </span>
-              Rangkul
-            </Link>
+            <Brand href="/dashboard/kegiatan" />
             <span className="hidden text-sm text-ink-muted sm:inline">
               Dashboard penyelenggara
             </span>
@@ -89,9 +83,10 @@ async function DashboardShell({ children }: { children: ReactNode }) {
 
       <main id="konten-utama" tabIndex={-1} className="flex-1">
         <div className="container-page flex flex-wrap items-center justify-between gap-2 py-4 text-sm text-ink-muted">
-          <span>
+          <span className="inline-flex items-center gap-1.5">
             Masuk sebagai{" "}
             <span className="font-medium text-ink">{profile.name}</span>
+            {profile.role === "ORGANIZER" ? <VerifiedBadge /> : null}
             {profile.role === "ADMIN" ? " (admin)" : ""}
           </span>
           <Link

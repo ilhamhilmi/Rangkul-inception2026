@@ -1,4 +1,4 @@
-import { ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { SearchIcon, XIcon } from "@/components/ui/icons";
 
 export function PlaceFeedSkeleton() {
@@ -38,9 +38,11 @@ export function PlaceFeedSkeleton() {
 export function PlaceFeedEmpty({
   query,
   onResetHref = "/jelajahi",
+  onReset,
 }: {
   query?: string;
   onResetHref?: string;
+  onReset?: () => void;
 }) {
   return (
     <div className="rounded-sheet border border-dashed border-line-strong/40 bg-surface px-6 py-14 text-center">
@@ -55,10 +57,28 @@ export function PlaceFeedEmpty({
           ? `Tidak ada postingan untuk “${query}” dengan kategori yang dipilih. Coba kata kunci lain atau ganti kategori.`
           : "Belum ada postingan untuk kategori ini. Coba pilih kategori lain atau bagikan pengalamanmu sendiri."}
       </p>
-      <ButtonLink href={onResetHref} variant="secondary" size="sm" className="mt-6">
-        <XIcon className="h-4 w-4" />
-        Reset semua filter
-      </ButtonLink>
+      {onReset ? (
+        <Button
+          type="button"
+          onClick={onReset}
+          variant="secondary"
+          size="sm"
+          className="mt-6"
+        >
+          <XIcon className="h-4 w-4" />
+          Reset semua filter
+        </Button>
+      ) : (
+        <ButtonLink
+          href={onResetHref}
+          variant="secondary"
+          size="sm"
+          className="mt-6"
+        >
+          <XIcon className="h-4 w-4" />
+          Reset semua filter
+        </ButtonLink>
+      )}
     </div>
   );
 }

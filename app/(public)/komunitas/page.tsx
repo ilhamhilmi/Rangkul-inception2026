@@ -1,17 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  ArrowRightIcon,
-  CheckIcon,
-  ShieldCheckIcon,
-  UsersIcon,
-} from "@/components/ui/icons";
-import { CommunityCard } from "@/components/communities/community-card";
-import { CommunityFilters } from "@/components/communities/community-filters";
+import { ArrowRightIcon, CheckIcon, ShieldCheckIcon } from "@/components/ui/icons";
+import { CommunityDirectory as CommunityDirectoryView } from "@/components/communities/community-directory";
 import { getCommunityDirectory } from "@/server/communities/queries";
 
 export const metadata: Metadata = {
@@ -80,64 +72,16 @@ async function CommunityDirectory({
   const province = firstValue(params.wilayah);
   const focus = firstValue(params.fokus);
 
-  const { items: filtered, filteredTotal, totalVerified } =
-    await getCommunityDirectory({ q: query, province, focus });
-
-  const filterLabels = [
-    query ? `kata kunci “${query}”` : "",
-    province ? `wilayah ${province}` : "",
-    focus ? `fokus ${focus}` : "",
-  ].filter(Boolean);
-
-  const summary = `Menampilkan ${filteredTotal} dari ${totalVerified} komunitas terverifikasi${
-    filterLabels.length ? ` untuk ${filterLabels.join(", ")}` : ""
-  }.`;
+  const { items, totalVerified } = await getCommunityDirectory({});
 
   return (
-    <>
-      <CommunityFilters query={query} province={province} focus={focus} />
-
-      <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-ink">
-            Komunitas terverifikasi
-          </h2>
-          <p
-            role="status"
-            aria-live="polite"
-            className="mt-1 text-sm leading-relaxed text-ink-muted"
-          >
-            {summary}
-          </p>
-        </div>
-        <Badge tone="success">Terverifikasi admin</Badge>
-      </div>
-
-      {filtered.length > 0 ? (
-        <ul className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((community) => (
-            <li key={community.slug} className="h-full">
-              <CommunityCard community={community} />
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <EmptyState
-          className="mt-6"
-          icon={UsersIcon}
-          title="Belum ada komunitas yang cocok"
-          description="Coba kata kunci lain, pilih wilayah yang lebih luas, atau hapus filter fokus. Kamu juga bisa mendaftarkan komunitas yang belum ada di sini."
-          action={
-            <>
-              <ButtonLink href="/komunitas">Hapus semua filter</ButtonLink>
-              <ButtonLink href="/komunitas/daftar" variant="secondary">
-                Daftarkan komunitas
-              </ButtonLink>
-            </>
-          }
-        />
-      )}
-    </>
+    <CommunityDirectoryView
+      communities={items}
+      totalVerified={totalVerified}
+      initialQuery={query}
+      initialProvince={province}
+      initialFocus={focus}
+    />
   );
 }
 

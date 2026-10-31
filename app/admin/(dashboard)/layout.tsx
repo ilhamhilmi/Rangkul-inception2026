@@ -3,13 +3,9 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense, type ReactNode } from "react";
 
+import { Brand } from "@/components/layout/brand";
 import { Button, ButtonLink } from "@/components/ui/button";
-import {
-  ArrowLeftIcon,
-  HeartHandshakeIcon,
-  ShieldCheckIcon,
-  UsersIcon,
-} from "@/components/ui/icons";
+import { ArrowLeftIcon, ShieldCheckIcon, UsersIcon } from "@/components/ui/icons";
 import { getAuthorizedProfile } from "@/lib/auth/guards";
 import { signOutAction } from "@/server/auth/actions";
 
@@ -17,6 +13,7 @@ const navigation = [
   { href: "/admin", label: "Ringkasan" },
   { href: "/admin/komunitas", label: "Komunitas" },
   { href: "/admin/penyelenggara", label: "Penyelenggara" },
+  { href: "/admin/kegiatan", label: "Kegiatan" },
 ];
 
 function AdminSkeleton() {
@@ -72,15 +69,7 @@ async function AdminShell({ children }: { children: ReactNode }) {
       <header className="border-b border-line bg-surface">
         <div className="container-page flex flex-wrap items-center justify-between gap-3 py-4">
           <div className="flex items-center gap-3">
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-2 rounded-button text-lg font-bold tracking-tight text-ink focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-focus"
-            >
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-primary-700 text-white">
-                <HeartHandshakeIcon className="h-5 w-5" />
-              </span>
-              Rangkul
-            </Link>
+            <Brand href="/admin" />
             <span className="hidden text-sm text-ink-muted sm:inline">
               Dashboard admin
             </span>
@@ -127,7 +116,7 @@ async function AdminShell({ children }: { children: ReactNode }) {
 
       <footer className="border-t border-line bg-surface">
         <div className="container-page flex flex-wrap items-center justify-between gap-2 py-4 text-xs text-ink-muted">
-          <span>Rangkul Admin · Approval komunitas dan penyelenggara</span>
+          <span>Rangkul Admin · Approval komunitas, penyelenggara, dan kegiatan</span>
           <span className="inline-flex items-center gap-1.5">
             <UsersIcon className="h-4 w-4" />
             Akses terbatas ADMIN

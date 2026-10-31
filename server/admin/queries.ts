@@ -20,6 +20,7 @@ export async function getAdminOverview() {
   const [
     pendingCommunities,
     pendingOrganizers,
+    pendingEvents,
     verifiedCommunities,
     totalProfiles,
   ] = await Promise.all([
@@ -28,6 +29,9 @@ export async function getAdminOverview() {
     }),
     prisma.verificationRequest.count({
       where: { type: "ORGANIZER", status: "PENDING" },
+    }),
+    prisma.volunteerEvent.count({
+      where: { status: "PENDING", archivedAt: null },
     }),
     prisma.community.count({
       where: { status: "VERIFIED", archivedAt: null },
@@ -38,6 +42,7 @@ export async function getAdminOverview() {
   return {
     pendingCommunities,
     pendingOrganizers,
+    pendingEvents,
     verifiedCommunities,
     totalProfiles,
   };
@@ -89,5 +94,30 @@ export async function getPendingOrganizerApplications() {
       },
     },
     orderBy: { submittedAt: "asc" },
+  });
+}
+
+/**
+ * Kegiatan Volunteer yang diajukan penyelenggara dan menunggu keputusan admin.
+ * Kegiatan berstatus PENDING belum tampil di halaman publik.
+ */
+export async function getPendingVolunteerEvents() {
+  await connection();
+
+  return prisma.volunteerEvent.findMany({
+    where: { status: "PENDING", archivedAt: null },
+    include: {
+      organizer: {
+        select: { id: true, name: true, email: true },
+      },
+      _count: {
+        select: {
+          registrations: {
+            where: { status: { in: ["PENDING", "CONFIRMED"] } },
+          },
+        },
+      },
+    },
+    orderBy: [{ updatedAt: "asc" }, { createdAt: "asc" }],
   });
 }
