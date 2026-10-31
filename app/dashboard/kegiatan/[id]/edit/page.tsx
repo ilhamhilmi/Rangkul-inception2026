@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { Suspense } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { AlertIcon, ArrowLeftIcon } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   EventForm,
   type EventFormValues,
@@ -17,7 +19,20 @@ export const metadata: Metadata = {
   description: "Perbarui informasi kegiatan volunteer milikmu di Rangkul.",
 };
 
-export default async function EditEventPage({
+function EditEventSkeleton() {
+  return (
+    <div className="container-page pb-16" aria-busy="true">
+      <span className="sr-only">Memuat formulir kegiatan…</span>
+      <Skeleton className="h-5 w-44" />
+      <Skeleton className="mt-4 h-6 w-28 rounded-full" />
+      <Skeleton className="mt-3 h-8 w-56" />
+      <Skeleton className="mt-2 h-4 w-full max-w-xl" />
+      <Skeleton className="mt-6 h-[32rem] w-full rounded-card" />
+    </div>
+  );
+}
+
+async function EditEventContent({
   params,
 }: PageProps<"/dashboard/kegiatan/[id]/edit">) {
   const { id } = await params;
@@ -122,5 +137,15 @@ export default async function EditEventPage({
         </>
       )}
     </div>
+  );
+}
+
+export default function EditEventPage(
+  props: PageProps<"/dashboard/kegiatan/[id]/edit">,
+) {
+  return (
+    <Suspense fallback={<EditEventSkeleton />}>
+      <EditEventContent {...props} />
+    </Suspense>
   );
 }

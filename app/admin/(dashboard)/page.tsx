@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import {
   ShieldCheckIcon,
   UsersIcon,
 } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getAdminOverview } from "@/server/admin/queries";
 
 export const metadata: Metadata = {
@@ -59,7 +61,27 @@ const cards = [
   },
 ];
 
-export default async function AdminOverviewPage() {
+function AdminOverviewSkeleton() {
+  return (
+    <div className="container-page py-8 lg:py-10" aria-busy="true">
+      <span className="sr-only">Memuat ringkasan admin…</span>
+      <Skeleton className="h-8 w-64" />
+      <Skeleton className="mt-3 h-5 w-full max-w-2xl" />
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <Skeleton key={index} className="h-52 rounded-card" />
+        ))}
+      </div>
+      <div className="mt-8 grid gap-4 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Skeleton key={index} className="h-44 rounded-card" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+async function AdminOverviewContent() {
   const stats = await getAdminOverview();
   const needsAttention =
     stats.pendingCommunities + stats.pendingOrganizers + stats.pendingEvents;
@@ -199,5 +221,13 @@ export default async function AdminOverviewPage() {
         </section>
       </div>
     </div>
+  );
+}
+
+export default function AdminOverviewPage() {
+  return (
+    <Suspense fallback={<AdminOverviewSkeleton />}>
+      <AdminOverviewContent />
+    </Suspense>
   );
 }

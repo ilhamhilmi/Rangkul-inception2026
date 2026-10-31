@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { Suspense } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowLeftIcon, ExternalLinkIcon, UsersIcon } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
 import { RegistrationStatusActions } from "@/components/volunteer/registration-status-actions";
 import { requireOrganizer } from "@/lib/auth/guards";
 import { listEventRegistrations } from "@/lib/volunteer/data";
@@ -25,7 +27,29 @@ const dateTimeFormatter = new Intl.DateTimeFormat("id-ID", {
   timeZone: "Asia/Jakarta",
 });
 
-export default async function EventRegistrantsPage({
+function EventRegistrantsSkeleton() {
+  return (
+    <div className="container-page pb-16" aria-busy="true">
+      <span className="sr-only">Memuat data pendaftar…</span>
+      <Skeleton className="h-5 w-44" />
+      <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="mt-2 h-4 w-72" />
+        </div>
+        <Skeleton className="h-11 w-32 rounded-button" />
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <Skeleton key={index} className="h-24 rounded-card" />
+        ))}
+      </div>
+      <Skeleton className="mt-6 h-80 w-full rounded-card" />
+    </div>
+  );
+}
+
+async function EventRegistrantsContent({
   params,
 }: PageProps<"/dashboard/kegiatan/[id]/pendaftar">) {
   const { id } = await params;
@@ -177,5 +201,15 @@ export default async function EventRegistrantsPage({
         yang dihitung sebagai peserta pada halaman publik.
       </p>
     </div>
+  );
+}
+
+export default function EventRegistrantsPage(
+  props: PageProps<"/dashboard/kegiatan/[id]/pendaftar">,
+) {
+  return (
+    <Suspense fallback={<EventRegistrantsSkeleton />}>
+      <EventRegistrantsContent {...props} />
+    </Suspense>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
+import { Suspense } from "react";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -9,6 +10,7 @@ import {
   PlusIcon,
   UsersIcon,
 } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
 import { EventManageActions } from "@/components/volunteer/event-manage-actions";
 import { requireOrganizer } from "@/lib/auth/guards";
 import { coverUrlFor, listManagedEvents } from "@/lib/volunteer/data";
@@ -21,7 +23,27 @@ export const metadata: Metadata = {
     "Kelola kegiatan volunteer yang kamu selenggarakan di Rangkul.",
 };
 
-export default async function ManagedEventsPage() {
+function ManagedEventsSkeleton() {
+  return (
+    <div className="container-page pb-16" aria-busy="true">
+      <span className="sr-only">Memuat daftar kegiatan…</span>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="mt-2 h-4 w-72" />
+        </div>
+        <Skeleton className="h-11 w-36 rounded-button" />
+      </div>
+      <div className="mt-6 space-y-4">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <Skeleton key={index} className="h-44 rounded-card" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+async function ManagedEventsContent() {
   await connection();
   const profile = await requireOrganizer();
   const events = await listManagedEvents(profile);
@@ -153,5 +175,13 @@ export default async function ManagedEventsPage() {
         Setelah diajukan, status kegiatan berubah menjadi menunggu tinjauan.
       </p>
     </div>
+  );
+}
+
+export default function ManagedEventsPage() {
+  return (
+    <Suspense fallback={<ManagedEventsSkeleton />}>
+      <ManagedEventsContent />
+    </Suspense>
   );
 }

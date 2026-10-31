@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
+import { Suspense } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { ArrowLeftIcon } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
 import { EventForm } from "@/components/volunteer/event-form";
 import { requireOrganizer } from "@/lib/auth/guards";
 
@@ -10,7 +12,19 @@ export const metadata: Metadata = {
   description: "Buat kegiatan volunteer inklusif baru di Rangkul.",
 };
 
-export default async function NewEventPage() {
+function NewEventSkeleton() {
+  return (
+    <div className="container-page pb-16" aria-busy="true">
+      <span className="sr-only">Memuat formulir kegiatan…</span>
+      <Skeleton className="h-5 w-44" />
+      <Skeleton className="mt-4 h-8 w-64" />
+      <Skeleton className="mt-2 h-4 w-full max-w-xl" />
+      <Skeleton className="mt-6 h-[32rem] w-full rounded-card" />
+    </div>
+  );
+}
+
+async function NewEventContent() {
   await connection();
   await requireOrganizer();
 
@@ -35,5 +49,13 @@ export default async function NewEventPage() {
         <EventForm />
       </div>
     </div>
+  );
+}
+
+export default function NewEventPage() {
+  return (
+    <Suspense fallback={<NewEventSkeleton />}>
+      <NewEventContent />
+    </Suspense>
   );
 }

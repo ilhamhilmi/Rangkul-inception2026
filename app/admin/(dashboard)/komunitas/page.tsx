@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { ReviewActions } from "@/components/admin/review-actions";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import {
   ShieldCheckIcon,
   UsersIcon,
 } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getPendingCommunityApplications } from "@/server/admin/queries";
 
 export const metadata: Metadata = {
@@ -35,7 +37,23 @@ function formatDate(value: Date) {
   }).format(value);
 }
 
-export default async function AdminCommunitiesPage() {
+function AdminCommunitiesSkeleton() {
+  return (
+    <div className="container-page py-8 lg:py-10" aria-busy="true">
+      <span className="sr-only">Memuat antrean komunitas…</span>
+      <Skeleton className="h-5 w-40" />
+      <Skeleton className="mt-4 h-9 w-56" />
+      <Skeleton className="mt-3 h-5 w-full max-w-2xl" />
+      <div className="mt-8 space-y-5">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <Skeleton key={index} className="h-72 rounded-card" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+async function AdminCommunitiesContent() {
   const applications = await getPendingCommunityApplications();
 
   return (
@@ -196,5 +214,13 @@ export default async function AdminCommunitiesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminCommunitiesPage() {
+  return (
+    <Suspense fallback={<AdminCommunitiesSkeleton />}>
+      <AdminCommunitiesContent />
+    </Suspense>
   );
 }

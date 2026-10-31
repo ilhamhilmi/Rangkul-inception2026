@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { EventReviewActions } from "@/components/admin/event-review-actions";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import {
   UserIcon,
   UsersIcon,
 } from "@/components/ui/icons";
+import { Skeleton } from "@/components/ui/skeleton";
 import { EVENT_CATEGORY_LABELS } from "@/lib/volunteer/categories";
 import { coverUrlFor } from "@/lib/volunteer/data";
 import { formatEventSchedule } from "@/lib/volunteer/format";
@@ -29,7 +31,23 @@ function formatDate(value: Date) {
   }).format(value);
 }
 
-export default async function AdminEventsPage() {
+function AdminEventsSkeleton() {
+  return (
+    <div className="container-page py-8 lg:py-10" aria-busy="true">
+      <span className="sr-only">Memuat antrean kegiatan…</span>
+      <Skeleton className="h-5 w-40" />
+      <Skeleton className="mt-4 h-9 w-64" />
+      <Skeleton className="mt-3 h-5 w-full max-w-2xl" />
+      <div className="mt-8 space-y-5">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <Skeleton key={index} className="h-80 rounded-card" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+async function AdminEventsContent() {
   const events = await getPendingVolunteerEvents();
 
   return (
@@ -185,5 +203,13 @@ export default async function AdminEventsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminEventsPage() {
+  return (
+    <Suspense fallback={<AdminEventsSkeleton />}>
+      <AdminEventsContent />
+    </Suspense>
   );
 }
