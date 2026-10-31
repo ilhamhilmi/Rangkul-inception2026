@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
 
 /* ==========================================================================
    Rangkul Design Tokens
@@ -276,4 +277,67 @@
 @utility tap-target {
   min-block-size: 2.75rem;
   min-inline-size: 2.75rem;
+}
+
+/* ==========================================================================
+   Leaflet
+   ========================================================================== */
+
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: var(--color-primary-50);
+}
+
+.leaflet-container a {
+  color: var(--color-primary-800);
+}
+
+.rangkul-map-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+}
+
+.rangkul-map-dot {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--color-surface);
+  border-radius: 9999px;
+  background: var(--color-sand-400);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+}
+
+.rangkul-map-dot--origin {
+  width: 20px;
+  height: 20px;
+  background: var(--color-sand-900);
+}
+
+.rangkul-map-dot--destination {
+  width: 22px;
+  height: 22px;
+  background: var(--color-primary-600);
+}
+
+.rangkul-map-dot--entrance {
+  width: 14px;
+  height: 14px;
+  background: var(--color-sand-400);
+}
+
+.leaflet-popup-content {
+  margin: 0.75rem 1rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.leaflet-popup-content a {
+  font-weight: 600;
+  color: var(--color-primary-800);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }

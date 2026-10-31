@@ -4,11 +4,8 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { NavigationExperience } from "@/components/map/navigation-experience";
 import { ArrowLeftIcon, ChevronRightIcon, MapPinIcon } from "@/components/ui/icons";
-import { getPlaceBySlug, places } from "@/lib/mock/places";
-
-export function generateStaticParams() {
-  return places.map((place) => ({ slug: place.slug }));
-}
+import { getPlaceBySlug } from "@/server/places/queries";
+import type { PlaceDetail } from "@/types/place";
 
 export async function generateMetadata({
   params,
@@ -16,7 +13,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const place = getPlaceBySlug(slug);
+  const place = await getPlaceBySlug(slug);
 
   if (!place) {
     return { title: "Navigasi tidak ditemukan" };
@@ -42,7 +39,7 @@ async function NavigationContent({
   place,
   searchParams,
 }: {
-  place: NonNullable<ReturnType<typeof getPlaceBySlug>>;
+  place: PlaceDetail;
   searchParams: Promise<NavigationSearchParams>;
 }) {
   const params = await searchParams;
@@ -55,14 +52,7 @@ async function NavigationContent({
 
   return (
     <NavigationExperience
-      place={{
-        slug: place.slug,
-        name: place.name,
-        city: place.city,
-        province: place.province,
-        address: place.address,
-        entrances: place.entrances,
-      }}
+      place={place}
       initialEntranceId={initialEntranceId}
     />
   );
@@ -83,7 +73,34 @@ function NavigationFallback() {
   );
 }
 
-export default async function NavigationPage({
+function NavigationPageSkeleton() {
+  return (
+    <div role="status" aria-live="polite" className="container-page py-10">
+      <span className="sr-only">Memuat halaman navigasi…</span>
+      <div aria-hidden="true" className="space-y-4">
+        <div className="h-5 w-48 animate-pulse rounded-full bg-surface-muted" />
+        <div className="h-10 w-2/3 animate-pulse rounded-card bg-surface-muted" />
+        <NavigationFallback />
+      </div>
+    </div>
+  );
+}
+
+export default function NavigationPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<NavigationSearchParams>;
+}) {
+  return (
+    <Suspense fallback={<NavigationPageSkeleton />}>
+      <NavigationPageContent params={params} searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function NavigationPageContent({
   params,
   searchParams,
 }: {
@@ -91,7 +108,7 @@ export default async function NavigationPage({
   searchParams: Promise<NavigationSearchParams>;
 }) {
   const { slug } = await params;
-  const place = getPlaceBySlug(slug);
+  const place = await getPlaceBySlug(slug);
 
   if (!place) notFound();
 

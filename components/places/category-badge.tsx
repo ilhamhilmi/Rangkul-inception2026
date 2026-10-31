@@ -1,4 +1,4 @@
-import { getCategoryMeta } from "@/lib/mock/places";
+import { getCategoryMeta } from "@/lib/constants/places";
 import { cn } from "@/lib/utils/cn";
 import type { PlaceCategory } from "@/types/place";
 import { CategoryIcon, getCategoryVisual } from "./category-icon";

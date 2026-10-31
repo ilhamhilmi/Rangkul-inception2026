@@ -10,7 +10,7 @@ import {
   ToiletIcon,
   XIcon,
 } from "@/components/ui/icons";
-import { FEATURE_MAP } from "@/lib/mock/places";
+import { FEATURE_MAP } from "@/lib/constants/places";
 import { cn } from "@/lib/utils/cn";
 import type { AccessibilityKey, FeatureStatus } from "@/types/place";
 

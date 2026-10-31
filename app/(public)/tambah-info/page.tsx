@@ -6,7 +6,7 @@ import { ChevronRightIcon, InfoIcon, PlusIcon } from "@/components/ui/icons";
 export const metadata: Metadata = {
   title: "Tambah info tempat",
   description:
-    "Bagikan informasi aksesibilitas tempat umum, termasuk kondisi setiap pintu masuk dan fasilitas yang tersedia.",
+    "Bagikan informasi aksesibilitas tempat umum, termasuk fasilitas yang tersedia dan titik lokasi di peta.",
 };
 
 export default function AddPlacePage() {
@@ -56,8 +56,8 @@ export default function AddPlacePage() {
                 Tambah info tempat
               </h1>
               <p className="mt-3 text-lg leading-relaxed text-ink-muted">
-                Bantu orang lain tahu kondisi tempat sebelum berangkat. Fokus
-                pada pengalaman nyata dan detail per pintu masuk.
+                Bantu orang lain tahu kondisi tempat sebelum berangkat. Tandai
+                lokasinya di peta dan ceritakan fasilitas yang tersedia.
               </p>
             </div>
 

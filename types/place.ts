@@ -23,6 +23,15 @@ export type AccessibilityFeature = {
   description: string;
 };
 
+export type LatLng = {
+  latitude: number;
+  longitude: number;
+};
+
+export type PlaceOrigin = LatLng & {
+  label: string;
+};
+
 export type EntranceRoute = {
   distance: string;
   duration: string;
@@ -30,7 +39,7 @@ export type EntranceRoute = {
   steps: string[];
 };
 
-export type Entrance = {
+export type Entrance = LatLng & {
   id: string;
   label: string;
   isMain: boolean;
@@ -48,7 +57,7 @@ export type Review = {
   accessibilityNote?: string;
 };
 
-export type Place = {
+export type Place = LatLng & {
   slug: string;
   name: string;
   category: PlaceCategory;
@@ -72,4 +81,5 @@ export type PlaceSummary = Omit<Place, "entrances" | "reviews"> & {
 export type PlaceDetail = Place & {
   entranceCount: number;
   availableFeatures: AccessibilityKey[];
+  defaultOrigin: PlaceOrigin | null;
 };

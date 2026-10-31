@@ -15,11 +15,10 @@ import {
   SparklesIcon,
 } from "@/components/ui/icons";
 import {
-  filterPlaces,
+  getPlaceCount,
   getPlaceSummaries,
-  isAccessibilityKey,
-  isPlaceCategory,
-} from "@/lib/mock/places";
+} from "@/server/places/queries";
+import { isAccessibilityKey, isPlaceCategory } from "@/lib/constants/places";
 
 export const metadata: Metadata = {
   title: "Jelajahi tempat",
@@ -51,13 +50,13 @@ async function ExploreResults({
   const kategori = isPlaceCategory(rawCategory) ? rawCategory : "semua";
   const fasilitas = isAccessibilityKey(rawFacility) ? rawFacility : "semua";
 
-  const results = filterPlaces({
+  const results = await getPlaceSummaries({
     q: query,
     kategori,
     fasilitas,
   });
 
-  const total = getPlaceSummaries().length;
+  const total = await getPlaceCount();
 
   return (
     <>
@@ -81,7 +80,7 @@ async function ExploreResults({
         </p>
         <p className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1 text-xs font-medium text-ink-muted">
           <InfoIcon className="h-3.5 w-3.5" />
-          Data contoh, belum terhubung database
+          Data langsung dari database
         </p>
       </div>
 

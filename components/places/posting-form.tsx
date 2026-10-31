@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent } from "react";
+import { LocationPicker } from "@/components/map/location-picker";
 import { Button, ButtonLink } from "@/components/ui/button";
 import {
   Checkbox,
@@ -16,68 +17,52 @@ import {
   CheckIcon,
   InfoIcon,
   MapPinIcon,
-  PlusIcon,
+  NavigationIcon,
   ShieldCheckIcon,
-  TrashIcon,
   XIcon,
 } from "@/components/ui/icons";
-import { PLACE_CATEGORIES } from "@/lib/mock/places";
+import { PLACE_CATEGORIES } from "@/lib/constants/places";
 
 type FormValues = {
   name: string;
   category: string;
   description: string;
-  address: string;
-  city: string;
-  province: string;
   lat: string;
   lng: string;
   photoAlt: string;
   rating: string;
 };
 
-type EntranceDraft = {
-  id: string;
-  label: string;
-  notes: string;
-  isMain: boolean;
-  ramp: boolean;
-  automaticDoor: boolean;
-  wideEntrance: boolean;
-};
-
 const initialValues: FormValues = {
   name: "",
   category: "",
   description: "",
-  address: "",
-  city: "",
-  province: "",
   lat: "",
   lng: "",
   photoAlt: "",
   rating: "",
 };
 
-const initialEntrance: EntranceDraft = {
-  id: "pintu-1",
-  label: "",
-  notes: "",
-  isMain: true,
-  ramp: false,
-  automaticDoor: false,
-  wideEntrance: false,
-};
-
 const errorTargets: Record<string, string> = {
   name: "field-name",
   category: "field-category",
   description: "field-description",
-  address: "field-address",
-  city: "field-city",
-  province: "field-province",
-  entrances: "pintu-masuk",
+  location: "field-lat",
+  lat: "field-lat",
+  lng: "field-lng",
 };
+
+function parseCoordinate(value: string, min: number, max: number) {
+  if (!value.trim()) return null;
+
+  const parsed = Number(value.replace(",", "."));
+
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) {
+    return null;
+  }
+
+  return parsed;
+}
 
 const ratingOptions = [
   { value: "5", label: "5 — Sangat mudah" },
@@ -120,61 +105,80 @@ function StepHeading({
 
 export function PostingForm() {
   const [values, setValues] = useState<FormValues>(initialValues);
-  const [entrances, setEntrances] = useState<EntranceDraft[]>([
-    initialEntrance,
-  ]);
   const [photos, setPhotos] = useState<File[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
-  const entranceCounter = useRef(1);
+  const [locating, setLocating] = useState(false);
+  const [locationNotice, setLocationNotice] = useState<string | null>(null);
+
+  const latitude = parseCoordinate(values.lat, -90, 90);
+  const longitude = parseCoordinate(values.lng, -180, 180);
 
   function update<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((previous) => ({ ...previous, [key]: value }));
-    if (errors[key]) {
-      setErrors((previous) => {
-        const next = { ...previous };
-        delete next[key];
-        return next;
-      });
+
+    if (key === "lat" || key === "lng") {
+      setLocationNotice(null);
     }
-  }
 
-  function updateEntrance(id: string, patch: Partial<EntranceDraft>) {
-    setEntrances((previous) =>
-      previous.map((entrance) =>
-        entrance.id === id ? { ...entrance, ...patch } : entrance,
-      ),
-    );
-    if (errors.entrances) {
-      setErrors((previous) => {
-        const next = { ...previous };
-        delete next.entrances;
-        return next;
-      });
-    }
-  }
+    setErrors((previous) => {
+      const clearsCoordinate =
+        (key === "lat" || key === "lng") && Boolean(previous.location);
+      if (!previous[key] && !clearsCoordinate) return previous;
 
-  function addEntrance() {
-    entranceCounter.current += 1;
-    setEntrances((previous) => [
-      ...previous,
-      {
-        ...initialEntrance,
-        id: `pintu-${entranceCounter.current}`,
-        isMain: previous.every((entrance) => !entrance.isMain),
-      },
-    ]);
-  }
-
-  function removeEntrance(id: string) {
-    setEntrances((previous) => {
-      if (previous.length === 1) return previous;
-      const next = previous.filter((entrance) => entrance.id !== id);
-      if (!next.some((entrance) => entrance.isMain)) {
-        next[0] = { ...next[0], isMain: true };
-      }
+      const next = { ...previous };
+      delete next[key];
+      if (key === "lat" || key === "lng") delete next.location;
       return next;
     });
+  }
+
+  function setCoordinate(lat: number, lng: number) {
+    setValues((previous) => ({
+      ...previous,
+      lat: lat.toFixed(6),
+      lng: lng.toFixed(6),
+    }));
+    setErrors((previous) => {
+      if (!previous.location && !previous.lat && !previous.lng) {
+        return previous;
+      }
+
+      const next = { ...previous };
+      delete next.location;
+      delete next.lat;
+      delete next.lng;
+      return next;
+    });
+    setLocationNotice(null);
+  }
+
+  function useCurrentLocation() {
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setLocationNotice(
+        "Browser ini tidak menyediakan lokasi perangkat. Klik peta atau isi koordinat manual.",
+      );
+      return;
+    }
+
+    setLocating(true);
+    setLocationNotice(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoordinate(position.coords.latitude, position.coords.longitude);
+        setLocating(false);
+      },
+      (error) => {
+        setLocating(false);
+        setLocationNotice(
+          error.code === error.PERMISSION_DENIED
+            ? "Izin lokasi ditolak. Klik peta atau isi koordinat manual."
+            : "Lokasi tidak berhasil dibaca. Klik peta atau isi koordinat manual.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
   }
 
   function handleFiles(event: ChangeEvent<HTMLInputElement>) {
@@ -197,12 +201,15 @@ export function PostingForm() {
       next.description =
         "Ceritakan tempatnya minimal 40 karakter agar kontribusi berguna.";
     }
-    if (!values.address.trim()) next.address = "Alamat wajib diisi.";
-    if (!values.city.trim()) next.city = "Kota wajib diisi.";
-    if (!values.province.trim()) next.province = "Provinsi wajib diisi.";
 
-    if (entrances.every((entrance) => !entrance.label.trim())) {
-      next.entrances = "Tambahkan minimal satu pintu masuk dengan label.";
+    const lat = parseCoordinate(values.lat, -90, 90);
+    const lng = parseCoordinate(values.lng, -180, 180);
+
+    if (!values.lat.trim() && !values.lng.trim()) {
+      next.location = "Tentukan titik lokasi di peta atau isi koordinat.";
+    } else {
+      if (lat === null) next.lat = "Latitude harus angka antara -90 dan 90.";
+      if (lng === null) next.lng = "Longitude harus angka antara -180 dan 180.";
     }
 
     return next;
@@ -229,11 +236,11 @@ export function PostingForm() {
 
   function resetForm() {
     setValues(initialValues);
-    setEntrances([{ ...initialEntrance }]);
-    entranceCounter.current = 1;
     setPhotos([]);
     setErrors({});
     setSubmitted(false);
+    setLocating(false);
+    setLocationNotice(null);
   }
 
   const errorEntries = Object.entries(errors);
@@ -266,15 +273,9 @@ export function PostingForm() {
             <dd className="mt-0.5 font-medium text-ink">{categoryLabel}</dd>
           </div>
           <div>
-            <dt className="text-xs text-ink-muted">Lokasi</dt>
+            <dt className="text-xs text-ink-muted">Titik peta</dt>
             <dd className="mt-0.5 font-medium text-ink">
-              {values.city}, {values.province}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-ink-muted">Pintu masuk</dt>
-            <dd className="mt-0.5 font-medium text-ink">
-              {entrances.length} pintu
+              {values.lat}, {values.lng}
             </dd>
           </div>
           <div>
@@ -434,145 +435,102 @@ export function PostingForm() {
             id="step-location"
             step={2}
             title="Lokasi"
-            description="Alamat lengkap dan titik peta membantu orang menemukan pintu yang tepat."
+            description="Tandai titik tempat langsung di peta. Klik peta atau geser penanda; koordinat bisa diisi manual jika perlu."
           />
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="field-address">
-                Alamat lengkap <span className="text-danger-700">*</span>
-              </Label>
-              <Input
-                id="field-address"
-                name="address"
-                value={values.address}
-                onChange={(event) => update("address", event.target.value)}
-                placeholder="Jl. Contoh No. 12, Kelurahan, Kecamatan"
-                aria-invalid={errors.address ? true : undefined}
-                aria-describedby={errors.address ? "error-address" : undefined}
-                required
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+                <MapPinIcon className="h-4 w-4 text-primary-700" />
+                Titik peta <span className="text-danger-700">*</span>
+              </p>
+              <LocationPicker
+                latitude={latitude}
+                longitude={longitude}
+                onChange={({ latitude: nextLat, longitude: nextLng }) =>
+                  setCoordinate(nextLat, nextLng)
+                }
               />
-              {errors.address ? (
-                <FieldError id="error-address">{errors.address}</FieldError>
-              ) : null}
+              {errors.location ? (
+                <FieldError id="error-location">{errors.location}</FieldError>
+              ) : (
+                <FieldHint>
+                  Klik peta untuk menaruh titik. Penanda bisa digeser untuk
+                  memperbaiki posisi.
+                </FieldHint>
+              )}
             </div>
+
+            <div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={useCurrentLocation}
+                disabled={locating}
+              >
+                <NavigationIcon className="h-4 w-4" />
+                {locating ? "Mencari lokasi…" : "Gunakan lokasi saya saat ini"}
+              </Button>
+            </div>
+
+            {locationNotice ? (
+              <p
+                role="alert"
+                className="rounded-card border border-warning-600/30 bg-warning-50 px-3.5 py-3 text-sm leading-relaxed text-warning-700"
+              >
+                {locationNotice}
+              </p>
+            ) : null}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="field-city">
-                  Kota / kabupaten <span className="text-danger-700">*</span>
+                <Label htmlFor="field-lat" className="text-xs text-ink-muted">
+                  Latitude <span className="text-danger-700">*</span>
                 </Label>
                 <Input
-                  id="field-city"
-                  name="city"
-                  value={values.city}
-                  onChange={(event) => update("city", event.target.value)}
-                  placeholder="Contoh: Bandung"
-                  aria-invalid={errors.city ? true : undefined}
-                  aria-describedby={errors.city ? "error-city" : undefined}
+                  id="field-lat"
+                  name="lat"
+                  inputMode="decimal"
+                  value={values.lat}
+                  onChange={(event) => update("lat", event.target.value)}
+                  placeholder="-6.2088"
+                  aria-invalid={errors.lat ? true : undefined}
+                  aria-describedby={errors.lat ? "error-lat" : undefined}
+                  className="h-11 bg-surface text-sm"
                   required
                 />
-                {errors.city ? (
-                  <FieldError id="error-city">{errors.city}</FieldError>
+                {errors.lat ? (
+                  <FieldError id="error-lat">{errors.lat}</FieldError>
                 ) : null}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="field-province">
-                  Provinsi <span className="text-danger-700">*</span>
+                <Label htmlFor="field-lng" className="text-xs text-ink-muted">
+                  Longitude <span className="text-danger-700">*</span>
                 </Label>
                 <Input
-                  id="field-province"
-                  name="province"
-                  value={values.province}
-                  onChange={(event) => update("province", event.target.value)}
-                  placeholder="Contoh: Jawa Barat"
-                  aria-invalid={errors.province ? true : undefined}
-                  aria-describedby={
-                    errors.province ? "error-province" : undefined
-                  }
+                  id="field-lng"
+                  name="lng"
+                  inputMode="decimal"
+                  value={values.lng}
+                  onChange={(event) => update("lng", event.target.value)}
+                  placeholder="106.8456"
+                  aria-invalid={errors.lng ? true : undefined}
+                  aria-describedby={errors.lng ? "error-lng" : undefined}
+                  className="h-11 bg-surface text-sm"
                   required
                 />
-                {errors.province ? (
-                  <FieldError id="error-province">
-                    {errors.province}
-                  </FieldError>
+                {errors.lng ? (
+                  <FieldError id="error-lng">{errors.lng}</FieldError>
                 ) : null}
               </div>
             </div>
 
-            <div className="rounded-card border border-line bg-surface-muted/50 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
-                    <MapPinIcon className="h-4 w-4 text-primary-700" />
-                    Titik peta
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
-                    Peta masih ilustrasi. Masukkan koordinat perkiraan; pemilih
-                    peta interaktif menyusul bersama Leaflet.
-                  </p>
-                </div>
-                <span className="rounded-full bg-surface px-2.5 py-1 text-xs font-medium text-ink-muted">
-                  Opsional
-                </span>
-              </div>
-
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="field-lat" className="text-xs text-ink-muted">
-                    Latitude
-                  </Label>
-                  <Input
-                    id="field-lat"
-                    name="lat"
-                    inputMode="decimal"
-                    value={values.lat}
-                    onChange={(event) => update("lat", event.target.value)}
-                    placeholder="-6.2088"
-                    className="h-11 bg-surface text-sm"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="field-lng" className="text-xs text-ink-muted">
-                    Longitude
-                  </Label>
-                  <Input
-                    id="field-lng"
-                    name="lng"
-                    inputMode="decimal"
-                    value={values.lng}
-                    onChange={(event) => update("lng", event.target.value)}
-                    placeholder="106.8456"
-                    className="h-11 bg-surface text-sm"
-                  />
-                </div>
-              </div>
-
-              <div
-                aria-hidden="true"
-                className="relative mt-3 h-28 overflow-hidden rounded-card border border-line bg-primary-50"
-              >
-                <svg viewBox="0 0 400 120" className="h-full w-full">
-                  <rect width="400" height="120" fill="var(--color-primary-50)" />
-                  <g fill="var(--color-primary-100)">
-                    <rect x="16" y="14" width="90" height="34" rx="6" />
-                    <rect x="290" y="18" width="94" height="40" rx="6" />
-                    <rect x="40" y="76" width="110" height="34" rx="6" />
-                    <rect x="270" y="76" width="100" height="32" rx="6" />
-                  </g>
-                  <g stroke="var(--color-surface)" strokeWidth="14" fill="none">
-                    <path d="M0 60h400" />
-                    <path d="M200 0v120" />
-                  </g>
-                  <circle cx="214" cy="56" r="16" fill="var(--color-primary-600)" opacity="0.18" />
-                  <circle cx="214" cy="56" r="7" fill="var(--color-primary-600)" stroke="var(--color-surface)" strokeWidth="3" />
-                </svg>
-                <span className="absolute bottom-2 left-2 rounded-full bg-surface/95 px-2 py-1 text-xs font-medium text-ink-muted">
-                  Peta contoh
-                </span>
-              </div>
-            </div>
+            <p className="text-xs leading-relaxed text-ink-muted">
+              Lokasi perangkat hanya dipakai untuk mengisi titik peta, tidak
+              disimpan terpisah.
+            </p>
           </div>
         </section>
 
@@ -584,7 +542,7 @@ export function PostingForm() {
             id="step-facilities"
             step={3}
             title="Fasilitas umum"
-            description="Centang fasilitas yang tersedia di area tempat. Detail per pintu diisi di langkah berikutnya."
+            description="Centang fasilitas yang tersedia di area tempat. Kamu bisa menambahkan catatan di deskripsi bila ada detail penting."
           />
 
           <fieldset className="grid gap-3 sm:grid-cols-2">
@@ -619,167 +577,14 @@ export function PostingForm() {
         </section>
 
         <section
-          id="pintu-masuk"
-          aria-labelledby="step-entrances"
-          tabIndex={-1}
-          className="scroll-mt-24 rounded-sheet border border-line bg-surface p-5 shadow-xs sm:p-6"
-        >
-          <StepHeading
-            id="step-entrances"
-            step={4}
-            title="Pintu masuk"
-            description="Ini pembeda utama Rangkul. Catat setiap pintu dan kondisinya, lalu tandai satu sebagai pintu utama."
-          />
-
-          {errors.entrances ? (
-            <div className="mb-4">
-              <FieldError>{errors.entrances}</FieldError>
-            </div>
-          ) : null}
-
-          <ol className="space-y-4">
-            {entrances.map((entrance, index) => (
-              <li
-                key={entrance.id}
-                className="rounded-card border border-line bg-surface-muted/40 p-4"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-ink">
-                    Pintu {index + 1}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <label
-                      htmlFor={`${entrance.id}-main`}
-                      className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-full border border-line bg-surface px-3 text-xs font-medium text-ink"
-                    >
-                      <input
-                        type="radio"
-                        id={`${entrance.id}-main`}
-                        name="pintu-utama"
-                        checked={entrance.isMain}
-                        onChange={() =>
-                          setEntrances((previous) =>
-                            previous.map((item) => ({
-                              ...item,
-                              isMain: item.id === entrance.id,
-                            })),
-                          )
-                        }
-                        className="h-3.5 w-3.5 accent-primary-600"
-                      />
-                      Pintu utama
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => removeEntrance(entrance.id)}
-                      disabled={entrances.length === 1}
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-line bg-surface text-ink-muted transition-colors hover:border-danger-600 hover:text-danger-700 disabled:cursor-not-allowed disabled:opacity-40"
-                      aria-label={`Hapus pintu ${index + 1}`}
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label
-                      htmlFor={`${entrance.id}-label`}
-                      className="text-xs text-ink-muted"
-                    >
-                      Label pintu <span className="text-danger-700">*</span>
-                    </Label>
-                    <Input
-                      id={`${entrance.id}-label`}
-                      value={entrance.label}
-                      onChange={(event) =>
-                        updateEntrance(entrance.id, { label: event.target.value })
-                      }
-                      placeholder="Contoh: Pintu Utara"
-                      className="h-11 bg-surface text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <Label
-                      htmlFor={`${entrance.id}-notes`}
-                      className="text-xs text-ink-muted"
-                    >
-                      Catatan kondisi
-                    </Label>
-                    <Textarea
-                      id={`${entrance.id}-notes`}
-                      value={entrance.notes}
-                      onChange={(event) =>
-                        updateEntrance(entrance.id, { notes: event.target.value })
-                      }
-                      placeholder="Ramp landai, pintu otomatis, lebar 90 cm, jalur ke lift sekitar 15 meter."
-                      className="min-h-20 bg-surface text-sm"
-                      rows={2}
-                    />
-                  </div>
-
-                  <fieldset className="sm:col-span-2">
-                    <legend className="text-xs font-medium text-ink-muted">
-                      Fasilitas di pintu ini
-                    </legend>
-                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                      {[
-                        { key: "ramp" as const, label: "Ramp landai" },
-                        {
-                          key: "automaticDoor" as const,
-                          label: "Pintu otomatis",
-                        },
-                        {
-                          key: "wideEntrance" as const,
-                          label: "Pintu lebar (≥ 90 cm)",
-                        },
-                      ].map((facility) => (
-                        <label
-                          key={facility.key}
-                          htmlFor={`${entrance.id}-${facility.key}`}
-                          className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-input border border-line bg-surface px-3 text-sm text-ink"
-                        >
-                          <Checkbox
-                            id={`${entrance.id}-${facility.key}`}
-                            checked={entrance[facility.key]}
-                            onChange={(event) =>
-                              updateEntrance(entrance.id, {
-                                [facility.key]: event.target.checked,
-                              })
-                            }
-                          />
-                          {facility.label}
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                </div>
-              </li>
-            ))}
-          </ol>
-
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={addEntrance}
-            className="mt-4"
-          >
-            <PlusIcon className="h-4 w-4" />
-            Tambah pintu
-          </Button>
-        </section>
-
-        <section
           aria-labelledby="step-photo"
           className="rounded-sheet border border-line bg-surface p-5 shadow-xs sm:p-6"
         >
           <StepHeading
             id="step-photo"
-            step={5}
+            step={4}
             title="Foto"
-            description="Foto membantu orang mengenali kondisi pintu dan jalur. Upload belum aktif di versi UI ini."
+            description="Foto membantu orang mengenali kondisi tempat dan jalur masuk. Upload belum aktif di versi UI ini."
           />
 
           <div className="rounded-card border border-dashed border-line-strong/50 bg-surface-muted/40 p-4">
@@ -856,7 +661,7 @@ export function PostingForm() {
         >
           <StepHeading
             id="step-rating"
-            step={6}
+            step={5}
             title="Rating aksesibilitas"
             description="Opsional. Beri nilai seberapa mudah tempat ini diakses sesuai pengalamanmu."
           />
@@ -913,8 +718,8 @@ export function PostingForm() {
           <ul className="mt-3 space-y-2 text-sm leading-relaxed text-primary-800">
             {[
               "Tulis kondisi apa adanya, termasuk hambatan yang masih ada.",
-              "Bedakan fasilitas per pintu masuk, jangan digabung.",
-              "Sertakan foto pintu dan jalur jika memungkinkan.",
+              "Tandai titik peta sedekat mungkin dengan lokasi sebenarnya.",
+              "Sertakan foto tempat dan jalur masuk jika memungkinkan.",
             ].map((item) => (
               <li key={item} className="flex items-start gap-2">
                 <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
@@ -937,8 +742,7 @@ export function PostingForm() {
             Kirim untuk ditinjau
           </Button>
           <p className="mt-2 text-center text-xs text-ink-muted">
-            Wajib: nama, kategori, deskripsi, alamat, kota, provinsi, dan satu
-            pintu masuk.
+            Wajib: nama, kategori, deskripsi, dan titik peta.
           </p>
         </div>
       </aside>

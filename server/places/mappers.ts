@@ -1,0 +1,213 @@
+import type {
+  AccessibilityKey,
+  Entrance,
+  FeatureStatus,
+  Place,
+  PlaceCategory,
+  PlaceDetail,
+  PlaceSummary,
+  Review,
+} from "@/types/place";
+import { ACCESSIBILITY_FEATURES, isAccessibilityKey } from "@/lib/constants/places";
+import type { Prisma } from "@prisma/client";
+
+export const placeDetailInclude = {
+  createdBy: { select: { name: true } },
+  entrances: {
+    orderBy: [{ isMain: "desc" }, { label: "asc" }],
+    include: {
+      features: {
+        include: { feature: { select: { key: true } } },
+      },
+    },
+  },
+  reviews: {
+    where: { status: "PUBLISHED", archivedAt: null },
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+    include: { author: { select: { name: true } } },
+  },
+} satisfies Prisma.PlaceInclude;
+
+export const placeSummaryInclude = {
+  createdBy: { select: { name: true } },
+  entrances: {
+    select: {
+      features: {
+        select: { value: true, feature: { select: { key: true } } },
+      },
+    },
+  },
+} satisfies Prisma.PlaceInclude;
+
+export type PlaceWithDetail = Prisma.PlaceGetPayload<{
+  include: typeof placeDetailInclude;
+}>;
+
+export type PlaceWithSummary = Prisma.PlaceGetPayload<{
+  include: typeof placeSummaryInclude;
+}>;
+
+const CATEGORY_MAP: Record<Prisma.PlaceGetPayload<object>["category"], PlaceCategory> =
+  {
+    WISATA: "wisata",
+    KULINER: "kuliner",
+    TRANSPORTASI: "transportasi",
+    IBADAH: "ibadah",
+    KESEHATAN: "kesehatan",
+  };
+
+const FEATURE_VALUE_MAP = {
+  AVAILABLE: "available",
+  NOT_AVAILABLE: "unavailable",
+  UNKNOWN: "unknown",
+} as const satisfies Record<string, FeatureStatus>;
+
+function emptyFeatures(): Record<AccessibilityKey, FeatureStatus> {
+  return Object.fromEntries(
+    ACCESSIBILITY_FEATURES.map((feature) => [feature.key, "unknown"]),
+  ) as Record<AccessibilityKey, FeatureStatus>;
+}
+
+function formatDistance(meters: number | null) {
+  if (meters === null) return "—";
+  if (meters >= 1000) {
+    return `${new Intl.NumberFormat("id-ID", {
+      maximumFractionDigits: 1,
+    }).format(meters / 1000)} km`;
+  }
+
+  return `${meters} m`;
+}
+
+function formatDuration(minutes: number | null) {
+  if (minutes === null) return "—";
+  return `${minutes} menit`;
+}
+
+function mapEntrance(
+  entrance: PlaceWithDetail["entrances"][number],
+): Entrance {
+  const features = emptyFeatures();
+
+  for (const item of entrance.features) {
+    if (!isAccessibilityKey(item.feature.key)) continue;
+    features[item.feature.key] = FEATURE_VALUE_MAP[item.value];
+  }
+
+  return {
+    id: entrance.id,
+    label: entrance.label,
+    isMain: entrance.isMain,
+    notes: entrance.notes ?? "",
+    latitude: Number(entrance.latitude ?? 0),
+    longitude: Number(entrance.longitude ?? 0),
+    features,
+    route: {
+      distance: formatDistance(entrance.routeDistanceM),
+      duration: formatDuration(entrance.routeDurationMin),
+      condition: entrance.routeCondition ?? "",
+      steps: entrance.routeSteps,
+    },
+  };
+}
+
+function mapReviews(reviews: PlaceWithDetail["reviews"]): Review[] {
+  return reviews.map((review) => ({
+    id: review.id,
+    author: review.author.name,
+    rating: review.rating,
+    date: (review.publishedAt ?? review.createdAt).toISOString(),
+    body: review.body,
+    accessibilityNote: review.accessibilityNote ?? undefined,
+  }));
+}
+
+function availableFeatureKeys(
+  entrances: PlaceWithDetail["entrances"],
+): AccessibilityKey[] {
+  const available = new Set<AccessibilityKey>();
+
+  for (const entrance of entrances) {
+    for (const item of entrance.features) {
+      if (item.value !== "AVAILABLE") continue;
+      if (isAccessibilityKey(item.feature.key)) {
+        available.add(item.feature.key);
+      }
+    }
+  }
+
+  return ACCESSIBILITY_FEATURES.filter((feature) =>
+    available.has(feature.key),
+  ).map((feature) => feature.key);
+}
+
+export function toPlaceDetail(place: PlaceWithDetail): PlaceDetail {
+  const entrances = place.entrances.map(mapEntrance);
+
+  const detail: Place = {
+    slug: place.slug,
+    name: place.name,
+    category: CATEGORY_MAP[place.category],
+    city: place.city,
+    province: place.province,
+    address: place.address,
+    description: place.description,
+    contributor: place.createdBy?.name ?? "Kontributor Rangkul",
+    createdAt: place.createdAt.toISOString(),
+    rating: Number(place.ratingAvg),
+    reviewCount: place.reviewCount,
+    latitude: Number(place.latitude),
+    longitude: Number(place.longitude),
+    entrances,
+    reviews: mapReviews(place.reviews),
+  };
+
+  return {
+    ...detail,
+    entranceCount: entrances.length,
+    availableFeatures: availableFeatureKeys(place.entrances),
+    defaultOrigin:
+      place.defaultOriginLabel &&
+      place.defaultOriginLatitude !== null &&
+      place.defaultOriginLongitude !== null
+        ? {
+            label: place.defaultOriginLabel,
+            latitude: Number(place.defaultOriginLatitude),
+            longitude: Number(place.defaultOriginLongitude),
+          }
+        : null,
+  };
+}
+
+export function toPlaceSummary(place: PlaceWithSummary): PlaceSummary {
+  const available = new Set<AccessibilityKey>();
+
+  for (const entrance of place.entrances) {
+    for (const item of entrance.features) {
+      if (item.value !== "AVAILABLE") continue;
+      if (isAccessibilityKey(item.feature.key)) {
+        available.add(item.feature.key);
+      }
+    }
+  }
+
+  return {
+    slug: place.slug,
+    name: place.name,
+    category: CATEGORY_MAP[place.category],
+    city: place.city,
+    province: place.province,
+    address: place.address,
+    description: place.description,
+    contributor: place.createdBy?.name ?? "Kontributor Rangkul",
+    createdAt: place.createdAt.toISOString(),
+    rating: Number(place.ratingAvg),
+    reviewCount: place.reviewCount,
+    latitude: Number(place.latitude),
+    longitude: Number(place.longitude),
+    entranceCount: place.entrances.length,
+    availableFeatures: ACCESSIBILITY_FEATURES.filter((feature) =>
+      available.has(feature.key),
+    ).map((feature) => feature.key),
+  };
+}

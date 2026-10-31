@@ -5,7 +5,7 @@ import {
   NavigationIcon,
   WalkIcon,
 } from "@/components/ui/icons";
-import { ACCESSIBILITY_FEATURES } from "@/lib/mock/places";
+import { ACCESSIBILITY_FEATURES } from "@/lib/constants/places";
 import type { Entrance } from "@/types/place";
 import { FeatureStatusRow } from "./feature-chip";
 

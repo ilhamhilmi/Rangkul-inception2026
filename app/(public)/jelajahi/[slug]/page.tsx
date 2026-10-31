@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MockMap } from "@/components/map/mock-map";
+import { Suspense } from "react";
+import { PlaceMap } from "@/components/map/place-map";
 import { CategoryBadge } from "@/components/places/category-badge";
 import { EntranceCard } from "@/components/places/entrance-card";
 import { FeatureChip } from "@/components/places/feature-chip";
@@ -25,14 +26,10 @@ import {
 import {
   ACCESSIBILITY_FEATURES,
   getMainEntrance,
-  getPlaceBySlug,
-  places,
-} from "@/lib/mock/places";
+} from "@/lib/constants/places";
+import { getPlaceBySlug } from "@/server/places/queries";
 import { formatDate, pluralize } from "@/lib/utils/format";
-
-export function generateStaticParams() {
-  return places.map((place) => ({ slug: place.slug }));
-}
+import type { PlaceDetail } from "@/types/place";
 
 export async function generateMetadata({
   params,
@@ -40,7 +37,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const place = getPlaceBySlug(slug);
+  const place = await getPlaceBySlug(slug);
 
   if (!place) {
     return { title: "Tempat tidak ditemukan" };
@@ -52,16 +49,45 @@ export async function generateMetadata({
   };
 }
 
-export default async function PlaceDetailPage({
+function PlaceDetailSkeleton() {
+  return (
+    <div role="status" aria-live="polite" className="container-page py-10">
+      <span className="sr-only">Memuat detail tempat…</span>
+      <div aria-hidden="true" className="space-y-4">
+        <div className="h-6 w-40 animate-pulse rounded-full bg-surface-muted" />
+        <div className="h-10 w-2/3 animate-pulse rounded-card bg-surface-muted" />
+        <div className="h-64 animate-pulse rounded-sheet border border-line bg-surface-muted" />
+      </div>
+    </div>
+  );
+}
+
+export default function PlaceDetailPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  return (
+    <Suspense fallback={<PlaceDetailSkeleton />}>
+      <PlaceDetailContent params={params} />
+    </Suspense>
+  );
+}
+
+async function PlaceDetailContent({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const place = getPlaceBySlug(slug);
+  const place = await getPlaceBySlug(slug);
 
   if (!place) notFound();
 
+  return <PlaceDetailView place={place} />;
+}
+
+function PlaceDetailView({ place }: { place: PlaceDetail }) {
   const mainEntrance = getMainEntrance(place);
   const availableFeatureList = ACCESSIBILITY_FEATURES.filter((feature) =>
     place.availableFeatures.includes(feature.key),
@@ -263,9 +289,12 @@ export default async function PlaceDetailPage({
 
           <aside className="order-1 space-y-4 lg:order-2 lg:sticky lg:top-24">
             <div className="rounded-sheet border border-line bg-surface p-4 shadow-xs sm:p-5">
-              <MockMap
-                label={place.address}
-                caption="Lokasi contoh. Titik akhir rute mengikuti pintu yang dipilih."
+              <PlaceMap
+                slug={place.slug}
+                name={place.name}
+                latitude={place.latitude}
+                longitude={place.longitude}
+                entrances={place.entrances}
               />
 
               <div className="mt-4">

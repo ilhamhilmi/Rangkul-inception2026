@@ -5,7 +5,7 @@ import { SearchIcon, SlidersIcon, XIcon } from "@/components/ui/icons";
 import {
   ACCESSIBILITY_FEATURES,
   PLACE_CATEGORIES,
-} from "@/lib/mock/places";
+} from "@/lib/constants/places";
 import { cn } from "@/lib/utils/cn";
 
 export type FilterValues = {

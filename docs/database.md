@@ -2,24 +2,25 @@
 
 Dokumen ini adalah **sumber kebenaran skema database** untuk tiga fitur Rangkul: informasi aksesibilitas tempat, direktori komunitas, dan volunteer inklusif.
 
-Status: **rencana, belum diimplementasikan.** Belum ada `schema.prisma`, migrasi, atau query backend di repo. Dokumen ini dipakai agar semua kontributor memakai nama tabel, kolom, relasi, status, dan constraint yang sama saat implementasi dimulai.
+Status: **Fitur 1 sudah diimplementasikan.** Tabel `profiles`, `places`, `entrances`, `accessibility_features`, `entrance_features`, `place_photos`, dan `reviews` sudah ada di `prisma/schema.prisma`, migrasi `20261031083304_init_feature1` sudah diterapkan, dan seluruh route Fitur 1 membaca data dari database. Tabel komunitas dan volunteer masih berupa rencana.
 
 - Ringkasan entitas dan aturan tingkat arsitektur: [`docs/architecture.md`](./architecture.md) §10.
 - Kebutuhan produk: [`docs/product.md`](./product.md).
-- Tipe UI saat ini (mock): [`types/place.ts`](../types/place.ts).
+- Tipe UI: [`types/place.ts`](../types/place.ts) (dipetakan dari Prisma di `server/places/mappers.ts`).
+- Kode implementasi: [`prisma/schema.prisma`](../prisma/schema.prisma), [`server/places/queries.ts`](../server/places/queries.ts), [`prisma/seed.ts`](../prisma/seed.ts).
 
 ---
 
 ## 1. Ruang Lingkup
 
-| Fitur | Tabel utama |
-|---|---|
-| Informasi & navigasi tempat | `places`, `entrances`, `accessibility_features`, `entrance_features`, `place_photos`, `reviews` |
-| Direktori komunitas | `communities`, `verification_requests` |
-| Volunteer inklusif | `volunteer_events`, `event_registrations` |
-| Lintas fitur | `profiles`, `reports`, `moderation_logs` |
+| Fitur | Tabel utama | Status |
+|---|---|---|
+| Informasi & navigasi tempat | `places`, `entrances`, `accessibility_features`, `entrance_features`, `place_photos`, `reviews` | diimplementasikan |
+| Direktori komunitas | `communities`, `verification_requests` | rencana |
+| Volunteer inklusif | `volunteer_events`, `event_registrations` | rencana |
+| Lintas fitur | `profiles`, `reports`, `moderation_logs` | `profiles` diimplementasikan (subset), sisanya rencana |
 
-Di luar dokumen ini: kode Prisma, migrasi SQL, seed script, server action, dan kebijakan moderasi AI. Semua itu mengikuti dokumen ini saat dikerjakan.
+Di luar dokumen ini: kebijakan moderasi AI dan detail retensi. Kode Prisma, migrasi SQL, seed, dan query backend **mengikuti** dokumen ini; jika implementasi berbeda, dokumen ini yang diperbarui lebih dulu.
 
 ---
 
@@ -178,7 +179,7 @@ Profil aplikasi. `id` sama dengan UUID Supabase Auth, bukan auto-increment.
 
 | Kolom | Tipe | Null | Default | Constraint |
 |---|---|---|---|---|
-| `id` | `uuid` | tidak | — | PK, FK `auth.users(id)` `ON DELETE CASCADE` |
+| `id` | `uuid` | tidak | — | PK (FK `auth.users(id)` **belum** dibuat) |
 | `email` | `text` | tidak | — | unik lewat `lower(email)` |
 | `name` | `text` | tidak | — | panjang 1–80 |
 | `role` | `user_role` | tidak | `'USER'` | — |
@@ -190,6 +191,8 @@ Profil aplikasi. `id` sama dengan UUID Supabase Auth, bukan auto-increment.
 Index: `uq_profiles_email_lower` pada `lower(email)`, `idx_profiles_role`.
 
 Catatan: role disimpan di database, tidak pernah di cookie atau state client. Perubahan role hanya lewat admin/server.
+
+Catatan implementasi Fitur 1: relasi ke `auth.users` dan RLS sengaja ditunda sampai fase auth. Saat ini `profiles.id` diisi UUID acak oleh seed, dan query publik tidak pernah membaca `profiles` secara langsung (hanya `name` lewat relasi `createdBy`/`author`).
 
 ### 5.2 `places`
 
@@ -209,6 +212,9 @@ Catatan: role disimpan di database, tidak pernah di cookie atau state client. Pe
 | `created_by` | `uuid` | tidak | — | FK `profiles(id)` `ON DELETE RESTRICT` |
 | `rating_avg` | `numeric(3,2)` | tidak | `0` | `0..5`, dihitung trigger |
 | `review_count` | `integer` | tidak | `0` | `>= 0`, dihitung trigger |
+| `default_origin_label` | `text` | ya | — | label titik awal contoh, maks 120 |
+| `default_origin_latitude` | `numeric(9,6)` | ya | — | `-90..90`, wajib berpasangan dengan longitude |
+| `default_origin_longitude` | `numeric(9,6)` | ya | — | `-180..180`, wajib berpasangan dengan latitude |
 | `published_at` | `timestamptz` | ya | — | wajib terisi saat `PUBLISHED` |
 | `archived_at` | `timestamptz` | ya | — | soft delete |
 | `created_at` | `timestamptz` | tidak | `now()` | — |
@@ -223,6 +229,8 @@ Index:
 - `idx_places_coordinates` (`latitude`, `longitude`) untuk bounding box
 
 Aturan: `rating_avg` dan `review_count` adalah cache agregat. Jangan menulisnya dari server action; biarkan trigger §7 yang memperbarui.
+
+Aturan titik awal navigasi: `default_origin_*` menyimpan titik awal contoh per tempat. Halaman navigasi memakai lokasi browser bila pengguna mengizinkannya; jika tidak, ia jatuh ke titik ini. Ketiga kolom harus `NULL` bersama atau terisi bersama (constraint `chk_places_default_origin`). Jangan memakai koordinat `places.latitude/longitude` sebagai fallback diam-diam karena itu titik bangunan, bukan titik awal perjalanan.
 
 ### 5.3 `entrances`
 
@@ -272,7 +280,7 @@ Master fasilitas. Tabel sistem yang di-seed, bukan dibuat pengguna.
 
 Index: `uq_accessibility_features_key` (`key`), `idx_accessibility_features_active` (`is_active`, `sort_order`).
 
-Seed awal mengikuti `ACCESSIBILITY_FEATURES` di `lib/mock/places.ts`: `ramp`, `lift`, `accessible-toilet`, `guiding-block`, `accessible-parking`, `automatic-door`, `wide-entrance`.
+Seed awal didefinisikan di `prisma/seed-data.ts` (`SEED_FEATURES`) dan disinkronkan oleh `prisma/seed.ts` dengan upsert berdasarkan `key`: `ramp`, `lift`, `accessible-toilet`, `guiding-block`, `accessible-parking`, `automatic-door`, `wide-entrance`. Konstanta UI untuk label dan ikon ada di `lib/constants/places.ts`; jangan menduplikasi daftar ini di komponen.
 
 ### 5.5 `entrance_features`
 
@@ -710,14 +718,18 @@ where p.status = 'PUBLISHED'
 
 ### 10.1 Urutan migrasi
 
-1. Ekstensi (`pg_trgm`) dan enum.
-2. `profiles` (FK ke `auth.users`).
-3. `accessibility_features`.
-4. `places` → `entrances` → `entrance_features` → `place_photos` → `reviews`.
-5. `communities` → `volunteer_events` → `event_registrations`.
-6. `verification_requests`, `reports`, `moderation_logs`.
-7. Fungsi & trigger agregat.
-8. Index tambahan dan backfill agregat.
+Status per 31 Oktober 2026:
+
+1. ✅ Ekstensi (`pg_trgm`) dan enum.
+2. ✅ `profiles` (tanpa FK ke `auth.users`; lihat §5.1).
+3. ✅ `accessibility_features`.
+4. ✅ `places` → `entrances` → `entrance_features` → `place_photos` → `reviews`.
+5. ⬜ `communities` → `volunteer_events` → `event_registrations`.
+6. ⬜ `verification_requests`, `reports`, `moderation_logs`.
+7. ✅ Fungsi & trigger agregat untuk `places.rating_avg`/`review_count`.
+8. ✅ Index tambahan dan backfill agregat (dijalankan oleh seed).
+
+Migrasi Fitur 1: [`prisma/migrations/20261031083304_init_feature1/migration.sql`](../prisma/migrations/20261031083304_init_feature1/migration.sql). Migrasi ini juga memuat objek yang tidak bisa diekspresikan di `schema.prisma`: index trigram, partial unique index, check constraint, `set_updated_at()`, dan `reviews_refresh_place_rating()`.
 
 ### 10.2 Aturan migrasi
 
@@ -728,23 +740,45 @@ where p.status = 'PUBLISHED'
 - Jangan mengedit migrasi yang sudah dijalankan di environment bersama; buat migrasi baru.
 - Setiap migrasi yang mengubah agregat wajib menyertakan backfill.
 
-### 10.3 Seed
+### 10.3 Alur kerja Prisma di repo ini
 
-Urutan seed:
+Prisma CLI tidak membaca `.env.local`, jadi semua script database dibungkus `dotenv-cli`:
 
-1. `accessibility_features` (data sistem, upsert berdasarkan `key`).
-2. Profil demo dengan role berbeda.
-3. Tempat + entrance + fasilitas + foto.
-4. Komunitas `VERIFIED`.
-5. Event `PUBLISHED` + beberapa pendaftaran.
-6. Contoh laporan dan log moderasi.
+```bash
+# 1. Ubah prisma/schema.prisma
+# 2. Buat migrasi baru (tanpa apply) lalu tinjau SQL-nya
+npm run db:migrate -- --name <nama_migrasi> --create-only
+# 3. Tambahkan objek manual (index parsial, trigger, check) ke file SQL jika perlu
+# 4. Terapkan ke database
+npm run db:deploy
+# 5. Regenerasi client setelah schema berubah
+npm run db:generate
+```
+
+Aturan praktis:
+
+- `npm run db:migrate` (`prisma migrate dev`) hanya untuk membuat migrasi baru di mesin lokal. Jangan dipakai untuk sekadar menyamakan database bersama.
+- `npm run db:deploy` (`prisma migrate deploy`) adalah perintah untuk environment bersama/produksi.
+- Jika `migrate dev` menawarkan migrasi tambahan padahal tidak ada perubahan schema, itu akibat objek SQL manual (index parsial, trigger). Pilih **no** dan gunakan `db:deploy`, jangan biarkan Prisma menghapus objek tersebut.
+- `DATABASE_URL` memakai pooler transaksi (port 6543) untuk runtime; `DIRECT_URL` memakai session pooler (port 5432) untuk migrasi.
+
+### 10.4 Seed
+
+Seed Fitur 1 ada di [`prisma/seed.ts`](../prisma/seed.ts) dengan data di [`prisma/seed-data.ts`](../prisma/seed-data.ts). Urutan yang sudah berjalan:
+
+1. `profiles` demo (upsert berdasarkan `email`).
+2. `accessibility_features` (upsert berdasarkan `key`).
+3. `places` (upsert berdasarkan `slug`) + `entrances` (upsert berdasarkan `place_id` + `label`) + `entrance_features` (upsert berdasarkan pasangan) + `reviews` (upsert berdasarkan `place_id` + `author_id`).
+4. Agregat `rating_avg`/`review_count` diperbarui oleh trigger setelah review ditulis.
+
+Urutan rencana untuk fitur berikutnya: komunitas `VERIFIED`, event `PUBLISHED` + pendaftaran, lalu contoh laporan dan log moderasi.
 
 Aturan seed:
 
 - Seed harus idempoten (upsert), bukan insert buta.
 - Seed demo tidak boleh mengandung PII nyata.
 - Seed produksi hanya `accessibility_features` dan akun admin awal.
-- Data mock UI di `lib/mock/` tidak otomatis menjadi seed; seed ditulis terpisah saat backend dikerjakan.
+- Konstanta label/ikon UI ada di `lib/constants/places.ts`; data domain ada di database. Jangan menghidupkan kembali `lib/mock/places.ts`.
 
 ---
 
@@ -776,8 +810,9 @@ Aturan query:
 
 Hal berikut sengaja belum ditetapkan di dokumen ini dan perlu keputusan terpisah:
 
-- Skema Prisma dan migrasi SQL konkret.
-- PostGIS, routing jalan nyata, dan perhitungan jarak berjalan kaki.
+- Skema dan migrasi untuk `communities`, `volunteer_events`, `event_registrations`, `verification_requests`, `reports`, dan `moderation_logs`.
+- PostGIS. Routing pejalan kaki Fitur 1 memakai OSRM (bukan PostGIS) dan tidak disimpan di database; lihat `docs/architecture.md` §13.
+- Penyimpanan hasil rute OSRM di database (cache rute masih in-memory di browser).
 - Full-text search dengan ranking dan sinonim.
 - Notifikasi email/push dan tabel antreannya.
 - Tabel audit umum di luar `moderation_logs`.

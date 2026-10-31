@@ -1,34 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { MockRouteMap } from "@/components/map/mock-route-map";
+import { useEffect, useMemo, useState } from "react";
+import { RouteMap } from "@/components/map/route-map";
 import { FeatureStatusRow } from "@/components/places/feature-chip";
 import { Button, ButtonLink } from "@/components/ui/button";
 import {
+  AlertIcon,
   CheckIcon,
   ChevronDownIcon,
   ClockIcon,
   DoorIcon,
   InfoIcon,
+  MapPinIcon,
   NavigationIcon,
   VolumeIcon,
   VolumeOffIcon,
   WalkIcon,
 } from "@/components/ui/icons";
-import { ACCESSIBILITY_FEATURES, getMainEntrance } from "@/lib/mock/places";
+import { ACCESSIBILITY_FEATURES, getMainEntrance } from "@/lib/constants/places";
+import {
+  fetchWalkingRoute,
+  formatRouteDistance,
+  formatRouteDuration,
+} from "@/lib/map/osrm";
 import { cn } from "@/lib/utils/cn";
-import type { Entrance } from "@/types/place";
-
-type NavigationPlace = {
-  slug: string;
-  name: string;
-  city: string;
-  province: string;
-  address: string;
-  entrances: Entrance[];
-};
+import type { RouteOrigin, WalkingRoute } from "@/types/map";
+import type { Entrance, PlaceDetail } from "@/types/place";
 
 type VoiceMode = "off" | "on";
+
+type RouteStatus = "loading" | "ready" | "error";
 
 function countAvailable(entrance: Entrance) {
   return ACCESSIBILITY_FEATURES.filter(
@@ -36,11 +37,27 @@ function countAvailable(entrance: Entrance) {
   ).length;
 }
 
+function seedOriginFor(place: PlaceDetail): RouteOrigin {
+  if (place.defaultOrigin) {
+    return {
+      ...place.defaultOrigin,
+      source: "seed",
+    };
+  }
+
+  return {
+    label: "Titik tengah tempat",
+    latitude: place.latitude,
+    longitude: place.longitude,
+    source: "seed",
+  };
+}
+
 export function NavigationExperience({
   place,
   initialEntranceId,
 }: {
-  place: NavigationPlace;
+  place: PlaceDetail;
   initialEntranceId?: string;
 }) {
   const fallbackId = getMainEntrance(place).id;
@@ -51,10 +68,55 @@ export function NavigationExperience({
   );
   const [voiceMode, setVoiceMode] = useState<VoiceMode>("off");
   const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
+  const [origin, setOrigin] = useState<RouteOrigin>(() => seedOriginFor(place));
+  const [locating, setLocating] = useState(false);
+  const [originNotice, setOriginNotice] = useState<string | null>(null);
+  const [routeState, setRouteState] = useState<{
+    key: string;
+    route: WalkingRoute | null;
+    status: Exclude<RouteStatus, "loading">;
+  } | null>(null);
 
   const selected =
     place.entrances.find((entrance) => entrance.id === entranceId) ??
     place.entrances[0];
+
+  const seedOrigin = useMemo(() => seedOriginFor(place), [place]);
+
+  const destinationKey = [
+    selected.id,
+    origin.latitude.toFixed(5),
+    origin.longitude.toFixed(5),
+  ].join(":");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+
+    fetchWalkingRoute({
+      origin,
+      destination: selected,
+      signal: controller.signal,
+    }).then((result) => {
+      if (!active) return;
+
+      setRouteState({
+        key: destinationKey,
+        route: result,
+        status: result ? "ready" : "error",
+      });
+    });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [destinationKey, origin, selected]);
+
+  const currentRouteState =
+    routeState?.key === destinationKey ? routeState : null;
+  const route = currentRouteState?.route ?? null;
+  const routeStatus: RouteStatus = currentRouteState?.status ?? "loading";
 
   useEffect(() => {
     return () => {
@@ -64,11 +126,55 @@ export function NavigationExperience({
     };
   }, []);
 
-  function selectEntrance(id: string) {
-    setEntranceId(id);
+  function stopSpeech() {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
+  }
+
+  function selectEntrance(id: string) {
+    setEntranceId(id);
+    stopSpeech();
+  }
+
+  function resetOrigin() {
+    setOrigin(seedOrigin);
+    setOriginNotice(null);
+    stopSpeech();
+  }
+
+  function useMyLocation() {
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      setOriginNotice(
+        "Browser ini tidak menyediakan lokasi perangkat. Rute tetap dihitung dari titik awal contoh.",
+      );
+      return;
+    }
+
+    setLocating(true);
+    setOriginNotice(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setOrigin({
+          label: "Lokasi perangkat",
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          source: "geolocation",
+        });
+        setLocating(false);
+        stopSpeech();
+      },
+      (error) => {
+        setLocating(false);
+        setOriginNotice(
+          error.code === error.PERMISSION_DENIED
+            ? "Izin lokasi ditolak. Rute tetap dihitung dari titik awal contoh."
+            : "Lokasi tidak berhasil dibaca. Rute tetap dihitung dari titik awal contoh.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
   }
 
   function changeVoiceMode(mode: VoiceMode) {
@@ -89,10 +195,12 @@ export function NavigationExperience({
 
     setVoiceMode("off");
     setVoiceNotice(null);
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+    stopSpeech();
   }
+
+  const spokenSteps = route?.steps.length
+    ? route.steps.map((step) => step.instruction)
+    : selected.route.steps;
 
   function speakDirections() {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
@@ -104,9 +212,7 @@ export function NavigationExperience({
 
     const text = [
       `Panduan menuju ${selected.label} di ${place.name}.`,
-      ...selected.route.steps.map(
-        (step, index) => `Langkah ${index + 1}. ${step}`,
-      ),
+      ...spokenSteps.map((step, index) => `Langkah ${index + 1}. ${step}`),
     ].join(" ");
 
     const utterance = new SpeechSynthesisUtterance(text);
@@ -117,21 +223,75 @@ export function NavigationExperience({
     window.speechSynthesis.speak(utterance);
   }
 
+  const distanceLabel = route
+    ? formatRouteDistance(route.distanceMeters)
+    : selected.route.distance;
+  const durationLabel = route
+    ? formatRouteDuration(route.durationSeconds)
+    : selected.route.duration;
+
+  const steps = route?.steps.length
+    ? route.steps.map((step) => step.instruction)
+    : selected.route.steps;
+
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start">
       <div className="lg:sticky lg:top-24">
-        <MockRouteMap
-          destination={place.name}
-          entranceLabel={selected.label}
-          distance={selected.route.distance}
+        <RouteMap
+          origin={origin}
+          destination={selected}
+          entrances={place.entrances.map((entrance) => ({
+            ...entrance,
+            navigationHref: `/jelajahi/${place.slug}/navigasi?pintu=${entrance.id}`,
+          }))}
+          route={route}
         />
 
-        <p className="mt-3 flex items-start gap-2 rounded-card border border-line bg-surface px-4 py-3 text-xs leading-relaxed text-ink-muted">
-          <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-          Peta ini masih ilustrasi. Setelah Leaflet dan OSRM tersambung, rute
-          akan mengikuti jalan sebenarnya. Petunjuk arah teks di samping tetap
-          menjadi acuan utama.
-        </p>
+        <div className="mt-3 space-y-2.5 rounded-card border border-line bg-surface px-4 py-3 text-xs leading-relaxed text-ink-muted">
+          <p className="flex items-start gap-2">
+            <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+            <span>
+              Titik awal: <strong className="font-semibold text-ink">{origin.label}</strong>
+              {origin.source === "seed"
+                ? " (titik contoh, bukan lokasi perangkat)"
+                : ""}
+              .
+            </span>
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={useMyLocation}
+              disabled={locating}
+            >
+              <NavigationIcon className="h-4 w-4" />
+              {locating ? "Membaca lokasi…" : "Gunakan lokasi saya"}
+            </Button>
+            {origin.source === "geolocation" ? (
+              <Button type="button" variant="ghost" size="sm" onClick={resetOrigin}>
+                Pakai titik contoh
+              </Button>
+            ) : null}
+          </div>
+
+          {originNotice ? (
+            <p role="alert" className="rounded-card bg-warning-50 px-3 py-2 text-warning-700">
+              {originNotice}
+            </p>
+          ) : null}
+
+          <p className="flex items-start gap-2">
+            <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+            <span>
+              Rute pejalan kaki dihitung dari titik awal ke pintu yang dipilih.
+              Petunjuk arah teks di samping tetap menjadi acuan utama, termasuk
+              saat peta atau jaringan gagal dimuat.
+            </span>
+          </p>
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -199,10 +359,7 @@ export function NavigationExperience({
             </div>
           </fieldset>
 
-          <div
-            role="status"
-            className="mt-5 rounded-card bg-surface-muted/70 p-4"
-          >
+          <div role="status" className="mt-5 rounded-card bg-surface-muted/70 p-4">
             <p className="text-sm font-semibold text-ink">
               Rute ke {selected.label}
             </p>
@@ -211,18 +368,14 @@ export function NavigationExperience({
                 <dt className="sr-only">Jarak</dt>
                 <dd className="flex items-center gap-1.5 text-ink-muted">
                   <WalkIcon className="h-4 w-4 text-primary-700" />
-                  <span className="font-medium text-ink">
-                    {selected.route.distance}
-                  </span>
+                  <span className="font-medium text-ink">{distanceLabel}</span>
                 </dd>
               </div>
               <div className="flex items-center gap-1.5">
                 <dt className="sr-only">Estimasi waktu</dt>
                 <dd className="flex items-center gap-1.5 text-ink-muted">
                   <ClockIcon className="h-4 w-4 text-primary-700" />
-                  <span className="font-medium text-ink">
-                    {selected.route.duration}
-                  </span>
+                  <span className="font-medium text-ink">{durationLabel}</span>
                 </dd>
               </div>
               <div className="flex items-center gap-1.5">
@@ -235,12 +388,30 @@ export function NavigationExperience({
                 </dd>
               </div>
             </dl>
+
+            {routeStatus === "loading" ? (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-ink-muted">
+                <span
+                  aria-hidden="true"
+                  className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-300 border-t-primary-700"
+                />
+                Menghitung rute pejalan kaki…
+              </p>
+            ) : null}
+
+            {routeStatus === "error" ? (
+              <p className="mt-2 flex items-start gap-1.5 text-xs leading-relaxed text-warning-700">
+                <AlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Rute peta sedang tidak tersedia. Jarak dan waktu di atas memakai
+                perkiraan data tempat; petunjuk arah teks tetap bisa dipakai.
+              </p>
+            ) : null}
           </div>
 
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <ButtonLink href="#petunjuk-arah" size="md" className="flex-1">
+            <ButtonLink href="#rencana-heading" size="md" className="flex-1">
               <NavigationIcon className="h-4 w-4" />
-              Arah
+              Pilih pintu lain
             </ButtonLink>
             <ButtonLink
               href={`/jelajahi/${place.slug}`}
@@ -348,14 +519,14 @@ export function NavigationExperience({
           </h2>
           <p className="mt-1.5 text-sm text-ink-muted">
             Menuju <strong className="font-semibold text-ink">{selected.label}</strong>{" "}
-            · {selected.route.distance} · {selected.route.duration}
+            · {distanceLabel} · {durationLabel}
           </p>
 
           <ol
-            id="petunjuk-arah"
+            id="pintu"
             className="mt-4 scroll-mt-24 space-y-3"
           >
-            {selected.route.steps.map((step, index) => (
+            {steps.map((step, index) => (
               <li key={`${selected.id}-${index}`} className="flex gap-3">
                 <span
                   aria-hidden="true"

@@ -43,7 +43,7 @@ Data tempat dikumpulkan lewat crowdsourcing, dimoderasi dengan bantuan AI, dan d
 | Auth | Supabase Auth | `@supabase/ssr`, cookie-based |
 | Storage | Supabase Storage | Foto tempat, logo komunitas, cover kegiatan |
 | Peta | Leaflet + OpenStreetMap | Client-only, tanpa API key |
-| Routing | OSRM + Leaflet Routing Machine | Instruksi arah aksesibel |
+| Routing | OSRM (profil `foot`) + `Polyline` | Panggilan `fetch` langsung dari client |
 | UI primitives | Radix UI + Tailwind | Bukan shadcn penuh, komponen milik sendiri |
 | Ikon | Lucide React | |
 | Form | React Hook Form + Zod | Validasi ganda client & server |
@@ -752,27 +752,48 @@ Implementasi di `lib/moderation/client.ts` dengan antarmuka provider-agnostic. P
 
 - **Leaflet** + **react-leaflet** untuk peta.
 - **OpenStreetMap** sebagai tile sumber.
-- **OSRM** + **Leaflet Routing Machine** untuk rute.
-- Semua komponen peta adalah client component dan di-`dynamic import` dengan `ssr: false` jika perlu.
+- **OSRM** untuk rute pejalan kaki, dipanggil langsung dari browser dengan `fetch`, lalu digambar sebagai `<Polyline>`.
+- Semua komponen peta adalah client component dan di-`dynamic import` dengan `ssr: false`.
+- Kita **tidak** memakai Leaflet Routing Machine. Library itu menambah dependensi dan sulit dikontrol untuk instruksi aksesibel; kita hanya butuh geometri rute dan langkah-langkahnya.
 
-### 13.2 Aturan
+### 13.2 Implementasi saat ini
+
+| Bagian | File |
+|---|---|
+| Klien OSRM, terjemahan instruksi, format jarak/waktu | `lib/map/osrm.ts` |
+| Peta detail tempat | `components/map/leaflet-place-map.tsx` |
+| Peta rute | `components/map/leaflet-route-map.tsx` |
+| Pembungkus + fallback | `components/map/place-map.tsx`, `components/map/route-map.tsx` |
+| Alur navigasi (geolocation, suara, fallback) | `components/map/navigation-experience.tsx` |
+
+Detail perilaku:
+
+- Endpoint default `https://routing.openstreetmap.de/routed-foot`, karena demo `router.project-osrm.org` mengabaikan profil `foot` dan memberi hasil mirip mobil.
+- Request: `GET {OSRM}/route/v1/foot/{lon},{lat};{lon},{lat}?overview=full&geometries=geojson&steps=true`.
+- Hasil rute disimpan cache in-memory 5 menit per pasangan koordinat (presisi 5 desimal) dan di-`AbortController` saat pintu/titik awal berubah.
+- Timeout 8 detik. Jika gagal, UI menampilkan pesan bahwa rute peta tidak tersedia dan memakai jarak/waktu seed serta petunjuk arah teks.
+- Titik awal: lokasi browser bila diizinkan; jika tidak, `places.default_origin_*`; jika kosong, pusat tempat. UI selalu memberi tahu sumber titik awal.
+- Pintu tujuan bisa diganti lewat radio, `?pintu=<id>`, atau popup marker.
+
+### 13.3 Aturan
 
 - Peta tidak boleh menjadi satu-satunya cara mengakses informasi. Selalu sediakan:
-  - daftar lokasi di samping/bawah peta,
-  - petunjuk arah dalam teks,
+  - daftar pintu/lokasi di samping/bawah peta,
+  - petunjuk arah dalam teks sebagai sumber utama,
   - koordinat yang bisa dibaca screen reader.
 - Marker harus punya label aksesibel dan bisa difokuskan keyboard.
 - `aria-label` pada container peta, mis. “Peta lokasi tempat, gunakan daftar lokasi di bawah untuk alternatif”.
 - Jangan memakai `role="application"` kecuali benar-benar perlu.
-- Tampilkan legenda: rute aksesibel (teal), rute tidak aksesibel (merah), titik masuk (ikon).
-- Jika tile gagal dimuat, tampilkan fallback daftar + tautan ke OSM.
-- Simpan `lat`/`lng` sebagai `Decimal` atau `Float` dengan presisi 6 desimal.
+- Legenda rute memakai bentuk dan label teks, bukan hanya warna.
+- Jika tile gagal dimuat (≥3 `tileerror`), tampilkan peringatan + tautan ke OpenStreetMap.
+- Simpan `lat`/`lng` sebagai `Decimal(9,6)` di database.
 
-### 13.3 Produksi
+### 13.4 Produksi
 
 - Tile OSM publik hanya untuk pengembangan. Untuk produksi, gunakan tile provider yang sesuai kebijakan penggunaan.
-- OSRM demo publik punya rate limit. Untuk produksi, self-host OSRM atau gunakan provider berbayar.
-- Simpan URL tile/OSRM di env agar mudah diganti.
+- Endpoint OSRM publik punya rate limit dan tanpa jaminan SLA. Untuk produksi, self-host OSRM atau gunakan provider berbayar.
+- Endpoint `routing.openstreetmap.de` mengirim `Access-Control-Allow-Origin: *`; jika self-host, pastikan CORS dan profil `foot` aktif.
+- Simpan URL tile, atribusi, dan OSRM di env agar mudah diganti.
 
 ---
 
@@ -841,15 +862,15 @@ Buat `.env.local` (tidak di-commit):
 # App
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 
-# Supabase
+# Supabase (dipakai pada fase auth; belum diperlukan Fitur 1)
 NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
 # Database (Prisma)
-# Runtime: pooled connection (port 6543, pgbouncer)
+# Runtime: pooled connection Supabase (port 6543, transaction mode)
 DATABASE_URL=
-# Migrasi: direct connection (port 5432)
+# Migrasi: session/direct connection (port 5432)
 DIRECT_URL=
 
 # Moderasi AI
@@ -858,15 +879,18 @@ MODERATION_API_KEY=
 
 # Peta & routing
 NEXT_PUBLIC_MAP_TILE_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
-NEXT_PUBLIC_OSRM_URL=https://router.project-osrm.org
+NEXT_PUBLIC_MAP_ATTRIBUTION=&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors
+# Harus mendukung profil pejalan kaki.
+NEXT_PUBLIC_OSRM_URL=https://routing.openstreetmap.de/routed-foot
 ```
 
 Aturan:
 
 - Hanya variabel `NEXT_PUBLIC_*` yang boleh dipakai di client.
 - `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL`, dan `MODERATION_API_KEY` hanya di server.
-- `lib/env.ts` memvalidasi env dengan Zod saat boot; jangan membaca `process.env` langsung di banyak tempat.
-- Jangan commit `.env.local`.
+- `lib/env.ts` memvalidasi env dengan Zod. `mapEnv` dibaca langsung dari `process.env.NEXT_PUBLIC_*` saat modul dimuat agar bisa di-inline; `assertDatabaseEnv()` dipanggil lazy di `lib/db/prisma.ts` supaya `next build` tidak butuh koneksi database.
+- Prisma CLI tidak membaca `.env.local`. Script `db:*` di `package.json` memakai `dotenv-cli` (`dotenv -e .env.local -- prisma ...`).
+- Jangan commit `.env.local`. Template ada di `.env.example`.
 
 ---
 
@@ -879,7 +903,7 @@ Aturan:
 - Akun Supabase + project
 - PostgreSQL via Supabase
 
-### 16.2 Perintah yang direncanakan
+### 16.2 Perintah
 
 ```bash
 npm install
@@ -888,22 +912,23 @@ npm run build
 npm run lint
 npm run typecheck
 npm run db:generate
-npm run db:migrate
+npm run db:migrate    # buat migrasi baru (lokal)
+npm run db:deploy     # terapkan migrasi ke database bersama
 npm run db:seed
 npm run db:studio
 ```
 
-Script `typecheck`, `db:*` belum ada dan akan ditambahkan saat implementasi data layer.
+Semua script `db:*` membungkus Prisma dengan `dotenv -e .env.local --` karena Prisma CLI tidak membaca `.env.local`.
 
 ### 16.3 Urutan setup lokal
 
 1. `npm install`
-2. Salin `.env.example` → `.env.local`, isi kredensial Supabase.
-3. `npx prisma generate`
-4. `npx prisma migrate dev`
+2. Salin `.env.example` → `.env.local`, isi `DATABASE_URL`, `DIRECT_URL`, dan kredensial Supabase.
+3. `npm run db:generate`
+4. `npm run db:deploy` (database bersama) atau `npm run db:migrate` (membuat migrasi baru)
 5. `npm run db:seed`
 6. `npm run dev`
-7. Buka `http://localhost:3000`
+7. Buka `http://localhost:3000/jelajahi`
 
 ---
 
@@ -917,12 +942,13 @@ Script `typecheck`, `db:*` belum ada dan akan ditambahkan saat implementasi data
 | Token desain di `app/globals.css` | ✅ selesai |
 | Font & metadata di `app/layout.tsx` | ✅ selesai |
 | Skip link + landmark dasar | ✅ selesai |
-| Kerangka folder | ✅ selesai (direktori kosong, tanpa `.gitkeep`) |
-| Dependency (Prisma, Supabase, Leaflet, dll.) | ⏳ belum |
-| `lib/env.ts` + `.env.example` | ⏳ belum |
-| Skema Prisma + seed | ⏳ belum |
-| Komponen UI inti | ⏳ belum |
-| Halaman fitur | ⏳ belum |
+| Kerangka folder | ✅ selesai |
+| Dependency (Prisma, Leaflet, Zod) | ✅ terpasang untuk Fitur 1; Supabase SDK belum |
+| `lib/env.ts` + `.env.example` | ✅ selesai |
+| Skema Prisma + seed | ✅ Fitur 1; komunitas/volunteer masih rencana |
+| Komponen UI inti | ✅ dipakai Fitur 1 |
+| Halaman fitur | 🟡 Fitur 1 dari database; komunitas/volunteer masih mock |
+| Auth Supabase + guard | ⏳ belum |
 | Moderasi AI | ⏳ belum |
 
 ### Fase 0 — Fondasi desain & arsitektur (sekarang)
@@ -967,12 +993,13 @@ Script `typecheck`, `db:*` belum ada dan akan ditambahkan saat implementasi data
 
 **Deliverable:**
 
-- `/jelajahi`: grid + filter kategori/fasilitas/wilayah + peta + daftar alternatif.
-- `/jelajahi/[slug]`: detail, galeri, fasilitas per pintu, ulasan.
-- `/tambah-info`: form bertahap, location picker, upload foto, rating opsional.
-- Map shell Leaflet + marker + popup.
-- Routing OSRM + Leaflet Routing Machine + instruksi teks.
-- Query `use cache` + tag `places`.
+- `/jelajahi`: grid + filter kategori/fasilitas/wilayah dari database.
+- `/jelajahi/[slug]`: detail, fasilitas per pintu, ulasan, peta Leaflet.
+- `/jelajahi/[slug]/navigasi`: rute OSRM + petunjuk teks + panduan suara.
+- `/tambah-info`: form bertahap (belum terhubung database).
+- Map shell Leaflet + marker + popup. ✅
+- Routing OSRM profil `foot` + `Polyline` + instruksi teks. ✅
+- Query `"use cache"` + tag `places`. ✅
 
 **Selesai jika:** pengguna bisa mencari tempat, melihat pintu ber-ramp, menambah tempat, dan mendapatkan rute; peta punya fallback daftar.
 
@@ -1057,7 +1084,9 @@ Setiap PR/fitur dianggap selesai jika:
 |---|---|---|
 | Provider moderasi AI | Terbuka | Antarmuka disiapkan; provider dipilih saat implementasi |
 | Tile peta produksi | Terbuka | OSM publik hanya untuk dev; perlu provider/self-host |
-| OSRM produksi | Terbuka | Demo publik punya rate limit |
+| OSRM produksi | Terbuka | `routing.openstreetmap.de` dipakai untuk dev; rate limit/SLA perlu self-host |
+| Database lokal/bersama | Diputuskan | Supabase hosted + Prisma; `DATABASE_URL` pooler, `DIRECT_URL` migrasi |
+| RLS | Ditunda | Prisma bypass RLS; auth & RLS masuk fase berikutnya |
 | Rate limiting | Terbuka | Perlu Upstash/Redis atau edge function |
 | Notifikasi email | Terbuka | Supabase Auth email vs Resend |
 | Export Excel | Diputuskan | ExcelJS di server |
