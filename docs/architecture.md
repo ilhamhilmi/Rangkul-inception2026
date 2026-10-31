@@ -620,6 +620,8 @@ Prisma terhubung langsung ke Postgres, sehingga **RLS Supabase tidak berlaku unt
 
 ## 10. Model Data
 
+> Skema lengkap (kolom, tipe, default, constraint, index, status, dan RLS): [`docs/database.md`](./database.md). Bagian ini hanya ringkasan.
+
 ### 10.1 Entitas
 
 | Entitas | Field penting |

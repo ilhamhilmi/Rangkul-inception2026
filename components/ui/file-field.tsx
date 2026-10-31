@@ -8,7 +8,7 @@ import {
   type ChangeEvent,
 } from "react";
 import { FieldError, FieldHint, Label } from "@/components/ui/field";
-import { CloseIcon, UploadIcon } from "@/components/ui/icons";
+import { UploadIcon, XIcon } from "@/components/ui/icons";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -154,7 +154,7 @@ export function FileField({
             aria-label={`Hapus ${label.toLowerCase()}`}
             className="absolute right-2 top-2 z-10 grid h-11 w-11 place-items-center rounded-full border border-line bg-surface/95 text-ink shadow-card transition-colors hover:bg-surface-muted"
           >
-            <CloseIcon className="h-4 w-4" />
+            <XIcon className="h-4 w-4" />
           </button>
         ) : null}
       </div>
