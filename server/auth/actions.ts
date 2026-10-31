@@ -61,7 +61,7 @@ export async function signInAction(
     };
   }
 
-  redirect(safeNextPath(formData.get("next"), "/komunitas"));
+  redirect(safeNextPath(formData.get("next"), "/"));
 }
 
 export async function signUpAction(
@@ -94,7 +94,7 @@ export async function signUpAction(
     };
   }
 
-  const nextPath = safeNextPath(formData.get("next"), "/komunitas/daftar");
+  const nextPath = safeNextPath(formData.get("next"), "/");
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,

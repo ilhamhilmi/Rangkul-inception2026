@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { AuthNav } from "@/components/layout/auth-nav";
 import { Brand } from "@/components/layout/brand";
 import { NotificationMenu } from "@/components/layout/notification-menu";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { UserIcon } from "@/components/ui/icons";
+import { CalendarIcon, UserIcon } from "@/components/ui/icons";
 import { VerifiedBadge } from "@/components/ui/verified-badge";
 import { getCurrentUser } from "@/lib/auth/session";
 import { signOutAction } from "@/server/auth/actions";
@@ -19,22 +20,27 @@ async function AccountNav() {
   const user = await getCurrentUser();
 
   if (!user) {
-    return (
-      <div className="flex items-center gap-2">
-        <ButtonLink href="/masuk" variant="ghost" size="sm">
-          Masuk
-        </ButtonLink>
-        <ButtonLink href="/daftar" size="sm">
-          Daftar
-        </ButtonLink>
-      </div>
-    );
+    return <AuthNav />;
   }
 
   const notifications = await getNotificationsForUser(user.id);
+  const canManageEvents =
+    user.role === "ORGANIZER" || user.role === "ADMIN";
 
   return (
     <div className="flex items-center gap-1.5">
+      {canManageEvents ? (
+        <ButtonLink
+          href="/dashboard/kegiatan"
+          variant="secondary"
+          size="sm"
+          aria-label="Kelola Kegiatan"
+          className="px-3 sm:px-4"
+        >
+          <CalendarIcon className="h-4 w-4" />
+          <span className="hidden sm:inline">Kelola Kegiatan</span>
+        </ButtonLink>
+      ) : null}
       <NotificationMenu
         items={notifications.items}
         unreadCount={notifications.unreadCount}

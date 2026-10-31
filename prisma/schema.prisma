@@ -32,6 +32,8 @@ enum PlaceCategory {
   TRANSPORTASI
   IBADAH
   KESEHATAN
+  FASILITAS_UMUM
+  LAINNYA
 }
 
 enum ContentStatus {
@@ -143,6 +145,8 @@ model Place {
   createdById            String        @map("created_by") @db.Uuid
   ratingAvg              Decimal       @default(0) @map("rating_avg") @db.Decimal(3, 2)
   reviewCount            Int           @default(0) @map("review_count")
+  posterRating           Int?          @map("poster_rating") @db.SmallInt
+  facilities             String[]      @default([])
   moderationNote         String?       @map("moderation_note")
   moderatedAt            DateTime?     @map("moderated_at") @db.Timestamptz(6)
   defaultOriginLabel     String?       @map("default_origin_label")

@@ -16,9 +16,23 @@ async function SignupFormSection({
   searchParams,
 }: Pick<PageProps<"/daftar">, "searchParams">) {
   const params = await searchParams;
-  const next = safeNextPath(params.next, "/komunitas/daftar");
+  const next = safeNextPath(params.next, "/");
 
-  return <SignupForm nextPath={next} />;
+  return (
+    <div>
+      <SignupForm nextPath={next} />
+
+      <p className="mt-6 text-center text-sm text-ink-muted">
+        Sudah punya akun?{" "}
+        <Link
+          href={`/masuk?next=${encodeURIComponent(next)}`}
+          className="font-semibold text-primary-700 underline-offset-4 hover:text-primary-800 hover:underline"
+        >
+          Masuk di sini
+        </Link>
+      </p>
+    </div>
+  );
 }
 
 export default function SignupPage({ searchParams }: PageProps<"/daftar">) {
@@ -49,16 +63,6 @@ export default function SignupPage({ searchParams }: PageProps<"/daftar">) {
           <SignupFormSection searchParams={searchParams} />
         </Suspense>
       </div>
-
-      <p className="mt-6 text-center text-sm text-ink-muted">
-        Sudah punya akun?{" "}
-        <Link
-          href="/masuk"
-          className="font-semibold text-primary-700 underline-offset-4 hover:text-primary-800 hover:underline"
-        >
-          Masuk di sini
-        </Link>
-      </p>
 
       <div className="mt-8 border-t border-line pt-5">
         <Link

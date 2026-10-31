@@ -14,10 +14,12 @@ export function PhotoCarousel({
   photos,
   name,
   category,
+  frameClassName = "aspect-[16/10] sm:aspect-[16/9]",
 }: {
   photos: PlacePhotoItem[];
   name: string;
   category: PlaceCategory;
+  frameClassName?: string;
 }) {
   const [index, setIndex] = useState(0);
   const total = photos.length;
@@ -49,7 +51,10 @@ export function PhotoCarousel({
       <figure>
         <PlaceMedia
           category={category}
-          className="aspect-[16/10] w-full rounded-sheet border border-line sm:aspect-[16/9]"
+          className={cn(
+            "w-full rounded-sheet border border-line",
+            frameClassName,
+          )}
         />
         <figcaption className="mt-2.5 flex items-start gap-1.5 text-xs text-ink-muted">
           <CameraIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -67,7 +72,10 @@ export function PhotoCarousel({
         aria-label={total > 1 ? `Foto ${name}` : undefined}
         tabIndex={total > 1 ? 0 : undefined}
         onKeyDown={handleKeyDown}
-        className="relative isolate aspect-[16/10] w-full overflow-hidden rounded-sheet border border-line bg-surface-muted sm:aspect-[16/9]"
+        className={cn(
+          "relative isolate w-full overflow-hidden rounded-sheet border border-line bg-surface-muted",
+          frameClassName,
+        )}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img

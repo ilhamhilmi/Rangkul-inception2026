@@ -6,7 +6,6 @@ import type {
   PlaceCategory,
   PlaceDetail,
   PlaceSummary,
-  Review,
 } from "@/types/place";
 import { ACCESSIBILITY_FEATURES, isAccessibilityKey } from "@/lib/constants/places";
 import type { Prisma } from "@prisma/client";
@@ -25,11 +24,6 @@ export const placeDetailInclude = {
         include: { feature: { select: { key: true } } },
       },
     },
-  },
-  reviews: {
-    where: { status: "PUBLISHED", archivedAt: null },
-    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
-    include: { author: { select: { name: true } } },
   },
 } satisfies Prisma.PlaceInclude;
 
@@ -65,6 +59,8 @@ const CATEGORY_MAP: Record<Prisma.PlaceGetPayload<object>["category"], PlaceCate
     TRANSPORTASI: "transportasi",
     IBADAH: "ibadah",
     KESEHATAN: "kesehatan",
+    FASILITAS_UMUM: "fasilitas-umum",
+    LAINNYA: "lainnya",
   };
 
 const FEATURE_VALUE_MAP = {
@@ -122,23 +118,21 @@ function mapEntrance(
   };
 }
 
-function mapReviews(reviews: PlaceWithDetail["reviews"]): Review[] {
-  return reviews.map((review) => ({
-    id: review.id,
-    author: review.author.name,
-    rating: review.rating,
-    date: (review.publishedAt ?? review.createdAt).toISOString(),
-    body: review.body,
-    accessibilityNote: review.accessibilityNote ?? undefined,
-  }));
-}
+type PlaceFeatureSource = {
+  facilities: string[];
+  entrances: {
+    features: { value: string; feature: { key: string } }[];
+  }[];
+};
 
-function availableFeatureKeys(
-  entrances: PlaceWithDetail["entrances"],
-): AccessibilityKey[] {
+function availableFeatureKeys(place: PlaceFeatureSource): AccessibilityKey[] {
   const available = new Set<AccessibilityKey>();
 
-  for (const entrance of entrances) {
+  for (const key of place.facilities) {
+    if (isAccessibilityKey(key)) available.add(key);
+  }
+
+  for (const entrance of place.entrances) {
     for (const item of entrance.features) {
       if (item.value !== "AVAILABLE") continue;
       if (isAccessibilityKey(item.feature.key)) {
@@ -167,8 +161,7 @@ export function toPlaceDetail(place: PlaceWithDetail): PlaceDetail {
     contributor: place.createdBy?.name ?? "Kontributor Rangkul",
     authorAvatarUrl: place.createdBy?.avatarUrl ?? null,
     createdAt: place.createdAt.toISOString(),
-    rating: Number(place.ratingAvg),
-    reviewCount: place.reviewCount,
+    rating: place.posterRating ?? 0,
     likeCount: place._count.likes,
     viewerHasLiked: false,
     photos: place.photos.map((photo) => ({
@@ -179,27 +172,15 @@ export function toPlaceDetail(place: PlaceWithDetail): PlaceDetail {
     latitude: Number(place.latitude),
     longitude: Number(place.longitude),
     entrances,
-    reviews: mapReviews(place.reviews),
   };
 
   return {
     ...detail,
-    availableFeatures: availableFeatureKeys(place.entrances),
+    availableFeatures: availableFeatureKeys(place),
   };
 }
 
 export function toPlaceSummary(place: PlaceWithSummary): PlaceSummary {
-  const available = new Set<AccessibilityKey>();
-
-  for (const entrance of place.entrances) {
-    for (const item of entrance.features) {
-      if (item.value !== "AVAILABLE") continue;
-      if (isAccessibilityKey(item.feature.key)) {
-        available.add(item.feature.key);
-      }
-    }
-  }
-
   return {
     id: place.id,
     slug: place.slug,
@@ -212,16 +193,13 @@ export function toPlaceSummary(place: PlaceWithSummary): PlaceSummary {
     contributor: place.createdBy?.name ?? "Kontributor Rangkul",
     authorAvatarUrl: place.createdBy?.avatarUrl ?? null,
     createdAt: place.createdAt.toISOString(),
-    rating: Number(place.ratingAvg),
-    reviewCount: place.reviewCount,
+    rating: place.posterRating ?? 0,
     likeCount: place._count.likes,
     viewerHasLiked: false,
     latitude: Number(place.latitude),
     longitude: Number(place.longitude),
     coverPhotoUrl: place.photos[0]?.url ?? null,
     photoCount: place._count.photos,
-    availableFeatures: ACCESSIBILITY_FEATURES.filter((feature) =>
-      available.has(feature.key),
-    ).map((feature) => feature.key),
+    availableFeatures: availableFeatureKeys(place),
   };
 }

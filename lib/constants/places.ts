@@ -30,11 +30,32 @@ export const PLACE_CATEGORIES: {
     description: "Masjid, gereja, pura, dan vihara",
   },
   {
+    value: "fasilitas-umum",
+    label: "Fasilitas Umum",
+    description: "Kantor layanan publik, perpustakaan, dan ruang komunitas",
+  },
+  {
     value: "kesehatan",
-    label: "Kesehatan",
+    label: "Fasilitas Kesehatan",
     description: "Rumah sakit, puskesmas, dan klinik",
   },
+  {
+    value: "lainnya",
+    label: "Lainnya",
+    description: "Tempat lain yang belum masuk kategori di atas",
+  },
 ];
+
+/** Pemetaan nilai URL/kategori aplikasi ke enum Prisma. */
+export const PLACE_CATEGORY_TO_PRISMA = {
+  wisata: "WISATA",
+  kuliner: "KULINER",
+  transportasi: "TRANSPORTASI",
+  ibadah: "IBADAH",
+  "fasilitas-umum": "FASILITAS_UMUM",
+  kesehatan: "KESEHATAN",
+  lainnya: "LAINNYA",
+} as const satisfies Record<PlaceCategory, string>;
 
 export const ACCESSIBILITY_FEATURES: AccessibilityFeature[] = [
   {
@@ -85,6 +106,10 @@ export const FEATURE_MAP: Record<AccessibilityKey, AccessibilityFeature> =
   Object.fromEntries(
     ACCESSIBILITY_FEATURES.map((feature) => [feature.key, feature]),
   ) as Record<AccessibilityKey, AccessibilityFeature>;
+
+export const ACCESSIBILITY_KEYS = ACCESSIBILITY_FEATURES.map(
+  (feature) => feature.key,
+) as [AccessibilityKey, ...AccessibilityKey[]];
 
 export function getCategoryMeta(category: PlaceCategory) {
   return (

@@ -8,6 +8,8 @@ import {
 } from "react";
 import { LocationPicker } from "@/components/map/location-picker";
 import { PhotoInput } from "@/components/places/photo-input";
+import { FeatureIcon } from "@/components/places/feature-chip";
+import { RatingInput } from "@/components/places/rating-input";
 import { Button, ButtonLink } from "@/components/ui/button";
 import {
   FieldError,
@@ -23,16 +25,20 @@ import {
   MapPinIcon,
   NavigationIcon,
   ShieldCheckIcon,
+  StarIcon,
 } from "@/components/ui/icons";
 import { PLACE_PHOTO_MAX_COUNT } from "@/lib/constants/photos";
-import { PLACE_CATEGORIES } from "@/lib/constants/places";
+import { ACCESSIBILITY_FEATURES, PLACE_CATEGORIES } from "@/lib/constants/places";
+import { cn } from "@/lib/utils/cn";
 import { createPlacePostAction } from "@/server/places/actions";
 import type { PlacePostFormState } from "@/lib/validation/post";
+import type { AccessibilityKey } from "@/types/place";
 
 type FormValues = {
   name: string;
   category: string;
   description: string;
+  rating: number;
   lat: string;
   lng: string;
 };
@@ -41,6 +47,7 @@ const initialValues: FormValues = {
   name: "",
   category: "",
   description: "",
+  rating: 0,
   lat: "",
   lng: "",
 };
@@ -51,6 +58,8 @@ const errorTargets: Record<string, string> = {
   name: "field-name",
   category: "field-category",
   description: "field-description",
+  rating: "field-rating",
+  facilities: "field-facilities",
   photos: "field-photos",
   location: "field-lat",
   lat: "field-lat",
@@ -112,6 +121,7 @@ export function PostingForm({
   );
   const [isSubmitting, startTransition] = useTransition();
   const [values, setValues] = useState<FormValues>(initialValues);
+  const [facilities, setFacilities] = useState<AccessibilityKey[]>([]);
   const [photos, setPhotos] = useState<File[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [locating, setLocating] = useState(false);
@@ -152,6 +162,20 @@ export function PostingForm({
       const next = { ...previous };
       delete next[key];
       if (key === "lat" || key === "lng") delete next.location;
+      return next;
+    });
+  }
+
+  function toggleFacility(key: AccessibilityKey) {
+    setFacilities((previous) =>
+      previous.includes(key)
+        ? previous.filter((item) => item !== key)
+        : [...previous, key],
+    );
+    setErrors((previous) => {
+      if (!previous.facilities) return previous;
+      const next = { ...previous };
+      delete next.facilities;
       return next;
     });
   }
@@ -215,6 +239,9 @@ export function PostingForm({
       next.description =
         "Ceritakan tempatnya minimal 40 karakter agar kontribusi berguna.";
     }
+    if (values.rating < 1 || values.rating > 5) {
+      next.rating = "Pilih rating 1 sampai 5 bintang.";
+    }
     if (photos.length === 0) {
       next.photos = "Lampirkan minimal satu foto tempat.";
     } else if (photos.length > PLACE_PHOTO_MAX_COUNT) {
@@ -266,6 +293,7 @@ export function PostingForm({
 
   function resetForm() {
     setValues(initialValues);
+    setFacilities([]);
     setPhotos([]);
     setErrors({});
     setAcknowledged(successKey);
@@ -312,6 +340,21 @@ export function PostingForm({
             <dd className="mt-0.5 font-medium text-ink">{photos.length} foto</dd>
           </div>
           <div>
+            <dt className="text-xs text-ink-muted">Rating pemosting</dt>
+            <dd className="mt-0.5 flex items-center gap-1 font-medium text-ink">
+              <StarIcon className="h-4 w-4 text-secondary-500" />
+              {values.rating > 0 ? `${values.rating} dari 5` : "Belum dipilih"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-ink-muted">Fasilitas dicentang</dt>
+            <dd className="mt-0.5 font-medium text-ink">
+              {facilities.length > 0
+                ? `${facilities.length} fasilitas`
+                : "Belum ada"}
+            </dd>
+          </div>
+          <div className="sm:col-span-2">
             <dt className="text-xs text-ink-muted">Titik peta</dt>
             <dd className="mt-0.5 font-medium text-ink">
               {values.lat}, {values.lng}
@@ -489,12 +532,110 @@ export function PostingForm({
         </section>
 
         <section
+          aria-labelledby="step-accessibility"
+          className="rounded-sheet border border-line bg-surface p-5 shadow-xs sm:p-6"
+        >
+          <StepHeading
+            id="step-accessibility"
+            step={2}
+            title="Rating & fasilitas"
+            description="Beri penilaian aksesibilitas dan centang fasilitas disabilitas yang benar-benar tersedia."
+          />
+
+          <div className="space-y-6">
+            <div id="field-rating" tabIndex={-1} className="outline-none">
+              <RatingInput
+                value={values.rating}
+                onChange={(rating) => update("rating", rating)}
+                invalid={Boolean(combinedErrors.rating)}
+                describedBy={
+                  combinedErrors.rating
+                    ? "error-rating"
+                    : "hint-rating"
+                }
+              />
+              {combinedErrors.rating ? (
+                <FieldError id="error-rating">
+                  {combinedErrors.rating}
+                </FieldError>
+              ) : (
+                <FieldHint id="hint-rating">
+                  Rating ini berasal dari pengalamanmu, bukan rata-rata ulasan
+                  pengguna lain.
+                </FieldHint>
+              )}
+            </div>
+
+            <fieldset
+              id="field-facilities"
+              tabIndex={-1}
+              aria-describedby="hint-facilities"
+              className="outline-none"
+            >
+              <legend className="text-sm font-semibold text-ink">
+                Fasilitas disabilitas yang tersedia
+              </legend>
+              <p
+                id="hint-facilities"
+                className="mt-1 text-xs leading-relaxed text-ink-muted"
+              >
+                Centang fasilitas yang kamu pastikan ada saat berkunjung. Biarkan
+                kosong bila belum sempat memeriksa.
+              </p>
+
+              <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                {ACCESSIBILITY_FEATURES.map((feature) => {
+                  const checked = facilities.includes(feature.key);
+
+                  return (
+                    <label
+                      key={feature.key}
+                      className={cn(
+                        "flex cursor-pointer items-start gap-3 rounded-input border p-3 transition-colors",
+                        checked
+                          ? "border-primary-300 bg-primary-50"
+                          : "border-line bg-surface hover:border-line-strong",
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        name="facilities"
+                        value={feature.key}
+                        checked={checked}
+                        onChange={() => toggleFacility(feature.key)}
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-primary-700"
+                      />
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
+                          <FeatureIcon
+                            feature={feature.key}
+                            className="h-4 w-4 shrink-0 text-primary-700"
+                          />
+                          {feature.label}
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-ink-muted">
+                          {feature.description}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {combinedErrors.facilities ? (
+                <FieldError>{combinedErrors.facilities}</FieldError>
+              ) : null}
+            </fieldset>
+          </div>
+        </section>
+
+        <section
           aria-labelledby="step-photos"
           className="rounded-sheet border border-line bg-surface p-5 shadow-xs sm:p-6"
         >
           <StepHeading
             id="step-photos"
-            step={2}
+            step={3}
             title="Lampirkan foto"
             description="Foto membantu orang lain mengenali kondisi tempat dan pintu masuknya."
           />
@@ -512,7 +653,7 @@ export function PostingForm({
         >
           <StepHeading
             id="step-location"
-            step={3}
+            step={4}
             title="Tandai lokasi"
             description="Klik peta atau geser penanda. Koordinat bisa diisi manual jika perlu."
           />
@@ -650,8 +791,8 @@ export function PostingForm({
             {isSubmitting ? "Mengirim…" : "Kirim postingan"}
           </Button>
           <p className="mt-2 text-center text-xs text-ink-muted">
-            Wajib login. Isian wajib: nama, kategori, cerita, foto, dan titik
-            peta.
+            Wajib login. Isian wajib: nama, kategori, cerita, rating, foto, dan
+            titik peta.
           </p>
         </div>
       </aside>

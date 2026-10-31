@@ -5,7 +5,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { PlaceFeedEmpty } from "@/components/places/place-feed-states";
 import { PlaceFilters } from "@/components/places/place-filters";
 import { PostCard } from "@/components/places/post-card";
-import { InfoIcon, ThumbsUpIcon } from "@/components/ui/icons";
+import { ThumbsUpIcon } from "@/components/ui/icons";
 import type { PlaceSummary } from "@/types/place";
 
 type PlaceExplorerProps = {
@@ -20,9 +20,9 @@ function normalize(value: string) {
   return value.toLocaleLowerCase("id-ID");
 }
 
-function sortPlaces(places: PlaceSummary[], hasQuery: boolean) {
+function sortPlaces(places: PlaceSummary[]) {
   return [...places].sort((a, b) => {
-    if (hasQuery && b.likeCount !== a.likeCount) {
+    if (b.likeCount !== a.likeCount) {
       return b.likeCount - a.likeCount;
     }
 
@@ -65,7 +65,7 @@ export function PlaceExplorer({
         .some((value) => value.includes(keyword));
     });
 
-    return sortPlaces(matches, Boolean(keyword));
+    return sortPlaces(matches);
   }, [places, deferredQuery, deferredCategory]);
 
   useEffect(() => {
@@ -112,17 +112,8 @@ export function PlaceExplorer({
           {isFiltering ? "Memuat hasil pencarian…" : summary}
         </p>
         <p className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1 text-xs font-medium text-ink-muted">
-          {trimmedQuery ? (
-            <>
-              <ThumbsUpIcon className="h-3.5 w-3.5" />
-              Diurutkan dari yang paling membantu
-            </>
-          ) : (
-            <>
-              <InfoIcon className="h-3.5 w-3.5" />
-              Postingan terbaru lebih dulu
-            </>
-          )}
+          <ThumbsUpIcon className="h-3.5 w-3.5" />
+          Diurutkan dari yang paling membantu
         </p>
       </div>
 

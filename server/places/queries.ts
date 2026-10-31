@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { cacheLife, cacheTag } from "next/cache";
 import { getPrisma } from "@/lib/db/prisma";
-import { isPlaceCategory } from "@/lib/constants/places";
+import { isPlaceCategory, PLACE_CATEGORY_TO_PRISMA } from "@/lib/constants/places";
 import {
   placeDetailInclude,
   placeSummaryInclude,
@@ -36,15 +36,13 @@ export async function getPlaceSummaries(filters: PlaceFilters = {}) {
   }
 
   if (category && isPlaceCategory(category)) {
-    where.category = category.toUpperCase() as Prisma.PlaceWhereInput["category"];
+    where.category = PLACE_CATEGORY_TO_PRISMA[category];
   }
 
   const places = await getPrisma().place.findMany({
     where,
     include: placeSummaryInclude,
-    orderBy: query
-      ? [{ likes: { _count: "desc" } }, { createdAt: "desc" }]
-      : [{ createdAt: "desc" }],
+    orderBy: [{ likes: { _count: "desc" } }, { createdAt: "desc" }],
   });
 
   return places.map(toPlaceSummary);

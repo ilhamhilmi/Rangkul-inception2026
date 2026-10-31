@@ -3,7 +3,9 @@ export type PlaceCategory =
   | "kuliner"
   | "transportasi"
   | "ibadah"
-  | "kesehatan";
+  | "fasilitas-umum"
+  | "kesehatan"
+  | "lainnya";
 
 export type AccessibilityKey =
   | "ramp"
@@ -50,15 +52,6 @@ export type PlacePhotoItem = {
   alt: string;
 };
 
-export type Review = {
-  id: string;
-  author: string;
-  rating: number;
-  date: string;
-  body: string;
-  accessibilityNote?: string;
-};
-
 export type Place = LatLng & {
   id: string;
   slug: string;
@@ -72,18 +65,13 @@ export type Place = LatLng & {
   authorAvatarUrl: string | null;
   createdAt: string;
   rating: number;
-  reviewCount: number;
   likeCount: number;
   viewerHasLiked: boolean;
   photos: PlacePhotoItem[];
   entrances: Entrance[];
-  reviews: Review[];
 };
 
-export type PlaceSummary = Omit<
-  Place,
-  "entrances" | "reviews" | "photos"
-> & {
+export type PlaceSummary = Omit<Place, "entrances" | "photos"> & {
   availableFeatures: AccessibilityKey[];
   coverPhotoUrl: string | null;
   photoCount: number;

@@ -8,8 +8,8 @@ import { FeatureChip } from "@/components/places/feature-chip";
 import { HelpfulButton } from "@/components/places/helpful-button";
 import { PhotoCarousel } from "@/components/places/photo-carousel";
 import { placeLocationLabel } from "@/components/places/post-card";
+import { RamahDisabilitasBadge } from "@/components/places/ramah-disabilitas-badge";
 import { RatingDisplay } from "@/components/places/rating-display";
-import { ReviewSection } from "@/components/places/review-section";
 import { ButtonLink } from "@/components/ui/button";
 import {
   CalendarIcon,
@@ -169,15 +169,14 @@ function PlaceDetailView({
               </p>
 
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-                {place.reviewCount > 0 ? (
-                  <RatingDisplay
-                    rating={place.rating}
-                    reviewCount={place.reviewCount}
-                    showLabel
-                  />
+                {place.rating > 0 ? (
+                  <span className="flex flex-wrap items-center gap-2">
+                    <RatingDisplay rating={place.rating} showLabel />
+                    {place.rating >= 4 ? <RamahDisabilitasBadge /> : null}
+                  </span>
                 ) : (
                   <span className="text-xs text-ink-muted">
-                    Belum ada rating aksesibilitas
+                    Pemosting belum memberi rating aksesibilitas
                   </span>
                 )}
                 <span className="inline-flex items-center gap-1.5 text-xs text-ink-muted">
@@ -212,13 +211,7 @@ function PlaceDetailView({
       </section>
 
       <div className="container-page py-8 lg:py-10">
-        <PhotoCarousel
-          photos={place.photos}
-          name={place.name}
-          category={place.category}
-        />
-
-        <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
           <div className="order-2 space-y-10 lg:order-1">
             <section aria-labelledby="tentang-heading">
               <h2
@@ -270,16 +263,16 @@ function PlaceDetailView({
                 </p>
               ) : null}
             </section>
-
-            <ReviewSection
-              reviews={place.reviews}
-              rating={place.rating}
-              reviewCount={place.reviewCount}
-              placeName={place.name}
-            />
           </div>
 
           <aside className="order-1 space-y-4 lg:order-2 lg:sticky lg:top-24">
+            <PhotoCarousel
+              photos={place.photos}
+              name={place.name}
+              category={place.category}
+              frameClassName="aspect-[4/3]"
+            />
+
             <div className="rounded-sheet border border-line bg-surface p-4 shadow-xs sm:p-5">
               <PlaceMap
                 slug={place.slug}

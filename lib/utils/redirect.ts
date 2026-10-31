@@ -1,3 +1,5 @@
+const AUTH_PATHS = new Set(["/masuk", "/daftar", "/admin/masuk"]);
+
 export function safeNextPath(
   value: FormDataEntryValue | string | string[] | null | undefined,
   fallback = "/",
@@ -5,6 +7,11 @@ export function safeNextPath(
   const raw = Array.isArray(value) ? value[0] : value;
   const path = typeof raw === "string" ? raw : "";
   if (!path.startsWith("/") || path.startsWith("//")) return fallback;
+
+  // Halaman autentikasi tidak boleh menjadi tujuan agar tidak terjadi loop.
+  const pathname = path.split(/[?#]/)[0];
+  if (AUTH_PATHS.has(pathname)) return fallback;
+
   return path;
 }
 

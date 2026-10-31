@@ -1,9 +1,13 @@
 import { z } from "zod";
-import { PLACE_CATEGORIES } from "@/lib/constants/places";
+import {
+  ACCESSIBILITY_KEYS,
+  PLACE_CATEGORIES,
+} from "@/lib/constants/places";
+import type { PlaceCategory } from "@/types/place";
 
 const categoryValues = PLACE_CATEGORIES.map(
   (category) => category.value,
-) as [string, ...string[]];
+) as [PlaceCategory, ...PlaceCategory[]];
 
 function coordinate(
   min: number,
@@ -34,6 +38,17 @@ export const placePostSchema = z.object({
     .trim()
     .min(40, "Ceritakan pengalamanmu minimal 40 karakter.")
     .max(2000, "Deskripsi maksimal 2000 karakter."),
+  rating: z.coerce
+    .number({ error: "Pilih rating 1 sampai 5 bintang." })
+    .int("Rating harus bilangan bulat 1 sampai 5.")
+    .min(1, "Pilih rating 1 sampai 5 bintang.")
+    .max(5, "Pilih rating 1 sampai 5 bintang."),
+  facilities: z
+    .array(z.enum(ACCESSIBILITY_KEYS), {
+      error: "Pilih fasilitas dari daftar yang tersedia.",
+    })
+    .default([])
+    .transform((values) => [...new Set(values)]),
   latitude: coordinate(-90, 90, "Latitude harus antara -90 dan 90."),
   longitude: coordinate(-180, 180, "Longitude harus antara -180 dan 180."),
 });

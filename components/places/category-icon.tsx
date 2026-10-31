@@ -2,6 +2,7 @@ import type { ComponentType, SVGProps } from "react";
 import {
   HealthIcon,
   LandmarkIcon,
+  MapIcon,
   TrainIcon,
   TreeIcon,
   UtensilsIcon,
@@ -42,11 +43,23 @@ const meta: Record<PlaceCategory, CategoryMeta> = {
     media: "bg-linear-to-br from-primary-50 via-sand-100 to-secondary-50",
     iconTone: "text-primary-700",
   },
+  "fasilitas-umum": {
+    icon: LandmarkIcon,
+    badge: "border-warning-600/25 bg-warning-50 text-warning-700",
+    media: "bg-linear-to-br from-warning-50 via-surface to-primary-50",
+    iconTone: "text-warning-700",
+  },
   kesehatan: {
     icon: HealthIcon,
     badge: "border-danger-600/25 bg-danger-50 text-danger-700",
     media: "bg-linear-to-br from-danger-50 via-surface to-primary-50",
     iconTone: "text-danger-700",
+  },
+  lainnya: {
+    icon: MapIcon,
+    badge: "border-line bg-surface-muted text-ink-muted",
+    media: "bg-linear-to-br from-surface-muted via-surface to-primary-50",
+    iconTone: "text-ink-muted",
   },
 };
 

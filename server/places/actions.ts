@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { requireUser } from "@/lib/auth/guards";
 import { moderatePlacePost } from "@/lib/ai/moderation";
 import { isModerationEnabled } from "@/lib/env";
+import { PLACE_CATEGORY_TO_PRISMA } from "@/lib/constants/places";
 import type { PlacePostFormState } from "@/lib/validation/post";
 import { placePostSchema } from "@/lib/validation/post";
 import { buildUniqueSlug, slugify } from "@/lib/utils/slug";
@@ -16,14 +17,6 @@ import {
   removePlacePhotos,
   uploadPlacePhotos,
 } from "@/lib/storage/place-photos";
-
-const CATEGORY_MAP = {
-  wisata: "WISATA",
-  kuliner: "KULINER",
-  transportasi: "TRANSPORTASI",
-  ibadah: "IBADAH",
-  kesehatan: "KESEHATAN",
-} as const;
 
 const PHOTO_TYPES: readonly string[] = PLACE_PHOTO_TYPES;
 
@@ -78,6 +71,8 @@ export async function createPlacePostAction(
     name: formData.get("name"),
     category: formData.get("category"),
     description: formData.get("description"),
+    rating: formData.get("rating"),
+    facilities: formData.getAll("facilities"),
     latitude: formData.get("lat"),
     longitude: formData.get("lng"),
   });
@@ -138,9 +133,10 @@ export async function createPlacePostAction(
       data: {
         slug,
         name: parsed.data.name,
-        category:
-          CATEGORY_MAP[parsed.data.category as keyof typeof CATEGORY_MAP],
+        category: PLACE_CATEGORY_TO_PRISMA[parsed.data.category],
         description: parsed.data.description,
+        posterRating: parsed.data.rating,
+        facilities: parsed.data.facilities,
         latitude: parsed.data.latitude,
         longitude: parsed.data.longitude,
         status,

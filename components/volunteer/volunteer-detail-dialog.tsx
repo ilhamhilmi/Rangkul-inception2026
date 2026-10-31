@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import {
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+  type MouseEvent,
+} from "react";
+import { createPortal } from "react-dom";
 import { Button, ButtonLink } from "@/components/ui/button";
 import {
   AccessibilityIcon,
+  CalendarIcon,
   CheckIcon,
   MapPinIcon,
   UsersIcon,
 } from "@/components/ui/icons";
-import {
-  CalendarIcon,
-  XIcon,
-} from "@/components/volunteer/volunteer-icons";
+import { XIcon } from "@/components/volunteer/volunteer-icons";
 import {
   formatEventSchedule,
   getQuotaStatus,
@@ -35,198 +39,262 @@ const quotaTextClasses = {
   danger: "text-danger-700",
 } as const;
 
+const subscribe = () => () => {};
+
 export function VolunteerDetailDialog({
   event,
   onClose,
 }: VolunteerDetailDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const mounted = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
+  const panelRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
+    if (!event) return;
 
-    if (event && !dialog.open) {
-      dialog.showModal();
-    } else if (!event && dialog.open) {
-      dialog.close();
-    }
-  }, [event]);
+    restoreFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
 
-  const quota = event ? getQuotaStatus(event) : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    panelRef.current?.focus();
 
-  return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby="volunteer-detail-title"
-      aria-describedby="volunteer-detail-description"
-      aria-modal="true"
-      onCancel={(cancelEvent) => {
-        cancelEvent.preventDefault();
+    function handleKeyDown(keyEvent: KeyboardEvent) {
+      if (keyEvent.key === "Escape") {
+        keyEvent.preventDefault();
         onClose();
-      }}
-      onClose={onClose}
-      onClick={(clickEvent) => {
-        if (clickEvent.target === dialogRef.current) {
-          onClose();
-        }
-      }}
-      className="m-auto max-h-[90dvh] w-[min(92vw,44rem)] overflow-y-auto rounded-sheet border border-line bg-surface p-0 text-ink shadow-lifted backdrop:bg-overlay"
-    >
-      {event && quota ? (
-        <div>
-          <div className="relative aspect-[16/9] overflow-hidden bg-primary-50">
-            <div
-              role="img"
-              aria-label={event.coverAlt}
-              className="h-full w-full bg-cover bg-center"
-              style={{ backgroundImage: `url(${event.coverImage})` }}
-            />
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Tutup detail kegiatan"
-              className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface/95 text-ink shadow-card transition-colors hover:bg-surface-muted"
-            >
-              <XIcon className="h-5 w-5" />
-            </button>
-          </div>
+        return;
+      }
 
-          <div className="p-5 sm:p-7">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-700">
+      if (keyEvent.key !== "Tab") return;
+
+      const panel = panelRef.current;
+      if (!panel) return;
+
+      const focusables = Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => element.offsetParent !== null);
+
+      if (focusables.length === 0) return;
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+
+      if (keyEvent.shiftKey && document.activeElement === first) {
+        keyEvent.preventDefault();
+        last.focus();
+      } else if (!keyEvent.shiftKey && document.activeElement === last) {
+        keyEvent.preventDefault();
+        first.focus();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      restoreFocusRef.current?.focus();
+    };
+  }, [event, onClose]);
+
+  if (!mounted || !event) return null;
+
+  const quota = getQuotaStatus(event);
+
+  function handleBackdropClick(clickEvent: MouseEvent<HTMLDivElement>) {
+    if (clickEvent.target === clickEvent.currentTarget) {
+      onClose();
+    }
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/60 p-0 backdrop-blur-sm sm:items-center sm:p-6"
+      onMouseDown={handleBackdropClick}
+    >
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="volunteer-detail-title"
+        aria-describedby="volunteer-detail-description"
+        tabIndex={-1}
+        className="relative flex max-h-[100dvh] w-full flex-col overflow-hidden bg-surface text-ink shadow-lifted outline-none sm:max-h-[min(90dvh,48rem)] sm:max-w-3xl sm:rounded-sheet"
+      >
+        <div className="relative h-40 shrink-0 overflow-hidden bg-primary-50 sm:h-52">
+          <div
+            role="img"
+            aria-label={event.coverAlt}
+            className="h-full w-full bg-cover bg-center"
+            style={{ backgroundImage: `url(${event.coverImage})` }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-ink/60 via-ink/10 to-transparent" />
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Tutup detail kegiatan"
+            className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-ink/55 text-white backdrop-blur-sm transition-colors hover:bg-ink/75 focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            <XIcon className="h-5 w-5" />
+          </button>
+
+          <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end gap-2 p-4 sm:p-5">
+            <span className="rounded-full border border-white/30 bg-white/15 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
               {event.category}
-            </p>
+            </span>
+            <span className="rounded-full border border-white/30 bg-white/15 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm">
+              {event.city}
+            </span>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5 sm:p-7">
+          <div>
             <h2
               id="volunteer-detail-title"
-              className="mt-2 text-2xl font-bold tracking-tight text-ink sm:text-3xl"
+              className="text-xl font-bold tracking-tight text-ink sm:text-2xl"
             >
               {event.title}
             </h2>
-
             <p
               id="volunteer-detail-description"
-              className="mt-3 leading-relaxed text-ink-muted"
+              className="mt-2 text-sm leading-relaxed text-ink-muted sm:text-base"
             >
               {event.description}
             </p>
+          </div>
 
-            <dl className="mt-6 grid gap-4 rounded-card border border-line bg-surface-muted/60 p-4 sm:grid-cols-2">
-              <div className="flex items-start gap-2.5">
-                <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-                <div>
-                  <dt className="text-xs text-ink-muted">Lokasi</dt>
-                  <dd className="mt-0.5 text-sm font-medium text-ink">
-                    {event.location}, {event.city}
-                  </dd>
-                </div>
+          <dl className="grid gap-x-5 gap-y-4 rounded-card border border-line bg-surface-muted/60 p-4 sm:grid-cols-2">
+            <div className="flex items-start gap-2.5">
+              <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+              <div className="min-w-0">
+                <dt className="text-xs text-ink-muted">Lokasi</dt>
+                <dd className="mt-0.5 text-sm font-medium text-ink">
+                  {event.location}, {event.city}
+                </dd>
               </div>
-              <div className="flex items-start gap-2.5">
-                <CalendarIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-                <div>
-                  <dt className="text-xs text-ink-muted">Tanggal & waktu</dt>
-                  <dd className="mt-0.5 text-sm font-medium text-ink">
-                    {formatEventSchedule(event.startsAt, event.endsAt)}
-                  </dd>
-                </div>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <CalendarIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+              <div className="min-w-0">
+                <dt className="text-xs text-ink-muted">Tanggal & waktu</dt>
+                <dd className="mt-0.5 text-sm font-medium text-ink">
+                  {formatEventSchedule(event.startsAt, event.endsAt)}
+                </dd>
               </div>
-              <div className="flex items-start gap-2.5">
-                <UsersIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-                <div>
-                  <dt className="text-xs text-ink-muted">Penyelenggara</dt>
-                  <dd className="mt-0.5 text-sm font-medium text-ink">
-                    {event.organizer}
-                  </dd>
-                </div>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <UsersIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+              <div className="min-w-0">
+                <dt className="text-xs text-ink-muted">Penyelenggara</dt>
+                <dd className="mt-0.5 text-sm font-medium text-ink">
+                  {event.organizer}
+                </dd>
               </div>
-              <div className="flex items-start gap-2.5">
-                <UsersIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-                <div>
-                  <dt className="text-xs text-ink-muted">Kuota peserta</dt>
-                  <dd className="mt-0.5 font-mono text-sm font-medium text-ink">
-                    {event.registeredCount}/{event.slots} peserta
-                  </dd>
-                </div>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <UsersIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+              <div className="min-w-0">
+                <dt className="text-xs text-ink-muted">Kuota peserta</dt>
+                <dd className="mt-0.5 font-mono text-sm font-medium text-ink">
+                  {event.registeredCount}/{event.slots} peserta
+                </dd>
               </div>
-            </dl>
+            </div>
+          </dl>
 
-            <div className="mt-5">
+          <div>
+            <div
+              className="h-2 overflow-hidden rounded-full bg-surface-muted"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={event.slots}
+              aria-valuenow={event.registeredCount}
+              aria-label={`Kuota terisi ${event.registeredCount} dari ${event.slots} peserta`}
+            >
               <div
-                className="h-2 overflow-hidden rounded-full bg-surface-muted"
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={event.slots}
-                aria-valuenow={event.registeredCount}
-                aria-label={`Kuota terisi ${event.registeredCount} dari ${event.slots} peserta`}
-              >
-                <div
-                  className={`h-full rounded-full ${quotaBarClasses[quota.tone]}`}
-                  style={{ width: `${quota.percentage}%` }}
-                />
-              </div>
-              <p
-                className={`mt-2 text-xs font-medium ${quotaTextClasses[quota.tone]}`}
-              >
-                {quota.label} · sisa {quota.remaining} kuota
-              </p>
+                className={`h-full rounded-full ${quotaBarClasses[quota.tone]}`}
+                style={{ width: `${quota.percentage}%` }}
+              />
+            </div>
+            <p
+              className={`mt-2 text-xs font-medium ${quotaTextClasses[quota.tone]}`}
+            >
+              {quota.label} · sisa {quota.remaining} kuota
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <h3 className="text-sm font-semibold text-ink">
+                Yang perlu disiapkan
+              </h3>
+              <ul className="mt-2 space-y-2">
+                {event.requirements
+                  .split("\n")
+                  .map((requirement) => requirement.trim())
+                  .filter(Boolean)
+                  .map((requirement, index) => (
+                    <li
+                      key={`${index}-${requirement}`}
+                      className="flex items-start gap-2 text-sm leading-relaxed text-ink-muted"
+                    >
+                      <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+                      <span>{requirement}</span>
+                    </li>
+                  ))}
+              </ul>
             </div>
 
-            <div className="mt-6 grid gap-5 sm:grid-cols-2">
-              <div>
-                <h3 className="text-sm font-semibold text-ink">
-                  Yang perlu disiapkan
-                </h3>
-                <ul className="mt-2 space-y-2">
-                  {event.requirements
-                    .split("\n")
-                    .map((requirement) => requirement.trim())
-                    .filter(Boolean)
-                    .map((requirement, index) => (
-                      <li
-                        key={`${index}-${requirement}`}
-                        className="flex items-start gap-2 text-sm text-ink-muted"
-                      >
-                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-                        <span>{requirement}</span>
-                      </li>
-                    ))}
-                </ul>
-              </div>
-
-              <div className="rounded-card border border-primary-200 bg-primary-50 p-4">
-                <h3 className="flex items-center gap-2 text-sm font-semibold text-primary-900">
-                  <AccessibilityIcon className="h-4 w-4" />
-                  Info aksesibilitas
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-primary-900">
-                  {event.accessibilityNotes}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-7 flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs leading-relaxed text-ink-muted">
-                Pendaftaran memerlukan akun Rangkul. Kamu akan diarahkan untuk
-                masuk terlebih dahulu.
+            <div className="rounded-card border border-primary-200 bg-primary-50 p-4">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-primary-900">
+                <AccessibilityIcon className="h-4 w-4" />
+                Info aksesibilitas
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-primary-900">
+                {event.accessibilityNotes}
               </p>
-              <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-                <ButtonLink
-                  href={`/volunteer/${event.slug}`}
-                  size="md"
-                >
-                  Lihat detail & daftar
-                </ButtonLink>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="md"
-                  onClick={onClose}
-                >
-                  Tutup
-                </Button>
-              </div>
             </div>
           </div>
         </div>
-      ) : null}
-    </dialog>
+
+        <div className="shrink-0 border-t border-line bg-surface px-5 py-4 sm:px-7">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs leading-relaxed text-ink-muted">
+              Pendaftaran memerlukan akun Rangkul. Kamu akan diarahkan untuk
+              masuk terlebih dahulu.
+            </p>
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+              <ButtonLink
+                href={`/volunteer/${event.slug}`}
+                size="md"
+                onClick={onClose}
+              >
+                Lihat detail & daftar
+              </ButtonLink>
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                onClick={onClose}
+              >
+                Tutup
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
