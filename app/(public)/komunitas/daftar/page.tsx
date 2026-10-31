@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { CheckIcon, ShieldCheckIcon } from "@/components/ui/icons";
 import { CommunityRegistrationForm } from "@/components/communities/community-registration-form";
+import { getCurrentUser } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: "Daftarkan Komunitas",
@@ -13,7 +17,7 @@ export const metadata: Metadata = {
 const verificationSteps = [
   {
     title: "Ajukan formulir",
-    description: "Isi data pengurus, profil komunitas, dan unggah KTP.",
+    description: "Isi data pengurus dan profil komunitas.",
   },
   {
     title: "Ditinjau admin",
@@ -28,14 +32,37 @@ const verificationSteps = [
 const requirements = [
   "Nama dan kontak pengurus yang aktif",
   "Nama, deskripsi, dan wilayah komunitas",
-  "Foto KTP pengurus untuk verifikasi",
-  "Tautan grup WA atau nama saluran",
-  "Sampul komunitas (opsional)",
+  "Tautan grup WA atau kanal komunitas",
+  "Akun Rangkul yang sudah masuk",
+  "Media sosial komunitas (opsional)",
 ];
 
-export default function CommunityRegisterPage() {
+function RegisterSkeleton() {
   return (
-    <div className="container-page py-8 lg:py-10">
+    <div aria-hidden="true">
+      <Skeleton className="h-5 w-64" />
+      <Skeleton className="mt-4 h-10 w-full max-w-xl" />
+      <Skeleton className="mt-3 h-5 w-full max-w-2xl" />
+      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+        <Skeleton className="h-[720px] w-full rounded-sheet" />
+        <div className="space-y-4">
+          <Skeleton className="h-64 w-full rounded-card" />
+          <Skeleton className="h-56 w-full rounded-card" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+async function CommunityRegisterContent() {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/masuk?next=%2Fkomunitas%2Fdaftar");
+  }
+
+  return (
+    <div>
       <Breadcrumb
         items={[
           { label: "Beranda", href: "/" },
@@ -71,7 +98,10 @@ export default function CommunityRegisterPage() {
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] lg:items-start">
-        <CommunityRegistrationForm />
+        <CommunityRegistrationForm
+          defaultName={user.name}
+          defaultEmail={user.email}
+        />
 
         <aside className="space-y-4 lg:sticky lg:top-24">
           <section
@@ -125,24 +155,34 @@ export default function CommunityRegisterPage() {
           </section>
 
           <section
-            aria-labelledby="privasi-ktp"
+            aria-labelledby="privasi-kontak"
             className="rounded-card border border-line bg-surface-muted p-5"
           >
             <h2
-              id="privasi-ktp"
+              id="privasi-kontak"
               className="flex items-center gap-2 text-base font-semibold text-ink"
             >
               <ShieldCheckIcon className="h-5 w-5 text-primary-700" />
-              Privasi foto KTP
+              Data pengurus
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-              Foto KTP hanya dipakai untuk memverifikasi bahwa pengurus memang
-              bagian dari komunitas. Foto tidak pernah ditampilkan di profil
-              publik dan hanya bisa diakses admin verifikasi.
+              Nama, email, dan nomor pengurus dipakai admin untuk verifikasi.
+              Email pengurus juga menjadi kontak publik komunitas. Nomor telepon
+              tidak ditampilkan di direktori.
             </p>
           </section>
         </aside>
       </div>
+    </div>
+  );
+}
+
+export default function CommunityRegisterPage() {
+  return (
+    <div className="container-page py-8 lg:py-10">
+      <Suspense fallback={<RegisterSkeleton />}>
+        <CommunityRegisterContent />
+      </Suspense>
     </div>
   );
 }

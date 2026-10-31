@@ -1,12 +1,47 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Brand } from "@/components/layout/brand";
-import { ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { UserIcon } from "@/components/ui/icons";
+import { getCurrentUser } from "@/lib/auth/session";
+import { signOutAction } from "@/server/auth/actions";
 
 const navigation = [
   { href: "/jelajahi", label: "Jelajahi" },
   { href: "/komunitas", label: "Komunitas" },
   { href: "/volunteer", label: "Volunteer" },
 ];
+
+async function AccountNav() {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return (
+      <div className="flex items-center gap-2">
+        <ButtonLink href="/masuk" variant="ghost" size="sm">
+          Masuk
+        </ButtonLink>
+        <ButtonLink href="/daftar" size="sm">
+          Daftar
+        </ButtonLink>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <span className="hidden max-w-40 items-center gap-1.5 truncate text-sm font-medium text-ink sm:inline-flex">
+        <UserIcon className="h-4 w-4 shrink-0 text-primary-700" />
+        <span className="truncate">{user.name}</span>
+      </span>
+      <form action={signOutAction}>
+        <Button type="submit" variant="ghost" size="sm">
+          Keluar
+        </Button>
+      </form>
+    </div>
+  );
+}
 
 export function SiteHeader() {
   return (
@@ -29,14 +64,16 @@ export function SiteHeader() {
           </ul>
         </nav>
 
-        <div className="flex items-center gap-2">
-          <ButtonLink href="/masuk" variant="ghost" size="sm">
-            Masuk
-          </ButtonLink>
-          <ButtonLink href="/daftar" size="sm">
-            Daftar
-          </ButtonLink>
-        </div>
+        <Suspense
+          fallback={
+            <div
+              aria-hidden="true"
+              className="h-11 w-32 animate-pulse rounded-button bg-surface-muted"
+            />
+          }
+        >
+          <AccountNav />
+        </Suspense>
       </div>
     </header>
   );

@@ -1,19 +1,24 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/field";
+import { FieldError, Input, Label } from "@/components/ui/field";
+import { AlertIcon, CheckIcon } from "@/components/ui/icons";
+import { signInAction } from "@/server/auth/actions";
+import type { AuthFormState } from "@/types/auth";
 
-export function LoginForm() {
-  const [notice, setNotice] = useState<string | null>(null);
+const initialState: AuthFormState = { status: "idle" };
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setNotice("Autentikasi belum tersambung pada versi UI ini.");
-  }
+export function LoginForm({ nextPath }: { nextPath: string }) {
+  const [state, formAction, isPending] = useActionState(
+    signInAction,
+    initialState,
+  );
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form action={formAction} className="space-y-5">
+      <input type="hidden" name="next" value={nextPath} />
+
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
@@ -23,7 +28,14 @@ export function LoginForm() {
           autoComplete="email"
           placeholder="nama@email.com"
           required
+          aria-invalid={state.fieldErrors?.email ? true : undefined}
+          aria-describedby={
+            state.fieldErrors?.email ? "email-error" : undefined
+          }
         />
+        {state.fieldErrors?.email?.[0] ? (
+          <FieldError id="email-error">{state.fieldErrors.email[0]}</FieldError>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -35,32 +47,40 @@ export function LoginForm() {
           autoComplete="current-password"
           placeholder="Masukkan kata sandi"
           required
+          aria-invalid={state.fieldErrors?.password ? true : undefined}
+          aria-describedby={
+            state.fieldErrors?.password ? "password-error" : undefined
+          }
         />
+        {state.fieldErrors?.password?.[0] ? (
+          <FieldError id="password-error">
+            {state.fieldErrors.password[0]}
+          </FieldError>
+        ) : null}
       </div>
 
-      <div className="flex items-center gap-2.5">
-        <input
-          id="remember"
-          name="remember"
-          type="checkbox"
-          className="h-4 w-4 rounded border-line-strong accent-primary-600"
-        />
-        <label htmlFor="remember" className="text-sm text-ink-muted">
-          Ingat saya di perangkat ini
-        </label>
-      </div>
-
-      {notice ? (
+      {state.status === "error" && state.message ? (
         <p
-          role="status"
-          className="rounded-input border border-info-600/30 bg-info-50 px-3.5 py-3 text-sm text-info-700"
+          role="alert"
+          className="flex items-start gap-2 rounded-input border border-danger-600/30 bg-danger-50 px-3.5 py-3 text-sm text-danger-700"
         >
-          {notice}
+          <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{state.message}</span>
         </p>
       ) : null}
 
-      <Button type="submit" size="lg" className="w-full">
-        Masuk
+      {state.status === "notice" && state.message ? (
+        <p
+          role="status"
+          className="flex items-start gap-2 rounded-input border border-success-600/30 bg-success-50 px-3.5 py-3 text-sm text-success-700"
+        >
+          <CheckIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{state.message}</span>
+        </p>
+      ) : null}
+
+      <Button type="submit" size="lg" className="w-full" disabled={isPending}>
+        {isPending ? "Memeriksa..." : "Masuk"}
       </Button>
     </form>
   );

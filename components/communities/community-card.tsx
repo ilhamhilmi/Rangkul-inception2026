@@ -10,6 +10,11 @@ import type { Community } from "@/types/community";
 import { CommunityCover } from "@/components/communities/community-cover";
 import { JoinCommunityButton } from "@/components/communities/join-community-button";
 
+function contactLabel(contact: string) {
+  if (contact.startsWith("@")) return contact;
+  return contact;
+}
+
 function getMapsHref(community: Community) {
   const query = encodeURIComponent(
     `${community.name}, ${community.city}, ${community.province}`,
@@ -51,8 +56,8 @@ export function CommunityCard({ community }: { community: Community }) {
           </Link>
         </h3>
 
-        <p className="mt-1 text-sm text-ink-muted">
-          Pengurus: {community.contact.personName}
+        <p className="mt-1 break-words text-sm text-ink-muted">
+          Kontak: {contactLabel(community.contact)}
         </p>
 
         <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-ink-muted">
@@ -77,7 +82,7 @@ export function CommunityCard({ community }: { community: Community }) {
 
         <div className="mt-auto border-t border-line pt-4">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-ink-muted">
-            <span>Berdiri sejak {community.foundedYear}</span>
+            <span>Komunitas terverifikasi</span>
             <a
               href={getMapsHref(community)}
               target="_blank"
@@ -103,7 +108,10 @@ export function CommunityCard({ community }: { community: Community }) {
             >
               Lihat profil
             </ButtonLink>
-            <JoinCommunityButton communityName={community.name} />
+            <JoinCommunityButton
+              communityName={community.name}
+              joinUrl={community.joinUrl}
+            />
           </div>
         </div>
       </div>

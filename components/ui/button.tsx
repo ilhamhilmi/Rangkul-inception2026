@@ -59,3 +59,17 @@ export function ButtonLink({
 }: ButtonLinkProps) {
   return <Link className={classes(variant, size, className)} {...props} />;
 }
+
+type ButtonAnchorProps = ComponentProps<"a"> & {
+  variant?: Variant;
+  size?: Size;
+};
+
+export function ButtonAnchor({
+  variant = "primary",
+  size = "md",
+  className,
+  ...props
+}: ButtonAnchorProps) {
+  return <a className={classes(variant, size, className)} {...props} />;
+}

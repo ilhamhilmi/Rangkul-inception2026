@@ -13,40 +13,37 @@ export type CommunityFocus =
   | "Pendampingan keluarga"
   | "Advokasi & aksesibilitas";
 
-export interface CommunityContact {
-  personName: string;
-  role: string;
-  email: string;
-  phone: string;
-  whatsapp: string;
-}
-
 export interface CommunitySocials {
   instagram?: string;
+  facebook?: string;
   website?: string;
 }
 
-export interface CommunityActivity {
-  title: string;
-  category: string;
-  startsAt: string;
-  location: string;
-}
-
 export interface Community {
+  id: string;
   slug: string;
   name: string;
-  tagline: string;
   description: string;
   province: string;
   city: string;
   focus: CommunityFocus[];
-  contact: CommunityContact;
+  contact: string;
   socials: CommunitySocials;
   joinUrl: string;
+  logoUrl: string | null;
   status: CommunityStatus;
-  ownerId: string;
-  verifiedAt: string;
-  foundedYear: number;
-  activities: CommunityActivity[];
+  verifiedAt: string | null;
 }
+
+export interface CommunityDirectoryResult {
+  items: Community[];
+  filteredTotal: number;
+  totalVerified: number;
+}
+
+export type CommunityFormState = {
+  status: "idle" | "success" | "error";
+  message?: string;
+  fieldErrors?: Record<string, string[]>;
+  submittedName?: string;
+};

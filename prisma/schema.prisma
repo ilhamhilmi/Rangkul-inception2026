@@ -1,5 +1,6 @@
-// Skema database Rangkul — subset Fitur 1 (tempat & navigasi).
-// Sumber kebenaran: docs/database.md. Tabel fitur lain ditambahkan pada fase berikutnya.
+// Skema database Rangkul.
+// Sumber kebenaran: docs/database.md. Fitur 1 (tempat & navigasi) sudah aktif,
+// komunitas & verifikasi ditambahkan pada fase berikutnya.
 
 generator client {
   provider = "prisma-client-js"
@@ -44,6 +45,24 @@ enum FeatureValue {
   UNKNOWN
 }
 
+enum CommunityStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum VerificationType {
+  COMMUNITY
+  ORGANIZER
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Profile {
   id        String   @id @db.Uuid
   email     String   @unique
@@ -59,33 +78,39 @@ model Profile {
   placePhotos      PlacePhoto[]
   entranceFeatures EntranceFeature[]
 
+  communities                  Community[]           @relation("CommunityOwner")
+  verifiedCommunities          Community[]           @relation("CommunityVerifier")
+  verificationRequests         VerificationRequest[] @relation("VerificationRequester")
+  reviewedVerificationRequests VerificationRequest[] @relation("VerificationReviewer")
+
+  @@index([role], map: "idx_profiles_role")
   @@map("profiles")
 }
 
 model Place {
-  id                      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug                    String        @unique
-  name                    String
-  category                PlaceCategory
-  description             String
-  address                 String
-  city                    String
-  province                String
-  latitude                Decimal       @db.Decimal(9, 6)
-  longitude               Decimal       @db.Decimal(9, 6)
-  status                  ContentStatus @default(PENDING)
-  createdById             String        @map("created_by") @db.Uuid
-  ratingAvg               Decimal       @default(0) @map("rating_avg") @db.Decimal(3, 2)
-  reviewCount             Int           @default(0) @map("review_count")
-  defaultOriginLabel      String?       @map("default_origin_label")
-  defaultOriginLatitude   Decimal?      @map("default_origin_latitude") @db.Decimal(9, 6)
-  defaultOriginLongitude  Decimal?      @map("default_origin_longitude") @db.Decimal(9, 6)
-  publishedAt             DateTime?     @map("published_at") @db.Timestamptz(6)
-  archivedAt              DateTime?     @map("archived_at") @db.Timestamptz(6)
-  createdAt               DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                     String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug                   String        @unique
+  name                   String
+  category               PlaceCategory
+  description            String
+  address                String
+  city                   String
+  province               String
+  latitude               Decimal       @db.Decimal(9, 6)
+  longitude              Decimal       @db.Decimal(9, 6)
+  status                 ContentStatus @default(PENDING)
+  createdById            String        @map("created_by") @db.Uuid
+  ratingAvg              Decimal       @default(0) @map("rating_avg") @db.Decimal(3, 2)
+  reviewCount            Int           @default(0) @map("review_count")
+  defaultOriginLabel     String?       @map("default_origin_label")
+  defaultOriginLatitude  Decimal?      @map("default_origin_latitude") @db.Decimal(9, 6)
+  defaultOriginLongitude Decimal?      @map("default_origin_longitude") @db.Decimal(9, 6)
+  publishedAt            DateTime?     @map("published_at") @db.Timestamptz(6)
+  archivedAt             DateTime?     @map("archived_at") @db.Timestamptz(6)
+  createdAt              DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  createdBy Profile? @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy Profile?     @relation(fields: [createdById], references: [id], onDelete: Restrict)
   entrances Entrance[]
   photos    PlacePhoto[]
   reviews   Review[]
@@ -97,20 +122,20 @@ model Place {
 }
 
 model Entrance {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  placeId         String   @map("place_id") @db.Uuid
-  label           String
-  notes           String?
-  latitude        Decimal? @db.Decimal(9, 6)
-  longitude       Decimal? @db.Decimal(9, 6)
-  isMain          Boolean  @default(false) @map("is_main")
-  photoUrl        String?  @map("photo_url")
-  routeDistanceM  Int?     @map("route_distance_m")
-  routeDurationMin Int?    @map("route_duration_min")
-  routeCondition  String?  @map("route_condition")
-  routeSteps      String[] @default([]) @map("route_steps")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  placeId          String   @map("place_id") @db.Uuid
+  label            String
+  notes            String?
+  latitude         Decimal? @db.Decimal(9, 6)
+  longitude        Decimal? @db.Decimal(9, 6)
+  isMain           Boolean  @default(false) @map("is_main")
+  photoUrl         String?  @map("photo_url")
+  routeDistanceM   Int?     @map("route_distance_m")
+  routeDurationMin Int?     @map("route_duration_min")
+  routeCondition   String?  @map("route_condition")
+  routeSteps       String[] @default([]) @map("route_steps")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   place    Place             @relation(fields: [placeId], references: [id], onDelete: Cascade)
   features EntranceFeature[]
@@ -192,4 +217,52 @@ model Review {
   @@index([placeId, status, publishedAt])
   @@index([authorId])
   @@map("reviews")
+}
+
+model Community {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String          @unique(map: "uq_communities_slug")
+  name        String
+  description String
+  province    String
+  city        String
+  focus       String[]        @default([])
+  contact     String
+  socials     Json            @default("{}")
+  joinUrl     String          @map("join_url")
+  logoUrl     String?         @map("logo_url")
+  status      CommunityStatus @default(PENDING)
+  ownerId     String          @map("owner_id") @db.Uuid
+  verifiedAt  DateTime?       @map("verified_at") @db.Timestamptz(6)
+  verifiedBy  String?         @map("verified_by") @db.Uuid
+  archivedAt  DateTime?       @map("archived_at") @db.Timestamptz(6)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  owner             Profile  @relation("CommunityOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  verifiedByProfile Profile? @relation("CommunityVerifier", fields: [verifiedBy], references: [id], onDelete: SetNull)
+
+  @@index([status], map: "idx_communities_status")
+  @@index([province, city], map: "idx_communities_location")
+  @@map("communities")
+}
+
+model VerificationRequest {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String             @map("user_id") @db.Uuid
+  type        VerificationType
+  payload     Json               @default("{}")
+  documentUrl String?            @map("document_url")
+  status      VerificationStatus @default(PENDING)
+  reviewerId  String?            @map("reviewer_id") @db.Uuid
+  reviewNote  String?            @map("review_note")
+  submittedAt DateTime           @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  reviewedAt  DateTime?          @map("reviewed_at") @db.Timestamptz(6)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user     Profile  @relation("VerificationRequester", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer Profile? @relation("VerificationReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([status, submittedAt], map: "idx_verification_requests_status")
+  @@map("verification_requests")
 }

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { PrismaClient } from "@prisma/client";
 import { assertDatabaseEnv } from "@/lib/env";
 
@@ -27,3 +29,17 @@ export function getPrisma() {
 
   return globalForPrisma.rangkulPrisma;
 }
+
+/**
+ * Alias `prisma` untuk modul yang memakai pola query langsung. Proxy ini
+ * meneruskan setiap akses ke client lazy di atas sehingga `import` tetap aman
+ * saat build tanpa koneksi database.
+ */
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, property) {
+    const client = getPrisma();
+    const value = Reflect.get(client, property, client);
+
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+});

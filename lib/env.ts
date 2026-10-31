@@ -48,3 +48,35 @@ export function assertDatabaseEnv() {
 
   return parsed.data;
 }
+
+const serverEnvSchema = z.object({
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  SUPABASE_SECRET_KEY: z.string().min(1).optional(),
+});
+
+/**
+ * Env khusus server yang tidak boleh bocor ke bundle client. Dibaca lazy agar
+ * `next build` tidak gagal saat variabel opsional belum diisi.
+ */
+export function getServerEnv() {
+  if (typeof window !== "undefined") {
+    throw new Error("getServerEnv hanya boleh dipanggil di server.");
+  }
+
+  const database = assertDatabaseEnv();
+  const parsed = serverEnvSchema.safeParse(process.env);
+
+  if (!parsed.success) {
+    throw new Error(
+      parsed.error.issues
+        .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+        .join(", ") || "Konfigurasi environment server tidak valid.",
+    );
+  }
+
+  return {
+    ...database,
+    supabaseSecretKey:
+      parsed.data.SUPABASE_SERVICE_ROLE_KEY ?? parsed.data.SUPABASE_SECRET_KEY,
+  } as const;
+}

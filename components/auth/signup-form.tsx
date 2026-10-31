@@ -1,31 +1,24 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldHint, Input, Label } from "@/components/ui/field";
+import { AlertIcon, CheckIcon } from "@/components/ui/icons";
+import { signUpAction } from "@/server/auth/actions";
+import type { AuthFormState } from "@/types/auth";
 
-export function SignupForm() {
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+const initialState: AuthFormState = { status: "idle" };
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const password = String(data.get("password") ?? "");
-    const confirmPassword = String(data.get("confirmPassword") ?? "");
-
-    if (password !== confirmPassword) {
-      setNotice(null);
-      setError("Konfirmasi kata sandi belum sama. Periksa kembali.");
-      return;
-    }
-
-    setError(null);
-    setNotice("Autentikasi belum tersambung pada versi UI ini.");
-  }
+export function SignupForm({ nextPath }: { nextPath: string }) {
+  const [state, formAction, isPending] = useActionState(
+    signUpAction,
+    initialState,
+  );
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form action={formAction} className="space-y-5">
+      <input type="hidden" name="next" value={nextPath} />
+
       <div className="space-y-2">
         <Label htmlFor="name">Nama lengkap</Label>
         <Input
@@ -35,7 +28,12 @@ export function SignupForm() {
           autoComplete="name"
           placeholder="Nama kamu"
           required
+          aria-invalid={state.fieldErrors?.name ? true : undefined}
+          aria-describedby={state.fieldErrors?.name ? "name-error" : undefined}
         />
+        {state.fieldErrors?.name?.[0] ? (
+          <FieldError id="name-error">{state.fieldErrors.name[0]}</FieldError>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -47,7 +45,14 @@ export function SignupForm() {
           autoComplete="email"
           placeholder="nama@email.com"
           required
+          aria-invalid={state.fieldErrors?.email ? true : undefined}
+          aria-describedby={
+            state.fieldErrors?.email ? "email-error" : undefined
+          }
         />
+        {state.fieldErrors?.email?.[0] ? (
+          <FieldError id="email-error">{state.fieldErrors.email[0]}</FieldError>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -59,12 +64,16 @@ export function SignupForm() {
           autoComplete="new-password"
           placeholder="Buat kata sandi"
           aria-describedby="password-hint"
+          aria-invalid={state.fieldErrors?.password ? true : undefined}
           minLength={8}
           required
         />
         <FieldHint id="password-hint">
           Minimal 8 karakter. Gunakan kombinasi huruf dan angka.
         </FieldHint>
+        {state.fieldErrors?.password?.[0] ? (
+          <FieldError>{state.fieldErrors.password[0]}</FieldError>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -75,13 +84,19 @@ export function SignupForm() {
           type="password"
           autoComplete="new-password"
           placeholder="Ulangi kata sandi"
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? "confirm-password-error" : undefined}
+          aria-invalid={state.fieldErrors?.confirmPassword ? true : undefined}
+          aria-describedby={
+            state.fieldErrors?.confirmPassword
+              ? "confirm-password-error"
+              : undefined
+          }
           minLength={8}
           required
         />
-        {error ? (
-          <FieldError id="confirm-password-error">{error}</FieldError>
+        {state.fieldErrors?.confirmPassword?.[0] ? (
+          <FieldError id="confirm-password-error">
+            {state.fieldErrors.confirmPassword[0]}
+          </FieldError>
         ) : null}
       </div>
 
@@ -91,6 +106,8 @@ export function SignupForm() {
           name="terms"
           type="checkbox"
           className="mt-0.5 h-4 w-4 rounded border-line-strong accent-primary-600"
+          aria-invalid={state.fieldErrors?.terms ? true : undefined}
+          aria-describedby={state.fieldErrors?.terms ? "terms-error" : undefined}
           required
         />
         <label htmlFor="terms" className="text-sm leading-5 text-ink-muted">
@@ -98,18 +115,32 @@ export function SignupForm() {
           admin sebelum tampil.
         </label>
       </div>
+      {state.fieldErrors?.terms?.[0] ? (
+        <FieldError id="terms-error">{state.fieldErrors.terms[0]}</FieldError>
+      ) : null}
 
-      {notice ? (
+      {state.status === "error" && state.message ? (
         <p
-          role="status"
-          className="rounded-input border border-info-600/30 bg-info-50 px-3.5 py-3 text-sm text-info-700"
+          role="alert"
+          className="flex items-start gap-2 rounded-input border border-danger-600/30 bg-danger-50 px-3.5 py-3 text-sm text-danger-700"
         >
-          {notice}
+          <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{state.message}</span>
         </p>
       ) : null}
 
-      <Button type="submit" size="lg" className="w-full">
-        Buat akun
+      {state.status === "notice" && state.message ? (
+        <p
+          role="status"
+          className="flex items-start gap-2 rounded-input border border-success-600/30 bg-success-50 px-3.5 py-3 text-sm text-success-700"
+        >
+          <CheckIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{state.message}</span>
+        </p>
+      ) : null}
+
+      <Button type="submit" size="lg" className="w-full" disabled={isPending}>
+        {isPending ? "Membuat akun..." : "Buat akun"}
       </Button>
     </form>
   );

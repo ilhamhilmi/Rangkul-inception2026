@@ -1,39 +1,26 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { ButtonLink } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   ArrowRightIcon,
-  CalendarIcon,
   CheckIcon,
   GlobeIcon,
   InstagramIcon,
   MailIcon,
-  MapPinIcon,
   MessageCircleIcon,
   PhoneIcon,
   ShieldCheckIcon,
-  UserIcon,
 } from "@/components/ui/icons";
 import { CommunityCard } from "@/components/communities/community-card";
 import { CommunityProfileHeader } from "@/components/communities/community-profile-header";
 import {
-  communities,
   getCommunityBySlug,
   getRelatedCommunities,
-} from "@/lib/constants/communities";
+} from "@/server/communities/queries";
 import type { Community } from "@/types/community";
-
-const fullDateFormatter = new Intl.DateTimeFormat("id-ID", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  timeZone: "Asia/Jakarta",
-});
 
 const shortDateFormatter = new Intl.DateTimeFormat("id-ID", {
   day: "numeric",
@@ -48,8 +35,12 @@ const joinSteps = [
   "Masuk ke grup komunikasi komunitas dan mulai terlibat.",
 ];
 
-function formatDate(value: string) {
-  return fullDateFormatter.format(new Date(value));
+function isEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isPhone(value: string) {
+  return /^(\+62|62|0)[0-9\s-]{8,18}$/.test(value);
 }
 
 function DetailSkeleton() {
@@ -74,24 +65,17 @@ function DetailSkeleton() {
 function ContactList({ community }: { community: Community }) {
   const items = [
     {
-      icon: UserIcon,
-      label: "Pengurus",
-      value: `${community.contact.personName} · ${community.contact.role}`,
-    },
-    {
-      icon: MessageCircleIcon,
-      label: "WhatsApp",
-      value: community.contact.whatsapp,
-    },
-    {
-      icon: PhoneIcon,
-      label: "Telepon",
-      value: community.contact.phone,
-    },
-    {
-      icon: MailIcon,
-      label: "Email",
-      value: community.contact.email,
+      icon: isEmail(community.contact)
+        ? MailIcon
+        : isPhone(community.contact)
+          ? PhoneIcon
+          : MessageCircleIcon,
+      label: isEmail(community.contact)
+        ? "Email"
+        : isPhone(community.contact)
+          ? "Telepon"
+          : "Kontak",
+      value: community.contact,
     },
     ...(community.socials.instagram
       ? [
@@ -99,6 +83,15 @@ function ContactList({ community }: { community: Community }) {
             icon: InstagramIcon,
             label: "Instagram",
             value: community.socials.instagram,
+          },
+        ]
+      : []),
+    ...(community.socials.facebook
+      ? [
+          {
+            icon: GlobeIcon,
+            label: "Facebook",
+            value: community.socials.facebook,
           },
         ]
       : []),
@@ -139,11 +132,11 @@ async function CommunityDetail({
   params,
 }: Pick<PageProps<"/komunitas/[slug]">, "params">) {
   const { slug } = await params;
-  const community = getCommunityBySlug(slug);
+  const community = await getCommunityBySlug(slug);
 
   if (!community) notFound();
 
-  const related = getRelatedCommunities(community);
+  const related = await getRelatedCommunities(community);
 
   return (
     <>
@@ -171,17 +164,11 @@ async function CommunityDetail({
             >
               Tentang komunitas
             </h2>
-            <p className="mt-3 max-w-[68ch] leading-relaxed text-ink-muted">
+            <p className="mt-3 max-w-[68ch] whitespace-pre-line leading-relaxed text-ink-muted">
               {community.description}
             </p>
 
             <dl className="mt-5 grid gap-4 border-t border-line pt-4 sm:grid-cols-3">
-              <div>
-                <dt className="text-xs text-ink-muted">Berdiri sejak</dt>
-                <dd className="mt-1 font-mono text-lg font-medium text-ink">
-                  {community.foundedYear}
-                </dd>
-              </div>
               <div>
                 <dt className="text-xs text-ink-muted">Wilayah</dt>
                 <dd className="mt-1 text-sm font-medium text-ink">
@@ -194,6 +181,12 @@ async function CommunityDetail({
                   {community.focus.length} fokus kegiatan
                 </dd>
               </div>
+              <div>
+                <dt className="text-xs text-ink-muted">Kontak publik</dt>
+                <dd className="mt-1 break-words text-sm font-medium text-ink">
+                  {community.contact}
+                </dd>
+              </div>
             </dl>
           </section>
 
@@ -201,46 +194,26 @@ async function CommunityDetail({
             aria-labelledby="kegiatan-komunitas"
             className="rounded-card border border-line bg-surface p-5 shadow-xs sm:p-6"
           >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <h2
-                  id="kegiatan-komunitas"
-                  className="text-lg font-semibold tracking-tight text-ink"
-                >
-                  Kegiatan mendatang
-                </h2>
-                <p className="mt-1 text-sm text-ink-muted">
-                  Contoh kegiatan komunitas ini.
-                </p>
-              </div>
-              <Badge tone="neutral">Data contoh</Badge>
-            </div>
-
-            <ul className="mt-4 divide-y divide-line border-t border-line">
-              {community.activities.map((activity) => (
-                <li key={activity.title} className="py-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone="secondary">{activity.category}</Badge>
-                    <span className="inline-flex items-center gap-1.5 text-xs text-ink-muted">
-                      <CalendarIcon className="h-3.5 w-3.5" />
-                      <time dateTime={activity.startsAt}>
-                        {formatDate(activity.startsAt)}
-                      </time>
-                    </span>
-                  </div>
-                  <p className="mt-2 font-medium text-ink">{activity.title}</p>
-                  <p className="mt-1 flex items-start gap-1.5 text-sm text-ink-muted">
-                    <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-                    {activity.location}
-                  </p>
-                </li>
-              ))}
-            </ul>
-
-            <p className="mt-4 rounded-input bg-surface-muted p-3.5 text-sm leading-relaxed text-ink-muted">
-              Pendaftaran kegiatan dikelola lewat fitur Volunteer. Tautan
-              pendaftaran akan tersedia setelah fitur tersebut tersambung.
+            <h2
+              id="kegiatan-komunitas"
+              className="text-lg font-semibold tracking-tight text-ink"
+            >
+              Kegiatan mendatang
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+              Kegiatan komunitas ini akan tampil di sini setelah fitur Volunteer
+              tersambung. Sementara itu, hubungi pengurus lewat kontak di samping
+              untuk mengetahui agenda terdekat.
             </p>
+            <ButtonLink
+              href="/volunteer"
+              variant="secondary"
+              size="sm"
+              className="mt-4"
+            >
+              Lihat kegiatan volunteer
+              <ArrowRightIcon className="h-4 w-4" />
+            </ButtonLink>
           </section>
         </div>
 
@@ -256,10 +229,6 @@ async function CommunityDetail({
               Kontak dan sosial
             </h2>
             <ContactList community={community} />
-            <p className="mt-4 border-t border-line pt-4 text-xs leading-relaxed text-ink-muted">
-              Kontak ditampilkan sebagai contoh dan belum bisa diklik pada versi
-              UI ini.
-            </p>
           </section>
 
           <section
@@ -286,72 +255,72 @@ async function CommunityDetail({
             </ol>
           </section>
 
-          <section
-            aria-labelledby="status-verifikasi"
-            className="rounded-card border border-success-600/25 bg-success-50 p-5"
-          >
-            <h2
-              id="status-verifikasi"
-              className="flex items-center gap-2 text-base font-semibold text-ink"
+          {community.verifiedAt ? (
+            <section
+              aria-labelledby="status-verifikasi"
+              className="rounded-card border border-success-600/25 bg-success-50 p-5"
             >
-              <ShieldCheckIcon className="h-5 w-5 text-success-700" />
-              Terverifikasi admin
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-              Profil ini sudah diperiksa admin Rangkul pada{" "}
-              <span className="font-medium text-ink">
-                {shortDateFormatter.format(new Date(community.verifiedAt))}
-              </span>
-              .
-            </p>
-            <p className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-ink-muted">
-              <CheckIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success-700" />
-              Data pengurus dan kontak sudah sesuai saat verifikasi.
-            </p>
-          </section>
+              <h2
+                id="status-verifikasi"
+                className="flex items-center gap-2 text-base font-semibold text-ink"
+              >
+                <ShieldCheckIcon className="h-5 w-5 text-success-700" />
+                Terverifikasi admin
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+                Profil ini sudah diperiksa admin Rangkul pada{" "}
+                <span className="font-medium text-ink">
+                  {shortDateFormatter.format(new Date(community.verifiedAt))}
+                </span>
+                .
+              </p>
+              <p className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-ink-muted">
+                <CheckIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success-700" />
+                Data pengurus dan kontak sudah sesuai saat verifikasi.
+              </p>
+            </section>
+          ) : null}
         </aside>
       </div>
 
-      <section aria-labelledby="komunitas-lain" className="mt-12">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2
-              id="komunitas-lain"
-              className="text-2xl font-bold tracking-tight text-ink"
-            >
-              Komunitas lain yang mungkin cocok
-            </h2>
-            <p className="mt-1 text-sm text-ink-muted">
-              Berdasarkan wilayah dan fokus yang berdekatan.
-            </p>
+      {related.length > 0 ? (
+        <section aria-labelledby="komunitas-lain" className="mt-12">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2
+                id="komunitas-lain"
+                className="text-2xl font-bold tracking-tight text-ink"
+              >
+                Komunitas lain yang mungkin cocok
+              </h2>
+              <p className="mt-1 text-sm text-ink-muted">
+                Berdasarkan wilayah dan fokus yang berdekatan.
+              </p>
+            </div>
+            <ButtonLink href="/komunitas" variant="ghost" size="sm">
+              Lihat semua
+              <ArrowRightIcon className="h-4 w-4" />
+            </ButtonLink>
           </div>
-          <ButtonLink href="/komunitas" variant="ghost" size="sm">
-            Lihat semua
-            <ArrowRightIcon className="h-4 w-4" />
-          </ButtonLink>
-        </div>
 
-        <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {related.map((item) => (
-            <li key={item.slug} className="h-full">
-              <CommunityCard community={item} />
-            </li>
-          ))}
-        </ul>
-      </section>
+          <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {related.map((item) => (
+              <li key={item.slug} className="h-full">
+                <CommunityCard community={item} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </>
   );
-}
-
-export function generateStaticParams() {
-  return communities.map((community) => ({ slug: community.slug }));
 }
 
 export async function generateMetadata({
   params,
 }: PageProps<"/komunitas/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const community = getCommunityBySlug(slug);
+  const community = await getCommunityBySlug(slug);
 
   if (!community) {
     return { title: "Komunitas tidak ditemukan" };
@@ -362,7 +331,7 @@ export async function generateMetadata({
     description: community.description.slice(0, 160),
     openGraph: {
       title: `${community.name} — Komunitas Rangkul`,
-      description: community.tagline,
+      description: community.description.slice(0, 160),
       type: "website",
     },
   };
