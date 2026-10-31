@@ -5,7 +5,7 @@ import { ButtonLink } from "@/components/ui/button";
 const navigation = [
   { href: "#jelajahi", label: "Jelajahi" },
   { href: "#komunitas", label: "Komunitas" },
-  { href: "#volunteer", label: "Volunteer" },
+  { href: "volunteer", label: "Volunteer" },
 ];
 
 export function SiteHeader() {

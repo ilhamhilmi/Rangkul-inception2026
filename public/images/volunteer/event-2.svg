@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500" role="img" aria-labelledby="title">
+  <title id="title">Ilustrasi stasiun dengan ramp aksesibel dan papan pendataan</title>
+  <rect width="800" height="500" fill="#FFF8EB"/>
+  <circle cx="118" cy="88" r="46" fill="#F5B942" opacity="0.85"/>
+  <path d="M0 400c160-26 240 14 380-4s260-34 420 6v98H0Z" fill="#FCD98A" opacity="0.65"/>
+  <path d="M0 438c180-18 260 8 400-4s240-18 400 8v58H0Z" fill="#F5B942" opacity="0.35"/>
+
+  <rect x="190" y="150" width="420" height="238" rx="10" fill="#FFFFFF"/>
+  <path d="M160 150h480l-46-58H206Z" fill="#0F7B6F"/>
+  <rect x="238" y="192" width="92" height="74" rx="8" fill="#DCF3EF" stroke="#0F7B6F" stroke-width="5"/>
+  <rect x="354" y="192" width="92" height="74" rx="8" fill="#DCF3EF" stroke="#0F7B6F" stroke-width="5"/>
+  <rect x="470" y="192" width="92" height="74" rx="8" fill="#DCF3EF" stroke="#0F7B6F" stroke-width="5"/>
+  <rect x="314" y="300" width="120" height="88" rx="8" fill="#B9E7DF" stroke="#0B5F56" stroke-width="5"/>
+  <path d="M374 300v88" stroke="#0B5F56" stroke-width="5"/>
+
+  <path d="M190 388h420v16H190z" fill="#0B5F56"/>
+  <path d="M556 388h132l-52 62H556Z" fill="#86D3C7"/>
+  <path d="M568 398h104l-32 42H568Z" fill="#DCF3EF"/>
+  <path d="M552 356h142M552 374h142" stroke="#0B5F56" stroke-width="7" stroke-linecap="round"/>
+
+  <g>
+    <circle cx="652" cy="256" r="28" fill="#0A4C45"/>
+    <path d="M622 388c0-56 14-88 30-88s30 32 30 88Z" fill="#0F7B6F"/>
+    <path d="M636 302 604 334M650 302l34 30" stroke="#0A4C45" stroke-width="8" stroke-linecap="round"/>
+    <rect x="686" y="300" width="58" height="78" rx="8" fill="#FFFFFF" stroke="#0B5F56" stroke-width="5"/>
+    <path d="M698 322h34M698 340h34M698 358h20" stroke="#0F7B6F" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <g>
+    <circle cx="116" cy="296" r="24" fill="#78350F"/>
+    <path d="M92 388c0-46 10-72 24-72s24 26 24 72Z" fill="#FEEDC7"/>
+    <path d="M104 336 80 364M128 336l24 28" stroke="#92400E" stroke-width="7" stroke-linecap="round"/>
+    <path d="M104 388v30M128 388v30" stroke="#5C2A0C" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <path d="M430 58c0 30-24 54-54 54 30 0 54 24 54 54 0-30 24-54 54-54-30 0-54-24-54-54Z" fill="#FFFFFF" opacity="0.85"/>
+  <path d="M610 104c0 22-18 40-40 40 22 0 40 18 40 40 0-22 18-40 40-40-22 0-40-18-40-40Z" fill="#F5B942" opacity="0.8"/>
+</svg>

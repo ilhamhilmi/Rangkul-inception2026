@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500" role="img" aria-labelledby="title">
+  <title id="title">Ilustrasi anak dan pendamping membuat karya seni di meja kreatif</title>
+  <rect width="800" height="500" fill="#FEEDC7"/>
+  <circle cx="676" cy="88" r="50" fill="#F5B942"/>
+  <path d="M0 400c150-22 250 14 390-2s250-26 410 8v94H0Z" fill="#FCD98A" opacity="0.7"/>
+
+  <rect x="148" y="300" width="504" height="28" rx="10" fill="#FFFFFF"/>
+  <path d="M180 328h440v96H180Z" fill="#E5DFD3"/>
+  <path d="M210 424v34M590 424v34" stroke="#78716C" stroke-width="10" stroke-linecap="round"/>
+
+  <rect x="230" y="264" width="120" height="70" rx="8" fill="#FFFFFF" stroke="#0F7B6F" stroke-width="5"/>
+  <path d="M252 286h76M252 304h52" stroke="#0F7B6F" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="418" cy="278" r="18" fill="#0F7B6F"/>
+  <path d="m462 296 20-34 20 34Z" fill="#F5B942"/>
+  <path d="m518 260 8 18 18 8-18 8-8 18-8-18-18-8 18-8Z" fill="#B45309"/>
+  <rect x="556" y="270" width="52" height="14" rx="7" fill="#0F7B6F"/>
+  <rect x="566" y="292" width="52" height="14" rx="7" fill="#F5B942"/>
+
+  <g>
+    <circle cx="318" cy="180" r="30" fill="#78350F"/>
+    <path d="M284 300c0-64 16-96 34-96s34 32 34 96Z" fill="#0F7B6F"/>
+    <path d="M302 224 268 260M336 224l34 36" stroke="#0A4C45" stroke-width="9" stroke-linecap="round"/>
+    <path d="M302 300v20M336 300v20" stroke="#5C2A0C" stroke-width="9" stroke-linecap="round"/>
+  </g>
+
+  <g>
+    <circle cx="492" cy="204" r="24" fill="#0A4C45"/>
+    <path d="M466 300c0-48 12-72 26-72s26 24 26 72Z" fill="#86D3C7"/>
+    <path d="M478 240 452 268M504 240l26 28" stroke="#0B5F56" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="478" cy="326" r="28" fill="none" stroke="#093E39" stroke-width="8"/>
+    <circle cx="524" cy="326" r="11" fill="none" stroke="#093E39" stroke-width="8"/>
+    <path d="M478 298h42v28" fill="none" stroke="#093E39" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <circle cx="132" cy="150" r="10" fill="#0F7B6F"/>
+  <circle cx="698" cy="206" r="8" fill="#FFFFFF"/>
+  <path d="M108 250c0-14 10-24 24-24s24 10 24 24-10 24-24 24-24-10-24-24Z" fill="#F5B942" opacity="0.7"/>
+</svg>

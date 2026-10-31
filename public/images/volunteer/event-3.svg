@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500" role="img" aria-labelledby="title">
+  <title id="title">Ilustrasi panggung festival seni inklusif dengan penari dan kursi roda</title>
+  <rect width="800" height="500" fill="#DCF3EF"/>
+  <circle cx="694" cy="84" r="46" fill="#F5B942" opacity="0.9"/>
+  <path d="M0 402c140-24 250 16 380-2s250-28 420 8v92H0Z" fill="#B9E7DF"/>
+
+  <rect x="92" y="110" width="616" height="292" rx="16" fill="#FFFFFF"/>
+  <path d="M92 110h616v64H92Z" fill="#0B5F56"/>
+  <path d="M92 174c62 0 62 228 0 228V174ZM708 174c-62 0-62 228 0 228V174Z" fill="#F5B942" opacity="0.85"/>
+  <path d="M150 174c42 0 42 228 0 228V174ZM650 174c-42 0-42 228 0 228V174Z" fill="#FEEDC7" opacity="0.9"/>
+  <rect x="120" y="402" width="560" height="26" rx="8" fill="#0B5F56"/>
+  <path d="M120 428h560v22H120Z" fill="#093E39"/>
+
+  <g>
+    <circle cx="286" cy="258" r="24" fill="#0A4C45"/>
+    <path d="M262 382c0-50 10-80 24-80s24 30 24 80Z" fill="#0F7B6F"/>
+    <path d="M274 312 246 340M298 312l28 30" stroke="#0A4C45" stroke-width="8" stroke-linecap="round"/>
+    <path d="M274 382v30M298 382v30" stroke="#5C2A0C" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <g>
+    <circle cx="386" cy="244" r="25" fill="#78350F"/>
+    <path d="M360 382c0-56 12-90 26-90s26 34 26 90Z" fill="#F5B942"/>
+    <path d="M374 304 344 332M398 304l30 28" stroke="#92400E" stroke-width="8" stroke-linecap="round"/>
+    <path d="M374 382v30M398 382v30" stroke="#5C2A0C" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <g>
+    <circle cx="492" cy="262" r="24" fill="#0A4C45"/>
+    <path d="M468 382c0-50 10-80 24-80s24 30 24 80Z" fill="#86D3C7"/>
+    <path d="M480 314 454 342M504 314l26 28" stroke="#0B5F56" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="480" cy="406" r="30" fill="none" stroke="#093E39" stroke-width="8"/>
+    <circle cx="528" cy="406" r="12" fill="none" stroke="#093E39" stroke-width="8"/>
+    <path d="M480 376h44v30" fill="none" stroke="#093E39" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <path d="M566 226v-74l54-14v74" fill="none" stroke="#0B5F56" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="550" cy="232" r="18" fill="#0F7B6F"/>
+  <circle cx="604" cy="218" r="18" fill="#0F7B6F"/>
+  <path d="M214 192v-48l38-10v48" fill="none" stroke="#B45309" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="202" cy="198" r="13" fill="#F5B942"/>
+  <circle cx="240" cy="188" r="13" fill="#F5B942"/>
+
+  <circle cx="160" cy="82" r="7" fill="#F5B942"/>
+  <circle cx="238" cy="62" r="5" fill="#0F7B6F"/>
+  <circle cx="568" cy="74" r="6" fill="#FFFFFF"/>
+  <path d="m628 142 8 18 18 8-18 8-8 18-8-18-18-8 18-8Z" fill="#FFFFFF" opacity="0.8"/>
+</svg>
