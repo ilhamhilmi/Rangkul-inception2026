@@ -1,26 +1,279 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   Rangkul Design Tokens
+   Sumber kebenaran: docs/architecture.md §3
+   Jangan memakai hex langsung di komponen. Selalu pakai token di bawah.
+   ========================================================================== */
+
+@theme {
+  /* Font */
+  --font-sans: var(--font-lexend), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-display: var(--font-jakarta), var(--font-lexend), ui-sans-serif,
+    system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo,
+    monospace;
+
+  /* Primary — Teal */
+  --color-primary-50: #f0faf8;
+  --color-primary-100: #dcf3ef;
+  --color-primary-200: #b9e7df;
+  --color-primary-300: #86d3c7;
+  --color-primary-400: #4db6a8;
+  --color-primary-500: #1f9787;
+  --color-primary-600: #0f7b6f;
+  --color-primary-700: #0b5f56;
+  --color-primary-800: #0a4c45;
+  --color-primary-900: #093e39;
+  --color-primary-950: #04211f;
+
+  /* Secondary — Amber */
+  --color-secondary-50: #fff8eb;
+  --color-secondary-100: #feedc7;
+  --color-secondary-200: #fcd98a;
+  --color-secondary-300: #f9c04d;
+  --color-secondary-400: #f5b942;
+  --color-secondary-500: #e08a00;
+  --color-secondary-600: #b45309;
+  --color-secondary-700: #92400e;
+  --color-secondary-800: #78350f;
+  --color-secondary-900: #5c2a0c;
+  --color-secondary-950: #3b1a07;
+
+  /* Netral — Sand */
+  --color-sand-50: #faf8f4;
+  --color-sand-100: #f4f1ea;
+  --color-sand-200: #e5dfd3;
+  --color-sand-300: #d6cec0;
+  --color-sand-400: #a8a093;
+  --color-sand-500: #78716c;
+  --color-sand-600: #57534e;
+  --color-sand-700: #44403c;
+  --color-sand-800: #292524;
+  --color-sand-900: #1c1917;
+  --color-sand-950: #0c0a09;
+
+  /* Semantik */
+  --color-success-50: #dcfce7;
+  --color-success-600: #15803d;
+  --color-success-700: #166534;
+
+  --color-warning-50: #fef3c7;
+  --color-warning-600: #b45309;
+  --color-warning-700: #92400e;
+
+  --color-danger-50: #fee2e2;
+  --color-danger-600: #b91c1c;
+  --color-danger-700: #991b1b;
+
+  --color-info-50: #e0f2fe;
+  --color-info-600: #0369a1;
+  --color-info-700: #075985;
+
+  /* Radius */
+  --radius-input: 0.625rem;
+  --radius-button: 0.75rem;
+  --radius-card: 1rem;
+  --radius-sheet: 1.5rem;
+
+  /* Shadow */
+  --shadow-xs: 0 1px 2px 0 rgb(28 25 23 / 0.06);
+  --shadow-card: 0 2px 8px 0 rgb(28 25 23 / 0.08);
+  --shadow-lifted: 0 8px 24px 0 rgb(28 25 23 / 0.1);
+
+  /* Motion */
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Layout */
+  --container-page: 75rem;
+  --breakpoint-xs: 22.5rem;
+
+  /* Display type scale */
+  --text-display-sm: 2.25rem;
+  --text-display-sm--line-height: 2.75rem;
+  --text-display-sm--letter-spacing: -0.02em;
+
+  --text-display: 3rem;
+  --text-display--line-height: 3.5rem;
+  --text-display--letter-spacing: -0.02em;
+
+  --text-display-lg: 3.75rem;
+  --text-display-lg--line-height: 4.125rem;
+  --text-display-lg--letter-spacing: -0.025em;
+}
+
+/* Token semantik — satu-satunya warna yang dipakai komponen. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  --canvas: #faf8f4;
+  --surface: #ffffff;
+  --surface-muted: #f4f1ea;
+  --surface-inverse: #093e39;
+
+  --ink: #1c1917;
+  --ink-muted: #57534e;
+  --ink-inverse: #faf8f4;
+
+  --line: #e5dfd3;
+  --line-strong: #78716c;
+
+  --focus: #0b5f56;
+  --overlay: rgb(28 25 23 / 0.55);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-inverse: var(--surface-inverse);
+
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-inverse: var(--ink-inverse);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-focus: var(--focus);
+  --color-overlay: var(--overlay);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 6rem;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+    min-height: 100dvh;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display text-balance;
+  }
+
+  /* Fokus harus selalu terlihat, termasuk di atas warna gelap. */
+  :focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+
+  ::selection {
+    background: var(--color-primary-200);
+    color: var(--color-primary-950);
+  }
+
+  /* Hormati preferensi pengguna. */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Pastikan tetap terbaca di mode kontras tinggi OS. */
+  @media (forced-colors: active) {
+    :focus-visible {
+      outline: 3px solid Highlight;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ==========================================================================
+   Components (pola global yang dipakai lintas halaman)
+   ========================================================================== */
+
+@layer components {
+  .container-page {
+    width: 100%;
+    max-width: var(--container-page);
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+
+  @media (min-width: 40rem) {
+    .container-page {
+      padding-inline: 1.5rem;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .container-page {
+      padding-inline: 2rem;
+    }
+  }
+
+  .skip-link {
+    position: absolute;
+    top: 0;
+    left: -9999px;
+    z-index: 60;
+  }
+
+  .skip-link:focus {
+    left: 1rem;
+    top: 1rem;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-button);
+    background: var(--color-primary-700);
+    color: #ffffff;
+    font-weight: 600;
+    text-decoration: none;
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .prose-rangkul {
+    max-width: 68ch;
+    line-height: 1.7;
+  }
+
+  .prose-rangkul :where(p, ul, ol, blockquote, figure) {
+    margin-block: 1em;
+  }
+
+  .prose-rangkul :where(h2, h3, h4) {
+    margin-block-start: 1.75em;
+    margin-block-end: 0.5em;
+  }
+
+  .prose-rangkul :where(ul, ol) {
+    padding-inline-start: 1.5em;
+  }
+}
+
+/* ==========================================================================
+   Utilities
+   ========================================================================== */
+
+@utility tap-target {
+  min-block-size: 2.75rem;
+  min-inline-size: 2.75rem;
 }
