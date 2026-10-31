@@ -12,19 +12,19 @@ Dokumen ini adalah sumber kebenaran untuk keputusan teknis, struktur folder, des
 
 Rangkul adalah platform komunitas yang menyatukan tiga hal:
 
-1. **Informasi aksesibilitas tempat umum** sampai level pintu masuk.
+1. **Informasi aksesibilitas tempat umum** dengan satu postingan mewakili satu lokasi.
 2. **Direktori komunitas disabilitas dan inklusif** di Indonesia.
 3. **Kegiatan volunteer inklusif** yang bisa diikuti langsung.
 
-Data tempat dikumpulkan lewat crowdsourcing, dimoderasi dengan bantuan AI, dan diverifikasi admin untuk komunitas/penyelenggara.
+Data tempat dikumpulkan lewat crowdsourcing dan saat ini langsung tayang setelah dikirim (moderasi AI dinonaktifkan sementara lewat `AI_MODERATION_ENABLED`). Verifikasi admin tetap dipakai untuk komunitas/penyelenggara.
 
 ### Prinsip teknis
 
 | Prinsip | Konsekuensi teknis |
 |---|---|
 | Aksesibel sejak awal | WCAG 2.2 AA, keyboard-first, kontras teruji, target sentuh 44px, peta selalu punya alternatif teks |
-| Detail lebih berguna daripada rating | Model data menyimpan fasilitas per pintu masuk, bukan hanya per tempat |
-| Dibangun bersama komunitas | Semua konten pengguna melewati validasi + moderasi |
+| Detail lebih berguna daripada rating | Foto, fasilitas, dan titik peta per lokasi, bukan hanya rating |
+| Dibangun bersama komunitas | Semua konten pengguna melewati validasi dan bisa diperbarui |
 | Sederhana dulu | MVP fokus pada 3 fitur inti, tanpa over-engineering |
 | Server sebagai sumber kebenaran | Otorisasi dan validasi selalu di server, bukan di client |
 
@@ -764,22 +764,25 @@ Implementasi di `lib/moderation/client.ts` dengan antarmuka provider-agnostic. P
 | Peta detail tempat | `components/map/leaflet-place-map.tsx` |
 | Peta rute | `components/map/leaflet-route-map.tsx` |
 | Pembungkus + fallback | `components/map/place-map.tsx`, `components/map/route-map.tsx` |
-| Alur navigasi (geolocation, suara, fallback) | `components/map/navigation-experience.tsx` |
+| Alur navigasi live (geolocation, suara, progres rute) | `components/map/navigation-experience.tsx` |
+| Perhitungan jarak/sisa rute | `lib/map/geo.ts` |
 
 Detail perilaku:
 
 - Endpoint default `https://routing.openstreetmap.de/routed-foot`, karena demo `router.project-osrm.org` mengabaikan profil `foot` dan memberi hasil mirip mobil.
-- Request: `GET {OSRM}/route/v1/foot/{lon},{lat};{lon},{lat}?overview=full&geometries=geojson&steps=true`.
-- Hasil rute disimpan cache in-memory 5 menit per pasangan koordinat (presisi 5 desimal) dan di-`AbortController` saat pintu/titik awal berubah.
-- Timeout 8 detik. Jika gagal, UI menampilkan pesan bahwa rute peta tidak tersedia dan memakai jarak/waktu seed serta petunjuk arah teks.
-- Titik awal: lokasi browser bila diizinkan; jika tidak, `places.default_origin_*`; jika kosong, pusat tempat. UI selalu memberi tahu sumber titik awal.
-- Pintu tujuan bisa diganti lewat radio, `?pintu=<id>`, atau popup marker.
+- Request: `GET {OSRM}/route/v1/foot/{lon},{lat};{lon},{lat}?overview=full&geometries=geojson&steps=true`. Path `/routed-foot` wajib dipertahankan; jangan memakai `new URL("/route/...")` karena sub-path akan terbuang dan OSRM membalas 404.
+- Hasil rute disimpan cache in-memory 5 menit per pasangan koordinat (presisi 5 desimal) dan di-`AbortController` saat titik awal berubah.
+- Timeout 8 detik. Jika gagal, UI menampilkan pesan + tombol “Hitung ulang rute”, tanpa langkah arah karangan.
+- Titik awal **hanya** lokasi perangkat via `navigator.geolocation.watchPosition`. Tidak ada input manual, titik contoh, atau fallback `places.default_origin_*`.
+- Rute dihitung ulang otomatis saat pengguna bergerak > 80 m atau menyimpang > 35 m dari garis rute.
+- Garis rute memakai biru literal `#2563eb` dengan casing putih; marker pengguna berupa titik biru berdenyut. Peta mengikuti pengguna sampai pengguna menggeser peta, lalu tombol “Ikuti lokasi” mengaktifkannya lagi.
+- Panduan suara (opsional) membacakan langkah aktif setiap kali langkah berubah.
 
 ### 13.3 Aturan
 
 - Peta tidak boleh menjadi satu-satunya cara mengakses informasi. Selalu sediakan:
-  - daftar pintu/lokasi di samping/bawah peta,
-  - petunjuk arah dalam teks sebagai sumber utama,
+  - ringkasan jarak dan petunjuk arah dalam teks di samping peta,
+  - status lokasi dan tombol coba lagi bila GPS gagal,
   - koordinat yang bisa dibaca screen reader.
 - Marker harus punya label aksesibel dan bisa difokuskan keyboard.
 - `aria-label` pada container peta, mis. “Peta lokasi tempat, gunakan daftar lokasi di bawah untuk alternatif”.

@@ -2,7 +2,7 @@
 
 Dokumen ini adalah **sumber kebenaran skema database** untuk tiga fitur Rangkul: informasi aksesibilitas tempat, direktori komunitas, dan volunteer inklusif.
 
-Status: **Fitur 1 sudah diimplementasikan.** Tabel `profiles`, `places`, `entrances`, `accessibility_features`, `entrance_features`, `place_photos`, dan `reviews` sudah ada di `prisma/schema.prisma`, migrasi `20261031083304_init_feature1` sudah diterapkan, dan seluruh route Fitur 1 membaca data dari database. Tabel komunitas dan volunteer masih berupa rencana.
+Status: **Fitur 1 sudah diimplementasikan sebagai feed postingan.** Tabel `profiles`, `places`, `place_likes`, `entrances`, `accessibility_features`, `entrance_features`, `place_photos`, dan `reviews` sudah ada di `prisma/schema.prisma`. Postingan baru dari `/tambah-info` wajib menyertakan minimal satu foto dan satu titik lokasi. Moderasi AI dinonaktifkan sementara (`AI_MODERATION_ENABLED=false`), jadi postingan langsung `PUBLISHED`. Satu postingan mewakili satu lokasi; tidak ada lagi pemilihan pintu masuk per postingan. Tabel komunitas dan volunteer sudah ditambahkan lewat migrasi terpisah.
 
 - Ringkasan entitas dan aturan tingkat arsitektur: [`docs/architecture.md`](./architecture.md) §10.
 - Kebutuhan produk: [`docs/product.md`](./product.md).
@@ -15,7 +15,7 @@ Status: **Fitur 1 sudah diimplementasikan.** Tabel `profiles`, `places`, `entran
 
 | Fitur | Tabel utama | Status |
 |---|---|---|
-| Informasi & navigasi tempat | `places`, `entrances`, `accessibility_features`, `entrance_features`, `place_photos`, `reviews` | diimplementasikan |
+| Informasi & navigasi tempat (feed postingan) | `places`, `place_likes`, `entrances`, `accessibility_features`, `entrance_features`, `place_photos`, `reviews` | diimplementasikan |
 | Direktori komunitas | `communities`, `verification_requests` | rencana |
 | Volunteer inklusif | `volunteer_events`, `event_registrations` | rencana |
 | Lintas fitur | `profiles`, `reports`, `moderation_logs` | `profiles` diimplementasikan (subset), sisanya rencana |
@@ -76,6 +76,7 @@ Enum memakai tipe enum Postgres, bukan `text` bebas. Penambahan nilai baru dilak
 ```mermaid
 erDiagram
   profiles ||--o{ places : "created_by"
+  profiles ||--o{ place_likes : "user_id"
   profiles ||--o{ reviews : "author_id"
   profiles ||--o{ communities : "owner_id"
   profiles ||--o{ volunteer_events : "organizer_id"
@@ -84,6 +85,7 @@ erDiagram
   profiles ||--o{ reports : "reporter_id"
 
   places ||--o{ entrances : "place_id"
+  places ||--o{ place_likes : "place_id"
   places ||--o{ place_photos : "place_id"
   places ||--o{ reviews : "place_id"
 
@@ -202,19 +204,21 @@ Catatan implementasi Fitur 1: relasi ke `auth.users` dan RLS sengaja ditunda sam
 | `slug` | `text` | tidak | — | unik, `^[a-z0-9]+(-[a-z0-9]+)*$` |
 | `name` | `text` | tidak | — | panjang 2–120 |
 | `category` | `place_category` | tidak | — | — |
-| `description` | `text` | tidak | — | panjang 20–5000 |
-| `address` | `text` | tidak | — | panjang 5–300 |
-| `city` | `text` | tidak | — | — |
-| `province` | `text` | tidak | — | — |
+| `description` | `text` | tidak | — | panjang 40–2000 (validasi server) |
+| `address` | `text` | ya | — | panjang 5–300 |
+| `city` | `text` | ya | — | — |
+| `province` | `text` | ya | — | — |
 | `latitude` | `numeric(9,6)` | tidak | — | `-90..90` |
 | `longitude` | `numeric(9,6)` | tidak | — | `-180..180` |
 | `status` | `content_status` | tidak | `'PENDING'` | — |
 | `created_by` | `uuid` | tidak | — | FK `profiles(id)` `ON DELETE RESTRICT` |
 | `rating_avg` | `numeric(3,2)` | tidak | `0` | `0..5`, dihitung trigger |
 | `review_count` | `integer` | tidak | `0` | `>= 0`, dihitung trigger |
-| `default_origin_label` | `text` | ya | — | label titik awal contoh, maks 120 |
-| `default_origin_latitude` | `numeric(9,6)` | ya | — | `-90..90`, wajib berpasangan dengan longitude |
-| `default_origin_longitude` | `numeric(9,6)` | ya | — | `-180..180`, wajib berpasangan dengan latitude |
+| `moderation_note` | `text` | ya | — | alasan/ringkasan hasil moderasi AI |
+| `moderated_at` | `timestamptz` | ya | — | waktu moderasi terakhir |
+| `default_origin_label` | `text` | ya | — | legacy, tidak dipakai navigasi |
+| `default_origin_latitude` | `numeric(9,6)` | ya | — | legacy, tidak dipakai navigasi |
+| `default_origin_longitude` | `numeric(9,6)` | ya | — | legacy, tidak dipakai navigasi |
 | `published_at` | `timestamptz` | ya | — | wajib terisi saat `PUBLISHED` |
 | `archived_at` | `timestamptz` | ya | — | soft delete |
 | `created_at` | `timestamptz` | tidak | `now()` | — |
@@ -230,11 +234,38 @@ Index:
 
 Aturan: `rating_avg` dan `review_count` adalah cache agregat. Jangan menulisnya dari server action; biarkan trigger §7 yang memperbarui.
 
-Aturan titik awal navigasi: `default_origin_*` menyimpan titik awal contoh per tempat. Halaman navigasi memakai lokasi browser bila pengguna mengizinkannya; jika tidak, ia jatuh ke titik ini. Ketiga kolom harus `NULL` bersama atau terisi bersama (constraint `chk_places_default_origin`). Jangan memakai koordinat `places.latitude/longitude` sebagai fallback diam-diam karena itu titik bangunan, bukan titik awal perjalanan.
+Aturan feed postingan:
 
-### 5.3 `entrances`
+- Satu baris `places` adalah satu **postingan** pengguna, bukan entitas tempat kanonik. Nama tempat tidak unik: pengguna berbeda boleh memposting nama yang sama, dan semuanya tampil saat dicari.
+- `address`, `city`, dan `province` opsional karena form posting hanya mengumpulkan titik peta. Tampilan memakai fallback “Lokasi ditandai di peta”.
+- Feed default diurutkan `created_at DESC`. Saat ada kata kunci pencarian nama, urutannya `jumlah place_likes DESC` lalu `created_at DESC`.
+- Setiap postingan baru wajib punya minimal satu baris `place_photos` (lihat §5.7). Foto pertama (`sort_order` terkecil) dipakai sebagai sampul di timeline.
+- Postingan baru **tidak** membuat baris `entrances`. Navigasi memakai koordinat `places.latitude/longitude` sebagai satu-satunya tujuan. Baris `entrances` lama tetap dibaca untuk agregat fasilitas dan langkah rute legacy, tetapi tidak lagi ditampilkan sebagai pilihan pintu.
+- Moderasi AI dinonaktifkan sementara lewat `AI_MODERATION_ENABLED` (default `false`). Saat mati, postingan langsung `PUBLISHED` dengan `moderated_at = NULL` dan catatan “Moderasi AI dinonaktifkan sementara.”. Saat diaktifkan, hasil moderasi memetakan ke `SAFE` → `PUBLISHED`, `REVIEW` → `PENDING`, `BLOCK` → `REJECTED`; kegagalan moderasi menjadi `PENDING`.
 
-Satu baris per pintu masuk. Ini pembeda utama produk: kondisi aksesibilitas dinilai per pintu, bukan per bangunan.
+Aturan titik awal navigasi: halaman navigasi **hanya** memakai lokasi perangkat (`navigator.geolocation.watchPosition`). Tidak ada input manual, titik contoh, atau fallback ke `default_origin_*`. Kolom `default_origin_*` dipertahankan untuk kompatibilitas skema, tetapi tidak dibaca oleh aplikasi. Jika izin lokasi ditolak, UI menampilkan pesan dan tombol coba lagi tanpa menggambar rute.
+
+### 5.3 `place_likes`
+
+Tombol **“Paling membantu”**. Satu baris per pasangan postingan–pengguna, sehingga setiap pengguna hanya bisa menandai satu postingan sekali dan dapat membatalkannya.
+
+| Kolom | Tipe | Null | Default | Constraint |
+|---|---|---|---|---|
+| `id` | `uuid` | tidak | `gen_random_uuid()` | PK |
+| `place_id` | `uuid` | tidak | — | FK `places(id)` `ON DELETE CASCADE` |
+| `user_id` | `uuid` | tidak | — | FK `profiles(id)` `ON DELETE CASCADE` |
+| `created_at` | `timestamptz` | tidak | `now()` | — |
+
+Index:
+
+- `place_likes_place_id_user_id_key` unik (`place_id`, `user_id`)
+- `place_likes_place_id_idx` (`place_id`)
+
+Aturan: jumlah “Paling membantu” dihitung dari `COUNT(place_likes)` lewat relasi Prisma `_count`, bukan kolom denormalisasi. Server action `togglePlaceLikeAction` memvalidasi login dan hanya menerima postingan `PUBLISHED`.
+
+### 5.4 `entrances`
+
+Satu baris per pintu masuk pada data **legacy**. Ini pembeda awal produk: kondisi aksesibilitas dinilai per pintu, bukan per bangunan. Sejak revisi feed postingan, pengguna tidak lagi memilih atau membuat pintu: satu postingan = satu lokasi, dan navigasi memakai koordinat `places`. Baris `entrances` dipertahankan agar agregat fasilitas (`entrance_features`) tetap kompatibel, tetapi tidak lagi menjadi bagian alur posting baru. Seed tempat contoh sudah dihapus.
 
 | Kolom | Tipe | Null | Default | Constraint |
 |---|---|---|---|---|
@@ -259,9 +290,9 @@ Index:
 - `uq_entrances_one_main` unik parsial `(place_id) WHERE is_main`
 - `idx_entrances_coordinates` (`latitude`, `longitude`)
 
-Aturan: setiap place minimal punya satu entrance sebelum boleh `PUBLISHED`. Jika `is_main` dipindah, trigger/server action harus memastikan hanya satu yang aktif.
+Aturan: data `entrances` bersifat legacy. Postingan baru tidak membuat baris ini, dan seed tempat contoh sudah dihapus. Jika `is_main` dipindah, trigger/server action harus memastikan hanya satu yang aktif. Halaman detail dan navigasi tidak menampilkan pemilih pintu.
 
-### 5.4 `accessibility_features`
+### 5.5 `accessibility_features`
 
 Master fasilitas. Tabel sistem yang di-seed, bukan dibuat pengguna.
 
@@ -282,7 +313,7 @@ Index: `uq_accessibility_features_key` (`key`), `idx_accessibility_features_acti
 
 Seed awal didefinisikan di `prisma/seed-data.ts` (`SEED_FEATURES`) dan disinkronkan oleh `prisma/seed.ts` dengan upsert berdasarkan `key`: `ramp`, `lift`, `accessible-toilet`, `guiding-block`, `accessible-parking`, `automatic-door`, `wide-entrance`. Konstanta UI untuk label dan ikon ada di `lib/constants/places.ts`; jangan menduplikasi daftar ini di komponen.
 
-### 5.5 `entrance_features`
+### 5.6 `entrance_features`
 
 Sumber kebenaran untuk filter fasilitas. Satu baris per pasangan pintu–fasilitas.
 
@@ -304,21 +335,48 @@ Index:
 
 Aturan: jangan menyimpan daftar fasilitas duplikat di `places`. Filter fasilitas selalu lewat join ke tabel ini. `UNKNOWN` berarti belum dikonfirmasi, bukan "tidak ada".
 
-### 5.6 `place_photos`
+### 5.7 `place_photos`
+
+Foto lampiran postingan. Setiap postingan baru wajib punya **minimal satu** baris; maksimal 4 foto per postingan (validasi server), masing-masing maksimal 5 MB dengan tipe `image/jpeg`, `image/png`, atau `image/webp`.
 
 | Kolom | Tipe | Null | Default | Constraint |
 |---|---|---|---|---|
 | `id` | `uuid` | tidak | `gen_random_uuid()` | PK |
 | `place_id` | `uuid` | tidak | — | FK `places(id)` `ON DELETE CASCADE` |
-| `url` | `text` | tidak | — | URL bucket `place-photos` |
-| `alt` | `text` | tidak | `''` | wajib diisi untuk foto informatif |
-| `sort_order` | `integer` | tidak | `0` | `>= 0` |
+| `url` | `text` | tidak | — | URL publik bucket `place-photos` |
+| `alt` | `text` | tidak | `''` | teks alternatif foto |
+| `sort_order` | `integer` | tidak | `0` | `>= 0`, urutan tampil; indeks 0 = sampul |
 | `created_by` | `uuid` | ya | — | FK `profiles(id)` `ON DELETE SET NULL` |
 | `created_at` | `timestamptz` | tidak | `now()` | — |
 
 Index: `idx_place_photos_place_order` (`place_id`, `sort_order`).
 
-### 5.7 `reviews`
+Aturan tampilan:
+
+- Timeline `/jelajahi` hanya menampilkan foto pertama (`sort_order` terkecil) sebagai sampul, dengan penanda jumlah foto bila lebih dari satu.
+- Halaman detail menampilkan carousel bila ada lebih dari satu foto.
+- Foto diunggah ke bucket `place-photos` memakai sesi pengguna, lalu baris `place_photos` dibuat setelah unggahan berhasil. Bila penyimpanan `places` gagal, foto yang sudah terunggah dihapus kembali (best-effort).
+
+Bucket `place-photos`:
+
+| Properti | Nilai |
+|---|---|
+| public | `true` (baca publik untuk sampul & carousel) |
+| file size limit | 5 MB |
+| allowed MIME | `image/jpeg`, `image/png`, `image/webp` |
+| path | `<user_id>/<uuid>.<ext>` |
+
+Kebijakan RLS pada `storage.objects` (dibuat oleh migrasi `20261103100000_place_photos_storage`):
+
+| Policy | Operasi | Aturan |
+|---|---|---|
+| `place_photos_select_own` | `SELECT` | `bucket_id = 'place-photos' and owner = auth.uid()` (dibutuhkan agar hapus/overwrite berhasil) |
+| `place_photos_insert_own` | `INSERT` | `bucket_id = 'place-photos' and owner = auth.uid()` |
+| `place_photos_delete_own` | `DELETE` | `bucket_id = 'place-photos' and owner = auth.uid()` |
+
+Baca publik dilakukan lewat endpoint `storage/v1/object/public/...` sehingga tidak memerlukan policy `SELECT` untuk anon.
+
+### 5.8 `reviews`
 
 | Kolom | Tipe | Null | Default | Constraint |
 |---|---|---|---|---|
@@ -342,7 +400,7 @@ Index:
 
 Aturan: review yang di-`ARCHIVED`/`REJECTED` tidak dihitung ke `rating_avg`. Edit review tidak membuat baris baru; update baris yang sama dan kembalikan status ke `PENDING` bila isi berubah.
 
-### 5.8 `communities`
+### 5.9 `communities`
 
 | Kolom | Tipe | Null | Default | Constraint |
 |---|---|---|---|---|
@@ -375,7 +433,7 @@ Index:
 
 Aturan: `status = 'VERIFIED'` wajib punya `verified_at` dan `verified_by`. Hanya komunitas `VERIFIED` yang tampil di direktori publik.
 
-### 5.9 `volunteer_events`
+### 5.10 `volunteer_events`
 
 | Kolom | Tipe | Null | Default | Constraint |
 |---|---|---|---|---|
@@ -411,7 +469,7 @@ Index:
 
 Aturan: `registered_count` dihitung dari `event_registrations` berstatus `CONFIRMED`. Jangan menulis manual. Event `PUBLISHED` yang `ends_at` sudah lewat boleh ditandai `CLOSED` oleh job terjadwal.
 
-### 5.10 `event_registrations`
+### 5.11 `event_registrations`
 
 | Kolom | Tipe | Null | Default | Constraint |
 |---|---|---|---|---|
@@ -440,7 +498,7 @@ Aturan:
 - Data `name`, `email`, `phone`, `accessibility_needs` adalah PII. Hanya organizer event terkait dan admin yang boleh membacanya.
 - Ekspor Excel dilakukan di server dan hanya untuk organizer/admin.
 
-### 5.11 `verification_requests`
+### 5.12 `verification_requests`
 
 | Kolom | Tipe | Null | Default | Constraint |
 |---|---|---|---|---|
@@ -463,7 +521,7 @@ Index:
 
 Aturan: `payload` berisi data teks (nama organisasi, kontak, tautan). KTP/selfie **tidak** disimpan di `payload`; simpan di bucket privat dan catat path di `document_url`. Hapus dokumen setelah verifikasi selesai atau setelah masa retensi.
 
-### 5.12 `reports`
+### 5.13 `reports`
 
 | Kolom | Tipe | Null | Default | Constraint |
 |---|---|---|---|---|
@@ -486,7 +544,7 @@ Index:
 - `idx_reports_target` (`target_type`, `target_id`)
 - `uq_reports_open_per_target` unik parsial `(reporter_id, target_type, target_id) WHERE status IN ('OPEN', 'REVIEWING')`
 
-### 5.13 `moderation_logs`
+### 5.14 `moderation_logs`
 
 Jejak keputusan moderasi otomatis/manual. Append-only.
 
@@ -664,7 +722,7 @@ Bucket storage:
 
 | Bucket | Isi | Akses |
 |---|---|---|
-| `place-photos` | foto tempat & pintu masuk | public read, authenticated write |
+| `place-photos` | foto postingan Jelajahi (sampul + carousel) | public read, authenticated insert/delete milik sendiri (RLS `owner = auth.uid()`) |
 | `community-logos` | logo komunitas | public read, authenticated write |
 | `event-covers` | cover kegiatan | public read, authenticated write |
 | `verification-docs` | dokumen verifikasi | **private**, signed URL, admin only |
@@ -731,6 +789,8 @@ Status per 31 Oktober 2026:
 
 Migrasi Fitur 1: [`prisma/migrations/20261031083304_init_feature1/migration.sql`](../prisma/migrations/20261031083304_init_feature1/migration.sql). Migrasi ini juga memuat objek yang tidak bisa diekspresikan di `schema.prisma`: index trigram, partial unique index, check constraint, `set_updated_at()`, dan `reviews_refresh_place_rating()`.
 
+Migrasi foto postingan: [`prisma/migrations/20261103100000_place_photos_storage/migration.sql`](../prisma/migrations/20261103100000_place_photos_storage/migration.sql). Migrasi ini membuat bucket `place-photos` beserta policy RLS-nya secara idempoten (aman dijalankan ulang).
+
 ### 10.2 Aturan migrasi
 
 - Satu migrasi = satu perubahan yang bisa dijelaskan.
@@ -787,9 +847,10 @@ Aturan seed:
 | Kebutuhan | Pendekatan |
 |---|---|
 | Daftar tempat | filter `status = 'PUBLISHED' and archived_at is null`, urut `rating_avg desc` atau `published_at desc` |
-| Detail tempat | ambil place + entrances + entrance_features + photos dalam satu query bertingkat |
+| Detail tempat | ambil place + photos + reviews + entrance_features legacy dalam satu query bertingkat |
 | Filter fasilitas | `EXISTS`/`count distinct` pada `entrance_features` (lihat §9) |
-| Pintu utama | `entrances.is_main` (dijamin unik per place) |
+| Foto sampul timeline | `place_photos` dengan `sort_order` terkecil (satu baris per place) |
+| Navigasi | koordinat `places.latitude/longitude`; tidak memakai `entrances` untuk postingan baru |
 | Rating | baca `places.rating_avg`; jangan agregasi ulang di halaman daftar |
 | Direktori komunitas | `status = 'VERIFIED'`, filter `province`/`city`/`focus` |
 | Event mendatang | `status = 'PUBLISHED' and ends_at > now()` urut `starts_at asc` |

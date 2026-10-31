@@ -73,6 +73,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="id"
+      data-scroll-behavior="smooth"
       className={`${lexend.variable} ${jakarta.variable} ${jetbrains.variable}`}
     >
       <body className="min-h-dvh bg-canvas font-sans text-ink antialiased">

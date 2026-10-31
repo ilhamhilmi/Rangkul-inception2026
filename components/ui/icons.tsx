@@ -499,3 +499,12 @@ export function PhoneIcon(props: IconProps) {
     </IconBase>
   );
 }
+
+export function ThumbsUpIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M7 10v11H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h3Z" />
+      <path d="M7 10.5 11 3a2.4 2.4 0 0 1 2.3 2.9L12.5 9h6.1a2 2 0 0 1 2 2.4l-1.4 7A2 2 0 0 1 17.2 20H7" />
+    </IconBase>
+  );
+}

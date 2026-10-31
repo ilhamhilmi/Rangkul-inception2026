@@ -77,6 +77,7 @@ model Profile {
   reviews          Review[]
   placePhotos      PlacePhoto[]
   entranceFeatures EntranceFeature[]
+  placeLikes       PlaceLike[]
 
   communities                  Community[]           @relation("CommunityOwner")
   verifiedCommunities          Community[]           @relation("CommunityVerifier")
@@ -93,15 +94,17 @@ model Place {
   name                   String
   category               PlaceCategory
   description            String
-  address                String
-  city                   String
-  province               String
+  address                String?
+  city                   String?
+  province               String?
   latitude               Decimal       @db.Decimal(9, 6)
   longitude              Decimal       @db.Decimal(9, 6)
   status                 ContentStatus @default(PENDING)
   createdById            String        @map("created_by") @db.Uuid
   ratingAvg              Decimal       @default(0) @map("rating_avg") @db.Decimal(3, 2)
   reviewCount            Int           @default(0) @map("review_count")
+  moderationNote         String?       @map("moderation_note")
+  moderatedAt            DateTime?     @map("moderated_at") @db.Timestamptz(6)
   defaultOriginLabel     String?       @map("default_origin_label")
   defaultOriginLatitude  Decimal?      @map("default_origin_latitude") @db.Decimal(9, 6)
   defaultOriginLongitude Decimal?      @map("default_origin_longitude") @db.Decimal(9, 6)
@@ -114,6 +117,7 @@ model Place {
   entrances Entrance[]
   photos    PlacePhoto[]
   reviews   Review[]
+  likes     PlaceLike[]
 
   @@index([status, category])
   @@index([province, city])
@@ -217,6 +221,20 @@ model Review {
   @@index([placeId, status, publishedAt])
   @@index([authorId])
   @@map("reviews")
+}
+
+model PlaceLike {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  placeId   String   @map("place_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  place Place   @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  user  Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([placeId, userId])
+  @@index([placeId])
+  @@map("place_likes")
 }
 
 model Community {

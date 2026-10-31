@@ -1,13 +1,76 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { PostingForm } from "@/components/places/posting-form";
-import { ChevronRightIcon, InfoIcon, PlusIcon } from "@/components/ui/icons";
+import { ButtonLink } from "@/components/ui/button";
+import {
+  ChevronRightIcon,
+  InfoIcon,
+  PlusIcon,
+  ShieldCheckIcon,
+} from "@/components/ui/icons";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isModerationEnabled } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "Tambah info tempat",
   description:
-    "Bagikan informasi aksesibilitas tempat umum, termasuk fasilitas yang tersedia dan titik lokasi di peta.",
+    "Bagikan pengalaman aksesibilitas tempat umum dan tandai titik lokasinya di peta.",
 };
+
+function PostingFormSkeleton() {
+  return (
+    <div role="status" aria-live="polite">
+      <span className="sr-only">Memuat formulir…</span>
+      <div
+        aria-hidden="true"
+        className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem]"
+      >
+        <div className="space-y-5">
+          <div className="h-80 animate-pulse rounded-sheet border border-line bg-surface-muted" />
+          <div className="h-96 animate-pulse rounded-sheet border border-line bg-surface-muted" />
+        </div>
+        <div className="h-56 animate-pulse rounded-sheet border border-line bg-surface-muted" />
+      </div>
+    </div>
+  );
+}
+
+async function AddPlaceContent() {
+  const user = await getCurrentUser();
+  const moderationEnabled = isModerationEnabled();
+
+  if (user) {
+    return <PostingForm moderationEnabled={moderationEnabled} />;
+  }
+
+  return (
+    <div className="mx-auto max-w-xl rounded-sheet border border-line bg-surface p-6 text-center shadow-xs sm:p-8">
+      <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-primary-50 text-primary-700">
+        <ShieldCheckIcon className="h-7 w-7" />
+      </span>
+      <h2 className="mt-5 text-2xl font-bold tracking-tight text-ink">
+        Masuk dulu untuk membagikan info
+      </h2>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-ink-muted">
+        Postingan perlu terhubung dengan akun agar bisa ditandai “Paling
+        membantu” dan dimoderasi dengan jelas.
+      </p>
+      <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+        <ButtonLink href="/masuk?next=%2Ftambah-info" size="md">
+          Masuk
+        </ButtonLink>
+        <ButtonLink
+          href="/daftar?next=%2Ftambah-info"
+          variant="secondary"
+          size="md"
+        >
+          Buat akun
+        </ButtonLink>
+      </div>
+    </div>
+  );
+}
 
 export default function AddPlacePage() {
   return (
@@ -56,22 +119,25 @@ export default function AddPlacePage() {
                 Tambah info tempat
               </h1>
               <p className="mt-3 text-lg leading-relaxed text-ink-muted">
-                Bantu orang lain tahu kondisi tempat sebelum berangkat. Tandai
-                lokasinya di peta dan ceritakan fasilitas yang tersedia.
+                Ceritakan kondisi tempat yang kamu datangi. Postinganmu muncul di
+                Jelajahi dan bisa ditandai “Paling membantu” oleh pengguna lain.
               </p>
             </div>
 
             <p className="flex max-w-sm items-start gap-2 rounded-card border border-line bg-surface px-4 py-3 text-xs leading-relaxed text-ink-muted shadow-xs">
               <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-              Versi UI: form ini belum tersambung ke akun, unggahan, atau
-              database. Data hanya ditampilkan di panel sukses.
+              {isModerationEnabled()
+                ? "Postingan diperiksa moderasi otomatis sebelum tayang. Yang aman langsung muncul; yang meragukan ditahan untuk ditinjau."
+                : "Postingan langsung tayang setelah dikirim. Pastikan informasi dan fotonya sudah sesuai kondisi di lokasi."}
             </p>
           </div>
         </div>
       </section>
 
       <section className="container-page py-8 lg:py-10">
-        <PostingForm />
+        <Suspense fallback={<PostingFormSkeleton />}>
+          <AddPlaceContent />
+        </Suspense>
       </section>
     </>
   );

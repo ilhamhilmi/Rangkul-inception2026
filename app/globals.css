@@ -328,6 +328,50 @@
   background: var(--color-sand-400);
 }
 
+.rangkul-map-user {
+  position: relative;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+}
+
+.rangkul-map-user__pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: rgb(37 99 235 / 0.28);
+  animation: rangkul-user-pulse 2.2s ease-out infinite;
+}
+
+.rangkul-map-dot--user {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  border: 3px solid #ffffff;
+  background: #2563eb;
+  box-shadow:
+    0 0 0 2px rgb(37 99 235 / 0.35),
+    0 1px 4px rgb(0 0 0 / 0.35);
+}
+
+@keyframes rangkul-user-pulse {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.65);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rangkul-map-user__pulse {
+    animation: none;
+  }
+}
+
 .leaflet-popup-content {
   margin: 0.75rem 1rem;
   font-family: var(--font-sans);

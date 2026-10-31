@@ -7,6 +7,8 @@ export type RouteStep = {
   instruction: string;
   distanceMeters: number;
   maneuver: string;
+  /** [latitude, longitude] titik manuver bila tersedia dari OSRM. */
+  location?: [number, number];
 };
 
 export type WalkingRoute = {
@@ -19,12 +21,6 @@ export type WalkingRoute = {
 
 export type RouteOrigin = Coordinate & {
   label: string;
-  source: "seed" | "geolocation";
-};
-
-export type MapEntrance = Coordinate & {
-  id: string;
-  label: string;
-  isMain: boolean;
-  navigationHref?: string;
+  source: "geolocation";
+  accuracyMeters?: number;
 };

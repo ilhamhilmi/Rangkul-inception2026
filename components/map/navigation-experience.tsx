@@ -1,122 +1,244 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RouteMap } from "@/components/map/route-map";
-import { FeatureStatusRow } from "@/components/places/feature-chip";
 import { Button, ButtonLink } from "@/components/ui/button";
 import {
   AlertIcon,
-  CheckIcon,
-  ChevronDownIcon,
+  ChevronRightIcon,
   ClockIcon,
-  DoorIcon,
   InfoIcon,
   MapPinIcon,
   NavigationIcon,
+  RouteIcon,
   VolumeIcon,
   VolumeOffIcon,
   WalkIcon,
 } from "@/components/ui/icons";
-import { ACCESSIBILITY_FEATURES, getMainEntrance } from "@/lib/constants/places";
+import { placeLocationLabel } from "@/components/places/post-card";
 import {
   fetchWalkingRoute,
   formatRouteDistance,
   formatRouteDuration,
 } from "@/lib/map/osrm";
+import {
+  distanceAlongRoute,
+  haversineMeters,
+  locateOnRoute,
+} from "@/lib/map/geo";
 import { cn } from "@/lib/utils/cn";
-import type { RouteOrigin, WalkingRoute } from "@/types/map";
-import type { Entrance, PlaceDetail } from "@/types/place";
+import type { RouteDestination } from "@/components/map/types";
+import type { Coordinate, RouteOrigin, RouteStep, WalkingRoute } from "@/types/map";
+import type { PlaceDetail } from "@/types/place";
 
 type VoiceMode = "off" | "on";
 
-type RouteStatus = "loading" | "ready" | "error";
+type RouteStatus = "idle" | "loading" | "ready" | "error";
 
-function countAvailable(entrance: Entrance) {
-  return ACCESSIBILITY_FEATURES.filter(
-    (feature) => entrance.features[feature.key] === "available",
-  ).length;
-}
+const LOCATION_UPDATE_METERS = 5;
+const ROUTE_REFRESH_METERS = 80;
+const OFF_ROUTE_METERS = 35;
 
-function seedOriginFor(place: PlaceDetail): RouteOrigin {
-  if (place.defaultOrigin) {
-    return {
-      ...place.defaultOrigin,
-      source: "seed",
-    };
+type NavigationProgress = {
+  activeStepIndex: number;
+  activeStep: RouteStep | null;
+  distanceToNextManeuver: number;
+  remainingMeters: number;
+  remainingSeconds: number;
+};
+
+function buildProgress(
+  origin: Coordinate,
+  route: WalkingRoute,
+): NavigationProgress | null {
+  const location = locateOnRoute(origin, route.geometry);
+  if (!location) return null;
+
+  const stepDistances = route.steps.map((step, index) => {
+    if (!step.location) return index === 0 ? 0 : null;
+    return distanceAlongRoute(
+      { latitude: step.location[0], longitude: step.location[1] },
+      route.geometry,
+    );
+  });
+
+  let activeStepIndex = 0;
+
+  for (let index = 0; index < route.steps.length; index += 1) {
+    const distance = stepDistances[index];
+    if (distance === null) continue;
+    activeStepIndex = index;
+    if (distance >= location.distanceAlongMeters + 3) break;
   }
 
+  const activeDistance = stepDistances[activeStepIndex];
+  const distanceToNextManeuver =
+    activeDistance === null || activeDistance === undefined
+      ? location.remainingMeters
+      : Math.max(0, activeDistance - location.distanceAlongMeters);
+
+  const remainingRatio =
+    route.distanceMeters > 0
+      ? Math.min(1, Math.max(0, location.remainingMeters / route.distanceMeters))
+      : 0;
+
   return {
-    label: "Titik tengah tempat",
-    latitude: place.latitude,
-    longitude: place.longitude,
-    source: "seed",
+    activeStepIndex,
+    activeStep: route.steps[activeStepIndex] ?? null,
+    distanceToNextManeuver,
+    remainingMeters: location.remainingMeters,
+    remainingSeconds: Math.max(
+      0,
+      Math.round(route.durationSeconds * remainingRatio),
+    ),
   };
 }
 
-export function NavigationExperience({
-  place,
-  initialEntranceId,
-}: {
-  place: PlaceDetail;
-  initialEntranceId?: string;
-}) {
-  const fallbackId = getMainEntrance(place).id;
-  const [entranceId, setEntranceId] = useState(
-    place.entrances.some((entrance) => entrance.id === initialEntranceId)
-      ? (initialEntranceId as string)
-      : fallbackId,
+function locationErrorMessage(error: GeolocationPositionError) {
+  switch (error.code) {
+    case error.PERMISSION_DENIED:
+      return "Akses lokasi ditolak. Izinkan lokasi untuk situs ini di pengaturan browser, lalu coba lagi.";
+    case error.POSITION_UNAVAILABLE:
+      return "Lokasi perangkat belum tersedia. Pastikan GPS atau layanan lokasi menyala dan kamu berada di area dengan sinyal.";
+    default:
+      return "Membaca lokasi terlalu lama. Coba lagi di area dengan sinyal yang lebih baik.";
+  }
+}
+
+export function NavigationExperience({ place }: { place: PlaceDetail }) {
+  const destination = useMemo<RouteDestination>(
+    () => ({
+      label: place.name,
+      latitude: place.latitude,
+      longitude: place.longitude,
+    }),
+    [place.name, place.latitude, place.longitude],
   );
+
   const [voiceMode, setVoiceMode] = useState<VoiceMode>("off");
   const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
-  const [origin, setOrigin] = useState<RouteOrigin>(() => seedOriginFor(place));
-  const [locating, setLocating] = useState(false);
-  const [originNotice, setOriginNotice] = useState<string | null>(null);
-  const [routeState, setRouteState] = useState<{
-    key: string;
-    route: WalkingRoute | null;
-    status: Exclude<RouteStatus, "loading">;
-  } | null>(null);
+  const [origin, setOrigin] = useState<RouteOrigin | null>(null);
+  const [locating, setLocating] = useState(true);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationRequest, setLocationRequest] = useState(0);
+  const [route, setRoute] = useState<WalkingRoute | null>(null);
+  const [routeStatus, setRouteStatus] = useState<RouteStatus>("idle");
+  const [routeRequest, setRouteRequest] = useState(0);
+  const [followUser, setFollowUser] = useState(true);
 
-  const selected =
-    place.entrances.find((entrance) => entrance.id === entranceId) ??
-    place.entrances[0];
-
-  const seedOrigin = useMemo(() => seedOriginFor(place), [place]);
-
-  const destinationKey = [
-    selected.id,
-    origin.latitude.toFixed(5),
-    origin.longitude.toFixed(5),
-  ].join(":");
+  const lastPositionRef = useRef<Coordinate | null>(null);
+  const lastRouteOriginRef = useRef<Coordinate | null>(null);
+  const routeAbortRef = useRef<AbortController | null>(null);
+  const lastAnnouncedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      const timer = setTimeout(() => {
+        setLocating(false);
+        setLocationError(
+          "Browser ini tidak menyediakan akses lokasi. Navigasi live membutuhkan GPS atau layanan lokasi perangkat.",
+        );
+      }, 0);
+
+      return () => clearTimeout(timer);
+    }
+
     let active = true;
 
-    fetchWalkingRoute({
-      origin,
-      destination: selected,
-      signal: controller.signal,
-    }).then((result) => {
-      if (!active) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        if (!active) return;
 
-      setRouteState({
-        key: destinationKey,
-        route: result,
-        status: result ? "ready" : "error",
-      });
-    });
+        const next: Coordinate = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+        const previous = lastPositionRef.current;
+
+        setLocating(false);
+        setLocationError(null);
+
+        if (previous && haversineMeters(previous, next) < LOCATION_UPDATE_METERS) {
+          return;
+        }
+
+        lastPositionRef.current = next;
+        setOrigin({
+          ...next,
+          label: "Lokasi Anda",
+          source: "geolocation",
+          accuracyMeters: position.coords.accuracy,
+        });
+      },
+      (error) => {
+        if (!active) return;
+        setLocating(false);
+        setLocationError(locationErrorMessage(error));
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 3000,
+        timeout: 20000,
+      },
+    );
 
     return () => {
       active = false;
-      controller.abort();
+      navigator.geolocation.clearWatch(watchId);
     };
-  }, [destinationKey, origin, selected]);
+  }, [locationRequest]);
 
-  const currentRouteState =
-    routeState?.key === destinationKey ? routeState : null;
-  const route = currentRouteState?.route ?? null;
-  const routeStatus: RouteStatus = currentRouteState?.status ?? "loading";
+  useEffect(() => {
+    if (!origin) return;
+
+    const previousOrigin = lastRouteOriginRef.current;
+    const movedFar =
+      !previousOrigin ||
+      haversineMeters(previousOrigin, origin) > ROUTE_REFRESH_METERS;
+    const offRoute = route
+      ? (locateOnRoute(origin, route.geometry)?.distanceToRouteMeters ?? 0) >
+        OFF_ROUTE_METERS
+      : false;
+    const fetching = Boolean(
+      routeAbortRef.current && !routeAbortRef.current.signal.aborted,
+    );
+
+    if (!movedFar && !offRoute && (route || fetching)) return;
+
+    // Abort hanya saat memulai permintaan rute baru. Cleanup effect ini tidak
+    // membatalkan fetch yang sedang berjalan setiap kali GPS bergerak 5 m.
+    routeAbortRef.current?.abort();
+    const controller = new AbortController();
+    routeAbortRef.current = controller;
+
+    lastRouteOriginRef.current = origin;
+
+    fetchWalkingRoute({
+      origin,
+      destination,
+      signal: controller.signal,
+    }).then((result) => {
+      if (routeAbortRef.current !== controller) return;
+      routeAbortRef.current = null;
+
+      if (result) {
+        setRoute(result);
+        setRouteStatus("ready");
+        return;
+      }
+
+      setRouteStatus("error");
+    });
+  }, [destination, origin, route, routeRequest]);
+
+  useEffect(() => {
+    return () => routeAbortRef.current?.abort();
+  }, []);
+
+  const progress = useMemo(
+    () => (origin && route ? buildProgress(origin, route) : null),
+    [origin, route],
+  );
 
   useEffect(() => {
     return () => {
@@ -126,58 +248,33 @@ export function NavigationExperience({
     };
   }, []);
 
-  function stopSpeech() {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-  }
-
-  function selectEntrance(id: string) {
-    setEntranceId(id);
-    stopSpeech();
-  }
-
-  function resetOrigin() {
-    setOrigin(seedOrigin);
-    setOriginNotice(null);
-    stopSpeech();
-  }
-
-  function useMyLocation() {
-    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
-      setOriginNotice(
-        "Browser ini tidak menyediakan lokasi perangkat. Rute tetap dihitung dari titik awal contoh.",
-      );
+  function speak(text: string) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       return;
     }
 
-    setLocating(true);
-    setOriginNotice(null);
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "id-ID";
+    utterance.rate = 0.95;
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setOrigin({
-          label: "Lokasi perangkat",
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          source: "geolocation",
-        });
-        setLocating(false);
-        stopSpeech();
-      },
-      (error) => {
-        setLocating(false);
-        setOriginNotice(
-          error.code === error.PERMISSION_DENIED
-            ? "Izin lokasi ditolak. Rute tetap dihitung dari titik awal contoh."
-            : "Lokasi tidak berhasil dibaca. Rute tetap dihitung dari titik awal contoh.",
-        );
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
-    );
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
   }
 
+  useEffect(() => {
+    if (voiceMode !== "on" || !progress?.activeStep) return;
+
+    const key = `${progress.activeStepIndex}:${progress.activeStep.instruction}`;
+    if (lastAnnouncedRef.current === key) return;
+
+    lastAnnouncedRef.current = key;
+    speak(progress.activeStep.instruction);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceMode, progress?.activeStepIndex, progress?.activeStep?.instruction]);
+
   function changeVoiceMode(mode: VoiceMode) {
+    lastAnnouncedRef.current = null;
+
     if (mode === "on") {
       const supported =
         typeof window !== "undefined" && "speechSynthesis" in window;
@@ -193,236 +290,255 @@ export function NavigationExperience({
       return;
     }
 
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
     setVoiceMode("off");
     setVoiceNotice(null);
-    stopSpeech();
   }
 
-  const spokenSteps = route?.steps.length
-    ? route.steps.map((step) => step.instruction)
-    : selected.route.steps;
-
-  function speakDirections() {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      setVoiceNotice(
-        "Panduan suara tidak tersedia di browser ini. Gunakan petunjuk arah teks di bawah.",
-      );
-      return;
-    }
-
-    const text = [
-      `Panduan menuju ${selected.label} di ${place.name}.`,
-      ...spokenSteps.map((step, index) => `Langkah ${index + 1}. ${step}`),
-    ].join(" ");
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "id-ID";
-    utterance.rate = 0.95;
-
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
+  function retryLocation() {
+    lastPositionRef.current = null;
+    setOrigin(null);
+    setRouteStatus("idle");
+    setLocating(true);
+    setLocationError(null);
+    setLocationRequest((value) => value + 1);
   }
 
-  const distanceLabel = route
-    ? formatRouteDistance(route.distanceMeters)
-    : selected.route.distance;
-  const durationLabel = route
-    ? formatRouteDuration(route.durationSeconds)
-    : selected.route.duration;
+  function retryRoute() {
+    lastRouteOriginRef.current = null;
+    setRouteRequest((value) => value + 1);
+  }
 
-  const steps = route?.steps.length
-    ? route.steps.map((step) => step.instruction)
-    : selected.route.steps;
+  const searching = locating && !origin;
+  const hasComplexError = Boolean(locationError) && !origin;
+  const displayRouteStatus: RouteStatus =
+    routeStatus === "error"
+      ? "error"
+      : origin && !route
+        ? "loading"
+        : routeStatus;
+
+  const activeStep = progress?.activeStep ?? null;
+  const distanceToNextManeuver = progress?.distanceToNextManeuver ?? 0;
+  const remainingLabel = progress
+    ? formatRouteDistance(Math.round(progress.remainingMeters))
+    : route
+      ? formatRouteDistance(route.distanceMeters)
+      : "—";
+  const durationLabel = progress
+    ? formatRouteDuration(progress.remainingSeconds)
+    : route
+      ? formatRouteDuration(route.durationSeconds)
+      : "—";
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] lg:items-start">
       <div className="lg:sticky lg:top-24">
-        <RouteMap
-          origin={origin}
-          destination={selected}
-          entrances={place.entrances.map((entrance) => ({
-            ...entrance,
-            navigationHref: `/jelajahi/${place.slug}/navigasi?pintu=${entrance.id}`,
-          }))}
-          route={route}
-        />
+        <div className="relative">
+          <RouteMap
+            origin={origin}
+            destination={destination}
+            route={route}
+            followUser={followUser}
+            onUserInteract={() => setFollowUser(false)}
+          />
 
-        <div className="mt-3 space-y-2.5 rounded-card border border-line bg-surface px-4 py-3 text-xs leading-relaxed text-ink-muted">
-          <p className="flex items-start gap-2">
-            <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-            <span>
-              Titik awal: <strong className="font-semibold text-ink">{origin.label}</strong>
-              {origin.source === "seed"
-                ? " (titik contoh, bukan lokasi perangkat)"
-                : ""}
-              .
-            </span>
-          </p>
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={useMyLocation}
-              disabled={locating}
+          <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex flex-wrap items-start justify-between gap-2">
+            <span
+              className={cn(
+                "pointer-events-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold shadow-xs backdrop-blur",
+                origin
+                  ? "border-success-600/30 bg-surface/95 text-success-700"
+                  : "border-warning-600/30 bg-surface/95 text-warning-700",
+              )}
             >
-              <NavigationIcon className="h-4 w-4" />
-              {locating ? "Membaca lokasi…" : "Gunakan lokasi saya"}
-            </Button>
-            {origin.source === "geolocation" ? (
-              <Button type="button" variant="ghost" size="sm" onClick={resetOrigin}>
-                Pakai titik contoh
-              </Button>
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  origin ? "bg-success-600" : "animate-pulse bg-warning-600",
+                )}
+              />
+              {origin
+                ? "Lokasi live"
+                : locationError
+                  ? "Lokasi tidak aktif"
+                  : `Mencari lokasi${searching ? "…" : ""}`}
+            </span>
+
+            {origin && !followUser ? (
+              <button
+                type="button"
+                onClick={() => setFollowUser(true)}
+                className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full border border-line bg-surface/95 px-2.5 py-1 text-xs font-semibold text-primary-800 shadow-xs backdrop-blur hover:bg-surface"
+              >
+                <NavigationIcon className="h-3.5 w-3.5" />
+                Ikuti lokasi
+              </button>
             ) : null}
           </div>
+        </div>
 
-          {originNotice ? (
-            <p role="alert" className="rounded-card bg-warning-50 px-3 py-2 text-warning-700">
-              {originNotice}
-            </p>
-          ) : null}
-
-          <p className="flex items-start gap-2">
-            <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-            <span>
-              Rute pejalan kaki dihitung dari titik awal ke pintu yang dipilih.
-              Petunjuk arah teks di samping tetap menjadi acuan utama, termasuk
-              saat peta atau jaringan gagal dimuat.
-            </span>
-          </p>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-card border border-line bg-surface px-4 py-2.5 text-xs text-ink-muted">
+          <span className="inline-flex items-center gap-1.5">
+            <MapPinIcon className="h-4 w-4 shrink-0 text-[#2563eb]" />
+            {origin
+              ? origin.accuracyMeters
+                ? `Akurasi ±${Math.round(origin.accuracyMeters)} m`
+                : "Lokasi perangkat aktif"
+              : locationError
+                ? "Izin lokasi belum aktif"
+                : "Menunggu izin lokasi perangkat"}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <RouteIcon className="h-4 w-4 shrink-0 text-[#2563eb]" />
+            {route
+              ? `${formatRouteDistance(route.distanceMeters)} total`
+              : "Rute belum dihitung"}
+          </span>
         </div>
       </div>
 
       <div className="space-y-4">
         <section
-          aria-labelledby="rencana-heading"
+          aria-labelledby="live-heading"
           className="rounded-sheet border border-line bg-surface p-5 shadow-xs sm:p-6"
         >
-          <h2
-            id="rencana-heading"
-            className="text-xl font-bold tracking-tight text-ink"
-          >
-            Rencanakan perjalanan
-          </h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">
-            Pilih pintu masuk yang paling sesuai. Ringkasan rute dan petunjuk
-            arah akan menyesuaikan.
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2
+              id="live-heading"
+              className="text-xl font-bold tracking-tight text-ink"
+            >
+              Navigasi live
+            </h2>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-800">
+              <WalkIcon className="h-3.5 w-3.5" />
+              Pejalan kaki
+            </span>
+          </div>
+          <p className="mt-1.5 flex items-start gap-1.5 text-sm leading-relaxed text-ink-muted">
+            <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+            {placeLocationLabel(place)}
           </p>
 
-          <fieldset className="mt-5">
-            <legend className="text-sm font-semibold text-ink">
-              Pilih pintu masuk
-            </legend>
-            <div className="mt-2.5 space-y-2">
-              {place.entrances.map((entrance) => {
-                const active = entrance.id === selected.id;
-                return (
-                  <label
-                    key={entrance.id}
-                    className={cn(
-                      "flex cursor-pointer items-start gap-3 rounded-card border p-3.5 transition-colors",
-                      active
-                        ? "border-primary-600 bg-primary-50"
-                        : "border-line bg-surface hover:border-primary-300 hover:bg-surface-muted/50",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="pintu"
-                      value={entrance.id}
-                      checked={active}
-                      onChange={() => selectEntrance(entrance.id)}
-                      className="mt-0.5 h-4 w-4 shrink-0 accent-primary-600"
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-ink">
-                          {entrance.label}
-                        </span>
-                        {entrance.isMain ? (
-                          <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-800">
-                            Utama
-                          </span>
-                        ) : null}
-                        <span className="text-xs text-ink-muted">
-                          {countAvailable(entrance)} fasilitas tersedia
-                        </span>
-                      </span>
-                      <span className="mt-1 block text-xs leading-relaxed text-ink-muted">
-                        {entrance.route.condition}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
-
-          <div role="status" className="mt-5 rounded-card bg-surface-muted/70 p-4">
-            <p className="text-sm font-semibold text-ink">
-              Rute ke {selected.label}
-            </p>
-            <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1.5 text-sm">
-              <div className="flex items-center gap-1.5">
-                <dt className="sr-only">Jarak</dt>
-                <dd className="flex items-center gap-1.5 text-ink-muted">
-                  <WalkIcon className="h-4 w-4 text-primary-700" />
-                  <span className="font-medium text-ink">{distanceLabel}</span>
-                </dd>
+          <div
+            aria-live="polite"
+            aria-atomic="true"
+            className="mt-4 rounded-card border border-[#2563eb]/20 bg-[#2563eb]/5 p-4"
+          >
+            {hasComplexError ? (
+              <div className="space-y-3">
+                <p className="flex items-start gap-2 text-sm leading-relaxed text-warning-700">
+                  <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                  {locationError}
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={retryLocation}
+                >
+                  <NavigationIcon className="h-4 w-4" />
+                  Coba baca lokasi lagi
+                </Button>
               </div>
-              <div className="flex items-center gap-1.5">
-                <dt className="sr-only">Estimasi waktu</dt>
-                <dd className="flex items-center gap-1.5 text-ink-muted">
-                  <ClockIcon className="h-4 w-4 text-primary-700" />
-                  <span className="font-medium text-ink">{durationLabel}</span>
-                </dd>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <dt className="sr-only">Jumlah fasilitas</dt>
-                <dd className="flex items-center gap-1.5 text-ink-muted">
-                  <CheckIcon className="h-4 w-4 text-primary-700" />
-                  <span className="font-medium text-ink">
-                    {countAvailable(selected)} fasilitas
-                  </span>
-                </dd>
-              </div>
-            </dl>
-
-            {routeStatus === "loading" ? (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-ink-muted">
+            ) : searching ? (
+              <p className="flex items-center gap-2 text-sm text-ink-muted">
                 <span
                   aria-hidden="true"
-                  className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-300 border-t-primary-700"
+                  className="h-4 w-4 animate-spin rounded-full border-2 border-primary-300 border-t-primary-700"
+                />
+                Meminta lokasi perangkat dan menghitung rute…
+              </p>
+            ) : activeStep ? (
+              <div className="flex items-start gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#2563eb] text-white shadow-sm">
+                  <NavigationIcon className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#2563eb]">
+                    {distanceToNextManeuver < 15
+                      ? "Sekarang"
+                      : `${formatRouteDistance(
+                          Math.round(distanceToNextManeuver),
+                        )} lagi`}
+                  </p>
+                  <p className="mt-0.5 text-lg font-semibold leading-snug text-ink">
+                    {activeStep.instruction}
+                  </p>
+                </div>
+              </div>
+            ) : displayRouteStatus === "loading" ? (
+              <p className="flex items-center gap-2 text-sm text-ink-muted">
+                <span
+                  aria-hidden="true"
+                  className="h-4 w-4 animate-spin rounded-full border-2 border-primary-300 border-t-primary-700"
                 />
                 Menghitung rute pejalan kaki…
               </p>
-            ) : null}
-
-            {routeStatus === "error" ? (
-              <p className="mt-2 flex items-start gap-1.5 text-xs leading-relaxed text-warning-700">
-                <AlertIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                Rute peta sedang tidak tersedia. Jarak dan waktu di atas memakai
-                perkiraan data tempat; petunjuk arah teks tetap bisa dipakai.
+            ) : (
+              <p className="flex items-start gap-2 text-sm leading-relaxed text-ink-muted">
+                <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+                Petunjuk arah akan muncul setelah lokasi perangkat terbaca dan
+                rute berhasil dihitung.
               </p>
-            ) : null}
+            )}
           </div>
 
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <ButtonLink href="#rencana-heading" size="md" className="flex-1">
-              <NavigationIcon className="h-4 w-4" />
-              Pilih pintu lain
-            </ButtonLink>
-            <ButtonLink
-              href={`/jelajahi/${place.slug}`}
-              variant="secondary"
-              size="md"
-              className="flex-1"
-            >
-              <DoorIcon className="h-4 w-4" />
-              Detail tempat
-            </ButtonLink>
-          </div>
+          <dl className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-card bg-surface-muted/70 p-3.5">
+              <dt className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
+                <WalkIcon className="h-3.5 w-3.5 text-primary-700" />
+                Jarak tersisa
+              </dt>
+              <dd className="mt-1 text-lg font-bold text-ink">
+                {remainingLabel}
+              </dd>
+            </div>
+            <div className="rounded-card bg-surface-muted/70 p-3.5">
+              <dt className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
+                <ClockIcon className="h-3.5 w-3.5 text-primary-700" />
+                Estimasi jalan
+              </dt>
+              <dd className="mt-1 text-lg font-bold text-ink">
+                {durationLabel}
+              </dd>
+            </div>
+          </dl>
+
+          {locationError && origin ? (
+            <p className="mt-3 flex items-start gap-2 rounded-card border border-warning-600/30 bg-warning-50 px-3.5 py-3 text-sm leading-relaxed text-warning-700">
+              <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
+              {locationError}
+            </p>
+          ) : null}
+
+          {routeStatus === "error" ? (
+            <div className="mt-3 rounded-card border border-warning-600/30 bg-warning-50 px-3.5 py-3 text-sm leading-relaxed text-warning-700">
+              <p className="flex items-start gap-2">
+                <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                Rute pejalan kaki gagal dihitung. Periksa koneksi internet, lalu
+                coba lagi.
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={retryRoute}
+                className="mt-2.5"
+              >
+                Hitung ulang rute
+              </Button>
+            </div>
+          ) : null}
+
+          <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-ink-muted">
+            <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary-700" />
+            Titik awal selalu lokasi perangkat. Rute dihitung ulang otomatis saat
+            kamu bergerak jauh atau keluar dari jalur.
+          </p>
         </section>
 
         <section
@@ -436,8 +552,8 @@ export function NavigationExperience({
             Panduan suara
           </h2>
           <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">
-            Suara tidak aktif otomatis. Petunjuk baru dibacakan setelah kamu
-            memilih “Pakai” dan menekan tombol bacakan.
+            Saat aktif, setiap langkah baru dibacakan otomatis mengikuti
+            pergerakanmu.
           </p>
 
           <fieldset className="mt-4">
@@ -484,19 +600,6 @@ export function NavigationExperience({
             </div>
           </fieldset>
 
-          {voiceMode === "on" ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={speakDirections}
-              className="mt-3 w-full"
-            >
-              <VolumeIcon className="h-4 w-4" />
-              Bacakan petunjuk arah
-            </Button>
-          ) : null}
-
           {voiceNotice ? (
             <p
               role="alert"
@@ -518,48 +621,83 @@ export function NavigationExperience({
             Petunjuk arah
           </h2>
           <p className="mt-1.5 text-sm text-ink-muted">
-            Menuju <strong className="font-semibold text-ink">{selected.label}</strong>{" "}
-            · {distanceLabel} · {durationLabel}
+            Menuju <strong className="font-semibold text-ink">{place.name}</strong>
+            {progress ? ` · ${remainingLabel} · ${durationLabel}` : ""}
           </p>
 
-          <ol
-            id="pintu"
-            className="mt-4 scroll-mt-24 space-y-3"
-          >
-            {steps.map((step, index) => (
-              <li key={`${selected.id}-${index}`} className="flex gap-3">
-                <span
-                  aria-hidden="true"
-                  className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary-100 text-xs font-bold text-primary-800"
-                >
-                  {index + 1}
-                </span>
-                <p className="text-sm leading-relaxed text-ink-muted">
-                  <span className="sr-only">Langkah {index + 1}: </span>
-                  {step}
-                </p>
-              </li>
-            ))}
-          </ol>
+          {route && route.steps.length > 0 ? (
+            <ol className="mt-4 space-y-3">
+              {route.steps.map((step, index) => {
+                const isActive = index === progress?.activeStepIndex;
+                const isDone =
+                  progress !== null && index < progress.activeStepIndex;
 
-          <details className="group mt-5 rounded-card border border-line">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
-              Fitur lainnya di {selected.label}
-              <ChevronDownIcon className="h-4 w-4 shrink-0 text-ink-muted transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="border-t border-line px-4 py-2">
-              <ul className="grid gap-x-4 sm:grid-cols-2">
-                {ACCESSIBILITY_FEATURES.map((feature) => (
-                  <FeatureStatusRow
-                    key={feature.key}
-                    feature={feature.key}
-                    status={selected.features[feature.key]}
-                  />
-                ))}
-              </ul>
-            </div>
-          </details>
+                return (
+                  <li
+                    key={`${index}-${step.instruction}`}
+                    className={cn(
+                      "flex gap-3 rounded-card px-2 py-2 transition-colors",
+                      isActive && "bg-[#2563eb]/5 ring-1 ring-[#2563eb]/20",
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold",
+                        isActive
+                          ? "bg-[#2563eb] text-white"
+                          : isDone
+                            ? "bg-success-50 text-success-700"
+                            : "bg-surface-muted text-ink-muted",
+                      )}
+                    >
+                      {isDone ? "✓" : index + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p
+                        className={cn(
+                          "text-sm leading-relaxed",
+                          isActive
+                            ? "font-semibold text-ink"
+                            : isDone
+                              ? "text-ink-muted line-through decoration-line"
+                              : "text-ink-muted",
+                        )}
+                      >
+                        <span className="sr-only">Langkah {index + 1}: </span>
+                        {step.instruction}
+                      </p>
+                      {isActive ? (
+                        <p className="mt-0.5 text-xs font-medium text-[#2563eb]">
+                          {distanceToNextManeuver < 15
+                            ? "Lakukan sekarang"
+                            : `${formatRouteDistance(
+                                Math.round(distanceToNextManeuver),
+                              )} lagi`}
+                        </p>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <p className="mt-4 rounded-card border border-dashed border-line bg-surface-muted/50 px-4 py-5 text-sm leading-relaxed text-ink-muted">
+              Petunjuk arah muncul setelah rute berhasil dihitung dari lokasi
+              perangkatmu.
+            </p>
+          )}
         </section>
+
+        <ButtonLink
+          href={`/jelajahi/${place.slug}`}
+          variant="secondary"
+          size="md"
+          className="w-full"
+        >
+          <ChevronRightIcon className="h-4 w-4 rotate-180" />
+          Kembali ke detail tempat
+        </ButtonLink>
       </div>
     </div>
   );

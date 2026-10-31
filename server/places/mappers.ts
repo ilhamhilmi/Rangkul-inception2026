@@ -12,7 +12,12 @@ import { ACCESSIBILITY_FEATURES, isAccessibilityKey } from "@/lib/constants/plac
 import type { Prisma } from "@prisma/client";
 
 export const placeDetailInclude = {
-  createdBy: { select: { name: true } },
+  createdBy: { select: { name: true, avatarUrl: true } },
+  _count: { select: { likes: true, photos: true } },
+  photos: {
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    select: { id: true, url: true, alt: true },
+  },
   entrances: {
     orderBy: [{ isMain: "desc" }, { label: "asc" }],
     include: {
@@ -29,7 +34,13 @@ export const placeDetailInclude = {
 } satisfies Prisma.PlaceInclude;
 
 export const placeSummaryInclude = {
-  createdBy: { select: { name: true } },
+  createdBy: { select: { name: true, avatarUrl: true } },
+  _count: { select: { likes: true, photos: true } },
+  photos: {
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    take: 1,
+    select: { id: true, url: true, alt: true },
+  },
   entrances: {
     select: {
       features: {
@@ -145,6 +156,7 @@ export function toPlaceDetail(place: PlaceWithDetail): PlaceDetail {
   const entrances = place.entrances.map(mapEntrance);
 
   const detail: Place = {
+    id: place.id,
     slug: place.slug,
     name: place.name,
     category: CATEGORY_MAP[place.category],
@@ -153,9 +165,17 @@ export function toPlaceDetail(place: PlaceWithDetail): PlaceDetail {
     address: place.address,
     description: place.description,
     contributor: place.createdBy?.name ?? "Kontributor Rangkul",
+    authorAvatarUrl: place.createdBy?.avatarUrl ?? null,
     createdAt: place.createdAt.toISOString(),
     rating: Number(place.ratingAvg),
     reviewCount: place.reviewCount,
+    likeCount: place._count.likes,
+    viewerHasLiked: false,
+    photos: place.photos.map((photo) => ({
+      id: photo.id,
+      url: photo.url,
+      alt: photo.alt,
+    })),
     latitude: Number(place.latitude),
     longitude: Number(place.longitude),
     entrances,
@@ -164,18 +184,7 @@ export function toPlaceDetail(place: PlaceWithDetail): PlaceDetail {
 
   return {
     ...detail,
-    entranceCount: entrances.length,
     availableFeatures: availableFeatureKeys(place.entrances),
-    defaultOrigin:
-      place.defaultOriginLabel &&
-      place.defaultOriginLatitude !== null &&
-      place.defaultOriginLongitude !== null
-        ? {
-            label: place.defaultOriginLabel,
-            latitude: Number(place.defaultOriginLatitude),
-            longitude: Number(place.defaultOriginLongitude),
-          }
-        : null,
   };
 }
 
@@ -192,6 +201,7 @@ export function toPlaceSummary(place: PlaceWithSummary): PlaceSummary {
   }
 
   return {
+    id: place.id,
     slug: place.slug,
     name: place.name,
     category: CATEGORY_MAP[place.category],
@@ -200,12 +210,16 @@ export function toPlaceSummary(place: PlaceWithSummary): PlaceSummary {
     address: place.address,
     description: place.description,
     contributor: place.createdBy?.name ?? "Kontributor Rangkul",
+    authorAvatarUrl: place.createdBy?.avatarUrl ?? null,
     createdAt: place.createdAt.toISOString(),
     rating: Number(place.ratingAvg),
     reviewCount: place.reviewCount,
+    likeCount: place._count.likes,
+    viewerHasLiked: false,
     latitude: Number(place.latitude),
     longitude: Number(place.longitude),
-    entranceCount: place.entrances.length,
+    coverPhotoUrl: place.photos[0]?.url ?? null,
+    photoCount: place._count.photos,
     availableFeatures: ACCESSIBILITY_FEATURES.filter((feature) =>
       available.has(feature.key),
     ).map((feature) => feature.key),

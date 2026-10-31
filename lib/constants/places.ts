@@ -1,8 +1,6 @@
 import type {
   AccessibilityFeature,
   AccessibilityKey,
-  Entrance,
-  Place,
   PlaceCategory,
 } from "@/types/place";
 
@@ -93,10 +91,6 @@ export function getCategoryMeta(category: PlaceCategory) {
     PLACE_CATEGORIES.find((item) => item.value === category) ??
     PLACE_CATEGORIES[0]
   );
-}
-
-export function getMainEntrance(place: Pick<Place, "entrances">): Entrance {
-  return place.entrances.find((item) => item.isMain) ?? place.entrances[0];
 }
 
 export function isPlaceCategory(value: string): value is PlaceCategory {

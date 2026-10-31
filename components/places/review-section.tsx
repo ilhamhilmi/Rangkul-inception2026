@@ -53,6 +53,13 @@ export function ReviewSection({
         </div>
       </div>
 
+      {reviews.length === 0 ? (
+        <p className="mt-5 rounded-card border border-dashed border-line bg-surface-muted/50 px-4 py-5 text-sm leading-relaxed text-ink-muted">
+          Belum ada ulasan untuk tempat ini. Kamu bisa membagikan pengalaman
+          aksesibilitas lewat postingan baru di Jelajahi.
+        </p>
+      ) : null}
+
       <ol className="mt-5 space-y-4">
         {reviews.map((review) => (
           <li
@@ -94,12 +101,6 @@ export function ReviewSection({
           </li>
         ))}
       </ol>
-
-      <p className="mt-4 rounded-card border border-line bg-surface-muted/60 px-4 py-3 text-xs leading-relaxed text-ink-muted">
-        Ulasan di atas adalah data contoh. Formulir ulasan akan aktif setelah
-        autentikasi tersambung, sehingga setiap ulasan bisa dikaitkan dengan
-        pengguna dan melewati moderasi.
-      </p>
     </section>
   );
 }

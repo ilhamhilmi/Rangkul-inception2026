@@ -3,9 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { NavigationExperience } from "@/components/map/navigation-experience";
-import { ArrowLeftIcon, ChevronRightIcon, MapPinIcon } from "@/components/ui/icons";
+import { placeLocationLabel } from "@/components/places/post-card";
+import {
+  ArrowLeftIcon,
+  ChevronRightIcon,
+  MapPinIcon,
+} from "@/components/ui/icons";
 import { getPlaceBySlug } from "@/server/places/queries";
-import type { PlaceDetail } from "@/types/place";
 
 export async function generateMetadata({
   params,
@@ -21,66 +25,18 @@ export async function generateMetadata({
 
   return {
     title: `Navigasi ke ${place.name}`,
-    description: `Pilih pintu masuk ${place.name} dan lihat ringkasan rute serta petunjuk arah aksesibel.`,
+    description: `Rute pejalan kaki live dan petunjuk arah menuju ${place.name} dari lokasi perangkatmu.`,
   };
 }
 
-type NavigationSearchParams = Record<
-  string,
-  string | string[] | undefined
->;
-
-function firstValue(value: string | string[] | undefined) {
-  if (Array.isArray(value)) return value[0] ?? "";
-  return value ?? "";
-}
-
-async function NavigationContent({
-  place,
-  searchParams,
-}: {
-  place: PlaceDetail;
-  searchParams: Promise<NavigationSearchParams>;
-}) {
-  const params = await searchParams;
-  const rawEntrance = firstValue(params.pintu);
-  const initialEntranceId = place.entrances.some(
-    (entrance) => entrance.id === rawEntrance,
-  )
-    ? rawEntrance
-    : undefined;
-
-  return (
-    <NavigationExperience
-      place={place}
-      initialEntranceId={initialEntranceId}
-    />
-  );
-}
-
-function NavigationFallback() {
-  return (
-    <div role="status" aria-live="polite">
-      <span className="sr-only">Memuat halaman navigasi…</span>
-      <div
-        aria-hidden="true"
-        className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]"
-      >
-        <div className="aspect-[4/3] animate-pulse rounded-sheet border border-line bg-surface-muted sm:aspect-[16/11]" />
-        <div className="h-80 animate-pulse rounded-sheet border border-line bg-surface-muted" />
-      </div>
-    </div>
-  );
-}
-
-function NavigationPageSkeleton() {
+function NavigationSkeleton() {
   return (
     <div role="status" aria-live="polite" className="container-page py-10">
-      <span className="sr-only">Memuat halaman navigasi…</span>
+      <span className="sr-only">Memuat navigasi…</span>
       <div aria-hidden="true" className="space-y-4">
-        <div className="h-5 w-48 animate-pulse rounded-full bg-surface-muted" />
+        <div className="h-6 w-52 animate-pulse rounded-full bg-surface-muted" />
         <div className="h-10 w-2/3 animate-pulse rounded-card bg-surface-muted" />
-        <NavigationFallback />
+        <div className="h-[320px] animate-pulse rounded-sheet border border-line bg-surface-muted sm:h-[380px]" />
       </div>
     </div>
   );
@@ -88,24 +44,20 @@ function NavigationPageSkeleton() {
 
 export default function NavigationPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<NavigationSearchParams>;
 }) {
   return (
-    <Suspense fallback={<NavigationPageSkeleton />}>
-      <NavigationPageContent params={params} searchParams={searchParams} />
+    <Suspense fallback={<NavigationSkeleton />}>
+      <NavigationContent params={params} />
     </Suspense>
   );
 }
 
-async function NavigationPageContent({
+async function NavigationContent({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<NavigationSearchParams>;
 }) {
   const { slug } = await params;
   const place = await getPlaceBySlug(slug);
@@ -175,22 +127,20 @@ async function NavigationPageContent({
 
               <p className="mt-3 flex items-start gap-1.5 text-sm text-ink-muted">
                 <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-                {place.address}
+                {placeLocationLabel(place)}
               </p>
             </div>
 
             <p className="max-w-xs rounded-card border border-line bg-surface px-4 py-3 text-xs leading-relaxed text-ink-muted shadow-xs">
-              Pilih pintu masuk yang paling sesuai. Petunjuk arah berupa teks
-              tetap bisa dipakai tanpa peta atau suara.
+              Navigasi memakai lokasi perangkatmu saat ini. Garis biru mengikuti
+              pergerakan dan rute dihitung ulang otomatis bila keluar jalur.
             </p>
           </div>
         </div>
       </section>
 
       <div className="container-page py-8 lg:py-10">
-        <Suspense fallback={<NavigationFallback />}>
-          <NavigationContent place={place} searchParams={searchParams} />
-        </Suspense>
+        <NavigationExperience place={place} />
       </div>
     </>
   );

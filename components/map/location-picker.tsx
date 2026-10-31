@@ -24,7 +24,7 @@ export function LocationPicker({ className, ...props }: LocationPickerProps) {
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-card border border-line bg-surface",
+        "relative isolate z-0 overflow-hidden rounded-card border border-line bg-surface",
         className,
       )}
     >

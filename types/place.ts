@@ -28,10 +28,6 @@ export type LatLng = {
   longitude: number;
 };
 
-export type PlaceOrigin = LatLng & {
-  label: string;
-};
-
 export type EntranceRoute = {
   distance: string;
   duration: string;
@@ -48,6 +44,12 @@ export type Entrance = LatLng & {
   features: Record<AccessibilityKey, FeatureStatus>;
 };
 
+export type PlacePhotoItem = {
+  id: string;
+  url: string;
+  alt: string;
+};
+
 export type Review = {
   id: string;
   author: string;
@@ -58,28 +60,35 @@ export type Review = {
 };
 
 export type Place = LatLng & {
+  id: string;
   slug: string;
   name: string;
   category: PlaceCategory;
-  city: string;
-  province: string;
-  address: string;
+  city: string | null;
+  province: string | null;
+  address: string | null;
   description: string;
   contributor: string;
+  authorAvatarUrl: string | null;
   createdAt: string;
   rating: number;
   reviewCount: number;
+  likeCount: number;
+  viewerHasLiked: boolean;
+  photos: PlacePhotoItem[];
   entrances: Entrance[];
   reviews: Review[];
 };
 
-export type PlaceSummary = Omit<Place, "entrances" | "reviews"> & {
-  entranceCount: number;
+export type PlaceSummary = Omit<
+  Place,
+  "entrances" | "reviews" | "photos"
+> & {
   availableFeatures: AccessibilityKey[];
+  coverPhotoUrl: string | null;
+  photoCount: number;
 };
 
 export type PlaceDetail = Place & {
-  entranceCount: number;
   availableFeatures: AccessibilityKey[];
-  defaultOrigin: PlaceOrigin | null;
 };

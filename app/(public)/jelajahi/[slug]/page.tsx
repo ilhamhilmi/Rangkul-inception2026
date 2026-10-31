@@ -4,31 +4,30 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PlaceMap } from "@/components/map/place-map";
 import { CategoryBadge } from "@/components/places/category-badge";
-import { EntranceCard } from "@/components/places/entrance-card";
 import { FeatureChip } from "@/components/places/feature-chip";
-import { PlaceGallery } from "@/components/places/place-gallery";
+import { HelpfulButton } from "@/components/places/helpful-button";
+import { PhotoCarousel } from "@/components/places/photo-carousel";
+import { placeLocationLabel } from "@/components/places/post-card";
 import { RatingDisplay } from "@/components/places/rating-display";
 import { ReviewSection } from "@/components/places/review-section";
 import { ButtonLink } from "@/components/ui/button";
 import {
   CalendarIcon,
-  CheckIcon,
+  CameraIcon,
   ChevronRightIcon,
-  ClockIcon,
-  DoorIcon,
   InfoIcon,
   MapPinIcon,
   NavigationIcon,
   ShieldCheckIcon,
   UserIcon,
-  WalkIcon,
 } from "@/components/ui/icons";
+import { ACCESSIBILITY_FEATURES } from "@/lib/constants/places";
+import { getCurrentUser } from "@/lib/auth/session";
 import {
-  ACCESSIBILITY_FEATURES,
-  getMainEntrance,
-} from "@/lib/constants/places";
-import { getPlaceBySlug } from "@/server/places/queries";
-import { formatDate, pluralize } from "@/lib/utils/format";
+  getPlaceBySlug,
+  getViewerLikedPlace,
+} from "@/server/places/queries";
+import { formatDate } from "@/lib/utils/format";
 import type { PlaceDetail } from "@/types/place";
 
 export async function generateMetadata({
@@ -45,7 +44,7 @@ export async function generateMetadata({
 
   return {
     title: place.name,
-    description: `Info aksesibilitas ${place.name} di ${place.city}: ${place.entranceCount} pintu masuk, fasilitas per pintu, dan rute navigasi.`,
+    description: `Info aksesibilitas ${place.name} di ${placeLocationLabel(place)}: ${place.photos.length} foto lokasi dan rute navigasi pejalan kaki.`,
   };
 }
 
@@ -80,15 +79,30 @@ async function PlaceDetailContent({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const place = await getPlaceBySlug(slug);
+  const [place, user] = await Promise.all([getPlaceBySlug(slug), getCurrentUser()]);
 
   if (!place) notFound();
 
-  return <PlaceDetailView place={place} />;
+  const viewerHasLiked = user
+    ? await getViewerLikedPlace(user.id, place.id)
+    : false;
+
+  return (
+    <PlaceDetailView
+      place={{ ...place, viewerHasLiked }}
+      isAuthenticated={Boolean(user)}
+    />
+  );
 }
 
-function PlaceDetailView({ place }: { place: PlaceDetail }) {
-  const mainEntrance = getMainEntrance(place);
+function PlaceDetailView({
+  place,
+  isAuthenticated,
+}: {
+  place: PlaceDetail;
+  isAuthenticated: boolean;
+}) {
+  const navigationHref = `/jelajahi/${place.slug}/navigasi`;
   const availableFeatureList = ACCESSIBILITY_FEATURES.filter((feature) =>
     place.availableFeatures.includes(feature.key),
   );
@@ -140,8 +154,8 @@ function PlaceDetailView({ place }: { place: PlaceDetail }) {
               <div className="flex flex-wrap items-center gap-2">
                 <CategoryBadge category={place.category} />
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-muted">
-                  <DoorIcon className="h-3.5 w-3.5 text-primary-700" />
-                  {place.entranceCount} pintu masuk
+                  <CameraIcon className="h-3.5 w-3.5 text-primary-700" />
+                  {place.photos.length} foto
                 </span>
               </div>
 
@@ -151,18 +165,24 @@ function PlaceDetailView({ place }: { place: PlaceDetail }) {
 
               <p className="mt-3 flex items-start gap-1.5 text-sm text-ink-muted">
                 <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-                {place.address}
+                {placeLocationLabel(place)}
               </p>
 
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-                <RatingDisplay
-                  rating={place.rating}
-                  reviewCount={place.reviewCount}
-                  showLabel
-                />
+                {place.reviewCount > 0 ? (
+                  <RatingDisplay
+                    rating={place.rating}
+                    reviewCount={place.reviewCount}
+                    showLabel
+                  />
+                ) : (
+                  <span className="text-xs text-ink-muted">
+                    Belum ada rating aksesibilitas
+                  </span>
+                )}
                 <span className="inline-flex items-center gap-1.5 text-xs text-ink-muted">
                   <UserIcon className="h-3.5 w-3.5" />
-                  Dikontribusikan oleh {place.contributor}
+                  Diposting oleh {place.contributor}
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs text-ink-muted">
                   <CalendarIcon className="h-3.5 w-3.5" />
@@ -173,20 +193,30 @@ function PlaceDetailView({ place }: { place: PlaceDetail }) {
               </div>
             </div>
 
-            <ButtonLink
-              href={`/jelajahi/${place.slug}/navigasi?pintu=${mainEntrance.id}`}
-              size="lg"
-              className="self-start lg:self-auto"
-            >
-              <NavigationIcon className="h-4 w-4" />
-              Navigasi ke pintu utama
-            </ButtonLink>
+            <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
+              <HelpfulButton
+                placeId={place.id}
+                initialCount={place.likeCount}
+                initialLiked={place.viewerHasLiked}
+                isAuthenticated={isAuthenticated}
+                nextPath={`/jelajahi/${place.slug}`}
+                size="md"
+              />
+              <ButtonLink href={navigationHref} size="lg">
+                <NavigationIcon className="h-4 w-4" />
+                Buka navigasi
+              </ButtonLink>
+            </div>
           </div>
         </div>
       </section>
 
       <div className="container-page py-8 lg:py-10">
-        <PlaceGallery category={place.category} name={place.name} />
+        <PhotoCarousel
+          photos={place.photos}
+          name={place.name}
+          category={place.category}
+        />
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
           <div className="order-2 space-y-10 lg:order-1">
@@ -200,17 +230,6 @@ function PlaceDetailView({ place }: { place: PlaceDetail }) {
               <p className="prose-rangkul mt-3 text-ink-muted">
                 {place.description}
               </p>
-
-              <p className="mt-5 flex items-start gap-2.5 rounded-card border border-primary-200 bg-primary-50 p-4 text-sm leading-relaxed text-primary-900">
-                <ShieldCheckIcon className="mt-0.5 h-5 w-5 shrink-0 text-primary-700" />
-                <span>
-                  <strong className="font-semibold">
-                    Utamakan pintu yang sesuai kebutuhanmu.
-                  </strong>{" "}
-                  Fasilitas dicatat per pintu masuk, jadi kondisi di satu pintu
-                  bisa berbeda dengan pintu lainnya.
-                </span>
-              </p>
             </section>
 
             <section aria-labelledby="fasilitas-heading">
@@ -218,10 +237,10 @@ function PlaceDetailView({ place }: { place: PlaceDetail }) {
                 id="fasilitas-heading"
                 className="text-2xl font-bold tracking-tight text-ink"
               >
-                Fasilitas di tempat ini
+                Fasilitas yang tercatat
               </h2>
               <p className="mt-1.5 text-sm text-ink-muted">
-                Tersedia di setidaknya satu pintu masuk.
+                Berdasarkan catatan kontributor untuk lokasi ini.
               </p>
               <ul className="mt-4 flex flex-wrap gap-2">
                 {availableFeatureList.map((feature) => (
@@ -230,11 +249,19 @@ function PlaceDetailView({ place }: { place: PlaceDetail }) {
                   </li>
                 ))}
               </ul>
-              {missingFeatureList.length > 0 ? (
+              {availableFeatureList.length === 0 ? (
+                <p className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-ink-muted">
+                  <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  Kontributor belum mencatat fasilitas aksesibilitas di lokasi
+                  ini.
+                </p>
+              ) : null}
+              {missingFeatureList.length > 0 &&
+              availableFeatureList.length > 0 ? (
                 <p className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-ink-muted">
                   <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   <span>
-                    Belum tercatat tersedia di pintu mana pun:{" "}
+                    Belum tercatat tersedia:{" "}
                     {missingFeatureList
                       .map((feature) => feature.label)
                       .join(", ")}
@@ -242,41 +269,6 @@ function PlaceDetailView({ place }: { place: PlaceDetail }) {
                   </span>
                 </p>
               ) : null}
-            </section>
-
-            <section aria-labelledby="pintu-heading">
-              <div className="flex flex-wrap items-end justify-between gap-2">
-                <div>
-                  <h2
-                    id="pintu-heading"
-                    className="text-2xl font-bold tracking-tight text-ink"
-                  >
-                    Pintu masuk
-                  </h2>
-                  <p className="mt-1.5 text-sm text-ink-muted">
-                    {place.entranceCount}{" "}
-                    {pluralize(place.entranceCount, "pintu")} terdata. Pilih
-                    yang paling sesuai sebelum berangkat.
-                  </p>
-                </div>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-success-50 px-2.5 py-1 text-xs font-semibold text-success-700">
-                  <CheckIcon className="h-3.5 w-3.5" />
-                  {mainEntrance.label} disarankan
-                </span>
-              </div>
-
-              <ul
-                id="pintu"
-                className="mt-4 scroll-mt-24 space-y-4"
-              >
-                {place.entrances.map((entrance) => (
-                  <EntranceCard
-                    key={entrance.id}
-                    entrance={entrance}
-                    placeSlug={place.slug}
-                  />
-                ))}
-              </ul>
             </section>
 
             <ReviewSection
@@ -294,65 +286,35 @@ function PlaceDetailView({ place }: { place: PlaceDetail }) {
                 name={place.name}
                 latitude={place.latitude}
                 longitude={place.longitude}
-                entrances={place.entrances}
               />
 
               <div className="mt-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary-700">
-                  Pintu disarankan
+                  Lokasi
                 </p>
-                <p className="mt-1 flex items-center gap-1.5 text-lg font-semibold text-ink">
-                  <DoorIcon className="h-4 w-4 text-primary-700" />
-                  {mainEntrance.label}
+                <p className="mt-1 flex items-start gap-1.5 text-sm font-medium text-ink">
+                  <MapPinIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+                  {placeLocationLabel(place)}
                 </p>
-                <p className="mt-1 text-sm leading-relaxed text-ink-muted">
-                  {mainEntrance.notes}
+                <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+                  {place.latitude.toFixed(5)}, {place.longitude.toFixed(5)}
                 </p>
               </div>
 
-              <dl className="mt-4 grid grid-cols-2 gap-3 border-y border-line py-3 text-sm">
-                <div>
-                  <dt className="text-xs text-ink-muted">Jarak contoh</dt>
-                  <dd className="mt-0.5 flex items-center gap-1.5 font-medium text-ink">
-                    <WalkIcon className="h-4 w-4 text-primary-700" />
-                    {mainEntrance.route.distance}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-ink-muted">Estimasi</dt>
-                  <dd className="mt-0.5 flex items-center gap-1.5 font-medium text-ink">
-                    <ClockIcon className="h-4 w-4 text-primary-700" />
-                    {mainEntrance.route.duration}
-                  </dd>
-                </div>
-              </dl>
-
-              <ButtonLink
-                href={`/jelajahi/${place.slug}/navigasi?pintu=${mainEntrance.id}`}
-                size="md"
-                className="mt-4 w-full"
-              >
+              <ButtonLink href={navigationHref} size="md" className="mt-4 w-full">
                 <NavigationIcon className="h-4 w-4" />
-                Buka navigasi
+                Navigasi ke lokasi ini
               </ButtonLink>
-
-              <a
-                href="#pintu"
-                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-button px-3 py-2 text-sm font-medium text-primary-800 underline-offset-4 hover:underline"
-              >
-                Bandingkan {place.entranceCount} pintu masuk
-                <ChevronRightIcon className="h-4 w-4 rotate-90" />
-              </a>
             </div>
 
             <div className="rounded-card border border-line bg-surface-muted/60 p-4 text-xs leading-relaxed text-ink-muted">
               <p className="flex items-center gap-1.5 font-semibold text-ink">
                 <ShieldCheckIcon className="h-4 w-4 text-primary-700" />
-                Data dari komunitas
+                Dari kontributor
               </p>
               <p className="mt-1.5">
-                Informasi ini adalah data contoh. Setelah backend tersambung,
-                setiap kontribusi akan melewati moderasi sebelum tayang.
+                Informasi ini berasal dari pengalaman pengguna. Kondisi lokasi
+                bisa berubah, jadi tetap periksa situasi terkini saat tiba.
               </p>
             </div>
           </aside>

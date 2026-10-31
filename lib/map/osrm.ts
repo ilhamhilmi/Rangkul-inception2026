@@ -8,6 +8,8 @@ type OsrmStep = {
     type: string;
     modifier?: string;
     exit?: number;
+    /** [longitude, latitude] */
+    location?: [number, number];
   };
 };
 
@@ -51,7 +53,7 @@ export function describeStep(step: OsrmStep): string {
     case "depart":
       return road ? `Mulai perjalanan di ${road}.` : "Mulai perjalanan dari titik ini.";
     case "arrive":
-      return "Tiba di pintu masuk tujuan.";
+      return "Tiba di tujuan.";
     case "turn":
       if (modifier.includes("left")) {
         return `Belok kiri ke ${roadName(road)}.`;
@@ -95,6 +97,12 @@ function toSteps(steps: OsrmStep[]): RouteStep[] {
       instruction: describeStep(step),
       distanceMeters: Math.round(step.distance),
       maneuver: step.maneuver.type,
+      location: step.maneuver.location
+        ? ([step.maneuver.location[1], step.maneuver.location[0]] as [
+            number,
+            number,
+          ])
+        : undefined,
     }));
 }
 
@@ -119,10 +127,10 @@ export async function fetchWalkingRoute({
     `${destination.longitude},${destination.latitude}`,
   ].join(";");
 
-  const url = new URL(
-    `/route/v1/foot/${coordinates}`,
-    `${mapEnv.osrmUrl.replace(/\/$/, "")}/`,
-  );
+  // Jangan memakai string path berawalan "/" pada `new URL`, karena akan
+  // membuang sub-path endpoint (mis. `/routed-foot`) dan menghasilkan 404.
+  const baseUrl = mapEnv.osrmUrl.replace(/\/+$/, "");
+  const url = new URL(`${baseUrl}/route/v1/foot/${coordinates}`);
   url.searchParams.set("overview", "full");
   url.searchParams.set("geometries", "geojson");
   url.searchParams.set("steps", "true");

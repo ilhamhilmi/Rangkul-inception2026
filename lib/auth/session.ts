@@ -2,6 +2,7 @@ import "server-only";
 
 import type { User } from "@supabase/supabase-js";
 import { Prisma } from "@prisma/client";
+import { connection } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -77,6 +78,9 @@ function profileFromAuthUser(user: User): ProfileInput {
 }
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
+  // Supabase memakai waktu saat memvalidasi sesi. Tunggu request masuk dulu
+  // agar nilainya tidak dihitung saat prerender (Cache Components).
+  await connection();
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },

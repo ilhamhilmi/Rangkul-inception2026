@@ -1,26 +1,25 @@
-import type {
-  Coordinate,
-  MapEntrance,
-  RouteOrigin,
-  WalkingRoute,
-} from "@/types/map";
+import type { Coordinate, RouteOrigin, WalkingRoute } from "@/types/map";
 
 export type PlaceMapProps = {
   slug: string;
   name: string;
   latitude: number;
   longitude: number;
-  entrances: MapEntrance[];
   className?: string;
 };
 
 export type PlaceMapCanvasProps = PlaceMapProps;
 
+export type RouteDestination = Coordinate & {
+  label: string;
+};
+
 export type RouteMapProps = {
-  origin: RouteOrigin;
-  destination: MapEntrance;
-  entrances: MapEntrance[];
+  origin: RouteOrigin | null;
+  destination: RouteDestination;
   route: WalkingRoute | null;
+  followUser?: boolean;
+  onUserInteract?: () => void;
   className?: string;
 };
 

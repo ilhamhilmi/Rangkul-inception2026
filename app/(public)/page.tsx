@@ -2,12 +2,11 @@ import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
 import {
   AccessibilityIcon,
-  AlertIcon,
   ArrowRightIcon,
   CheckIcon,
-  DoorIcon,
   HeartHandshakeIcon,
   MapPinIcon,
+  NavigationIcon,
   RouteIcon,
   ShieldCheckIcon,
   SparklesIcon,
@@ -24,7 +23,7 @@ const features = [
       "Cari tempat berdasarkan fasilitas yang benar-benar kamu butuhkan, bukan sekadar label “ramah disabilitas”.",
     points: [
       "Filter ramp, lift, toilet aksesibel, dan guiding block",
-      "Info sampai pintu masuk mana yang bisa dilewati",
+      "Satu postingan mewakili satu lokasi dengan titik peta yang jelas",
     ],
     action: { href: "/jelajahi", label: "Mulai jelajahi" },
   },
@@ -56,33 +55,12 @@ const features = [
   },
 ];
 
-const entrances = [
-  {
-    name: "Pintu Utara",
-    detail: "Ramp landai, pintu otomatis, lebar 90 cm.",
-    accessible: true,
-    main: true,
-  },
-  {
-    name: "Pintu Selatan",
-    detail: "Tiga anak tangga, tanpa ramp. Alternatif terdekat 40 meter.",
-    accessible: false,
-    main: false,
-  },
-  {
-    name: "Pintu Samping",
-    detail: "Ramp tersedia, jalur ke lift utama sekitar 15 meter.",
-    accessible: true,
-    main: false,
-  },
-];
-
 const trust = [
   {
     icon: SparklesIcon,
-    title: "Moderasi berbantuan AI",
+    title: "Kontribusi komunitas",
     description:
-      "Konten yang berisiko ditahan untuk ditinjau admin sebelum tayang.",
+      "Informasi tempat berasal dari pengalaman pengguna dan bisa diperbarui.",
   },
   {
     icon: ShieldCheckIcon,
@@ -145,9 +123,9 @@ export default function HomePage() {
                 <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
                 <span>
                   <strong className="block font-semibold text-ink">
-                    Level pintu
+                    Satu lokasi
                   </strong>
-                  <span className="text-ink-muted">Bukan cuma bangunan</span>
+                  <span className="text-ink-muted">Satu titik peta</span>
                 </span>
               </li>
               <li className="flex items-start gap-2">
@@ -177,146 +155,68 @@ export default function HomePage() {
               className="absolute -inset-4 rounded-[2rem] bg-primary-100/60 blur-2xl"
             />
 
-            <figure className="relative overflow-hidden rounded-sheet border border-line bg-surface shadow-lifted">
-              <div className="relative h-44 overflow-hidden bg-primary-50">
-                <svg
-                  viewBox="0 0 480 220"
-                  className="h-full w-full"
-                  aria-hidden="true"
-                >
-                  <rect
-                    width="480"
-                    height="220"
-                    fill="var(--color-primary-50)"
-                  />
-                  <path
-                    d="M-20 170C80 150 120 90 220 100s150 70 280 40"
-                    stroke="var(--color-primary-200)"
-                    strokeWidth="26"
-                    fill="none"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M60 -20c20 70 60 110 40 260"
-                    stroke="var(--color-primary-100)"
-                    strokeWidth="18"
-                    fill="none"
-                  />
-                  <path
-                    d="M300 -20c-20 80 60 120 40 260"
-                    stroke="var(--color-primary-100)"
-                    strokeWidth="14"
-                    fill="none"
-                  />
-                  <path
-                    d="M0 60h480M0 140h480"
-                    stroke="var(--color-line)"
-                    strokeWidth="2"
-                    strokeDasharray="6 6"
-                  />
-                  <circle
-                    cx="300"
-                    cy="96"
-                    r="34"
-                    fill="var(--color-primary-600)"
-                    opacity="0.12"
-                  />
-                  <circle
-                    cx="300"
-                    cy="96"
-                    r="18"
-                    fill="var(--color-primary-600)"
-                    opacity="0.2"
-                  />
-                  <circle
-                    cx="300"
-                    cy="96"
-                    r="7"
-                    fill="var(--color-primary-600)"
-                    stroke="var(--color-surface)"
-                    strokeWidth="3"
-                  />
-                </svg>
-                <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-surface/95 px-2.5 py-1 text-xs font-semibold text-primary-800 shadow-xs">
-                  <span
-                    aria-hidden="true"
-                    className="h-1.5 w-1.5 rounded-full bg-primary-600"
-                  />
-                  Contoh tampilan
-                </span>
-              </div>
+            <figure className="relative overflow-hidden rounded-sheet border border-line bg-surface p-6 shadow-lifted sm:p-8">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-800">
+                <NavigationIcon className="h-3.5 w-3.5" />
+                Navigasi live
+              </span>
 
-              <figcaption className="p-5 sm:p-6">
-                <div className="flex items-center gap-1.5 text-sm text-ink-muted">
-                  <MapPinIcon className="h-4 w-4 text-primary-700" />
-                  Jakarta Pusat
-                </div>
+              <h2 className="mt-4 text-2xl font-bold tracking-tight text-ink">
+                Dari lokasi kamu, langsung ke tujuan.
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+                Titik awal diambil otomatis dari GPS perangkat, jadi tidak ada
+                titik contoh yang perlu diisi manual.
+              </p>
 
-                <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
-                  <p className="text-xl font-semibold text-ink">Taman Kota</p>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-success-50 px-2.5 py-1 text-xs font-semibold text-success-700">
-                    <CheckIcon className="h-3.5 w-3.5" />
-                    Bisa diakses
-                  </span>
-                </div>
+              <ol className="mt-6 space-y-4">
+                {[
+                  {
+                    icon: MapPinIcon,
+                    title: "Izinkan lokasi",
+                    description:
+                      "Rute dihitung dari posisi kamu saat halaman navigasi dibuka.",
+                  },
+                  {
+                    icon: RouteIcon,
+                    title: "Ikuti garis biru",
+                    description:
+                      "Peta mengikuti pergerakan dan menghitung ulang bila kamu keluar jalur.",
+                  },
+                  {
+                    icon: NavigationIcon,
+                    title: "Sampai tujuan",
+                    description:
+                      "Jarak, estimasi waktu, dan petunjuk arah diperbarui selama perjalanan.",
+                  },
+                ].map((step) => {
+                  const Icon = step.icon;
+                  return (
+                    <li key={step.title} className="flex gap-3">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary-50 text-primary-700">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-ink">
+                          {step.title}
+                        </p>
+                        <p className="mt-0.5 text-sm leading-relaxed text-ink-muted">
+                          {step.description}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
 
-                <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-                  Pintu utara punya ramp landai dan pintu otomatis. Jalur ke
-                  toilet aksesibel tersedia tanpa tangga.
-                </p>
-
-                <ul
-                  className="mt-4 flex flex-wrap gap-2"
-                  aria-label="Fasilitas contoh"
-                >
-                  {["Ramp", "Pintu otomatis", "Toilet aksesibel"].map(
-                    (facility) => (
-                      <li
-                        key={facility}
-                        className="rounded-full border border-primary-200 bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-800"
-                      >
-                        {facility}
-                      </li>
-                    ),
-                  )}
-                </ul>
-
-                <div className="mt-5 grid grid-cols-2 gap-3 border-t border-line pt-4 text-sm">
-                  <div>
-                    <span className="block text-xs text-ink-muted">
-                      Pintu terdekat
-                    </span>
-                    <span className="mt-0.5 flex items-center gap-1.5 font-medium text-ink">
-                      <DoorIcon className="h-4 w-4 text-primary-700" />
-                      Utara
-                    </span>
-                  </div>
-                  <div>
-                    <span className="block text-xs text-ink-muted">Jalur</span>
-                    <span className="mt-0.5 flex items-center gap-1.5 font-medium text-ink">
-                      <RouteIcon className="h-4 w-4 text-primary-700" />
-                      Ramp landai
-                    </span>
-                  </div>
-                </div>
-              </figcaption>
+              <p className="mt-6 rounded-card bg-primary-50 p-4 text-sm leading-relaxed text-primary-900">
+                Buka halaman detail tempat mana pun, lalu pilih{" "}
+                <strong className="font-semibold">
+                  Navigasi ke lokasi ini
+                </strong>
+                .
+              </p>
             </figure>
-
-            <div className="absolute -left-4 top-24 hidden rounded-card border border-line bg-surface p-3 shadow-card sm:block">
-              <div className="flex items-center gap-2.5">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-secondary-100 text-secondary-700">
-                  <AccessibilityIcon className="h-4 w-4" />
-                </span>
-                <span>
-                  <strong className="block text-sm font-semibold text-ink">
-                    3 alternatif pintu
-                  </strong>
-                  <span className="text-xs text-ink-muted">
-                    Pilih yang paling mudah
-                  </span>
-                </span>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -396,16 +296,16 @@ export default function HomePage() {
               Bukan sekadar label “aksesibel”.
             </h2>
             <p className="mt-4 text-lg leading-relaxed text-ink-muted">
-              Satu bangunan bisa punya beberapa pintu dengan kondisi berbeda.
-              Rangkul mencatat fasilitas sampai level pintu masuk, supaya kamu
-              tidak perlu menebak atau baru tahu setelah sampai.
+              Satu postingan mewakili satu lokasi. Rangkul menyimpan foto,
+              fasilitas, dan titik peta yang bisa langsung dipakai untuk
+              navigasi, supaya kamu tahu kondisi tempat sebelum berangkat.
             </p>
 
             <ul className="mt-8 space-y-4">
               {[
-                "Tahu pintu mana yang ber-ramp dan pintu mana yang harus dihindari.",
-                "Lihat kondisi jalur, lift, toilet, dan parkir sebelum berangkat.",
-                "Dapatkan arahan ke pintu yang paling sesuai dengan kebutuhanmu.",
+                "Lihat foto dan fasilitas yang tersedia di lokasi.",
+                "Buka navigasi langsung dari halaman detail tempat.",
+                "Ikuti rute live dari lokasi perangkatmu, tanpa titik awal manual.",
               ].map((item) => (
                 <li key={item} className="flex items-start gap-3">
                   <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary-100 text-primary-800">
@@ -418,64 +318,37 @@ export default function HomePage() {
 
             <p className="mt-8 flex items-start gap-2.5 rounded-card border border-line bg-surface p-4 text-sm text-ink-muted">
               <ShieldCheckIcon className="mt-0.5 h-5 w-5 shrink-0 text-primary-700" />
-              Data berasal dari kontribusi pengguna dan melewati moderasi sebelum
-              ditampilkan.
+              Informasi berasal dari kontributor. Kondisi lokasi bisa berubah,
+              jadi tetap periksa situasi terkini saat tiba.
             </p>
           </div>
 
           <div className="rounded-sheet border border-line bg-surface p-5 shadow-card sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
               <div>
-                <p className="text-xs text-ink-muted">Contoh daftar pintu</p>
+                <p className="text-xs text-ink-muted">Isi satu postingan</p>
                 <h3 className="mt-0.5 text-lg font-semibold text-ink">
-                  Taman Kota
+                  Informasi yang bisa kamu pakai
                 </h3>
               </div>
               <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-ink-muted">
-                3 pintu
+                1 lokasi
               </span>
             </div>
 
             <ul className="divide-y divide-line">
-              {entrances.map((entrance) => (
-                <li key={entrance.name} className="flex gap-3 py-4">
-                  <span
-                    className={[
-                      "mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full",
-                      entrance.accessible
-                        ? "bg-success-50 text-success-700"
-                        : "bg-danger-50 text-danger-700",
-                    ].join(" ")}
-                  >
-                    {entrance.accessible ? (
-                      <CheckIcon className="h-4 w-4" />
-                    ) : (
-                      <AlertIcon className="h-4 w-4" />
-                    )}
+              {[
+                "Foto lokasi dan catatan kondisi dari kontributor.",
+                "Fasilitas seperti ramp, lift, toilet aksesibel, dan guiding block.",
+                "Titik peta yang langsung terhubung ke navigasi live.",
+              ].map((item) => (
+                <li key={item} className="flex gap-3 py-4">
+                  <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-success-50 text-success-700">
+                    <CheckIcon className="h-4 w-4" />
                   </span>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-ink">{entrance.name}</p>
-                      {entrance.main ? (
-                        <span className="rounded-full bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-800">
-                          Utama
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="mt-0.5 text-sm text-ink-muted">
-                      {entrance.detail}
-                    </p>
-                    <p
-                      className={[
-                        "mt-1 text-xs font-medium",
-                        entrance.accessible
-                          ? "text-success-700"
-                          : "text-danger-700",
-                      ].join(" ")}
-                    >
-                      {entrance.accessible ? "Bisa diakses" : "Ada hambatan"}
-                    </p>
-                  </div>
+                  <p className="text-sm leading-relaxed text-ink-muted">
+                    {item}
+                  </p>
                 </li>
               ))}
             </ul>
@@ -484,8 +357,8 @@ export default function HomePage() {
               <p className="flex items-start gap-2">
                 <RouteIcon className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
-                  <strong className="font-semibold">Rute disarankan:</strong>{" "}
-                  gunakan Pintu Utara, lalu ikuti jalur ramp ke lift utama.
+                  <strong className="font-semibold">Rute live:</strong> buka
+                  navigasi dan biarkan aplikasi menghitung jalur dari lokasimu.
                 </span>
               </p>
             </div>
@@ -503,11 +376,12 @@ export default function HomePage() {
               Kepercayaan & keamanan
             </p>
             <h2 className="mt-3 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-              Data dari komunitas, dijaga bersama.
+              Data dari komunitas, diperbarui bersama.
             </h2>
             <p className="mt-4 text-lg leading-relaxed text-ink-muted">
-              Karena kontennya berasal dari pengguna, kualitas dan keamanan
-              dijaga lewat moderasi, verifikasi, dan mekanisme pelaporan.
+              Karena kontennya berasal dari pengguna, setiap detail bisa
+              dilengkapi dan diperbarui oleh orang yang benar-benar datang ke
+              lokasi.
             </p>
           </div>
 

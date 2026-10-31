@@ -49,6 +49,39 @@ export function assertDatabaseEnv() {
   return parsed.data;
 }
 
+const geminiEnvSchema = z.object({
+  GEMINI_API_KEY: z.string().min(1).optional(),
+  GEMINI_MODERATION_MODEL: z.string().min(1).optional(),
+});
+
+/**
+ * Moderasi AI bisa dimatikan sementara agar postingan langsung tayang.
+ * Default mati; aktifkan dengan `AI_MODERATION_ENABLED=true`.
+ */
+export function isModerationEnabled() {
+  const value = process.env.AI_MODERATION_ENABLED?.trim().toLowerCase();
+  return value === "true" || value === "1";
+}
+
+/**
+ * Konfigurasi Gemini untuk moderasi postingan. Key dibuat opsional: bila belum
+ * diisi, moderasi berjalan dalam mode fail-safe (postingan tidak otomatis tayang).
+ */
+export function getGeminiEnv() {
+  if (typeof window !== "undefined") {
+    throw new Error("getGeminiEnv hanya boleh dipanggil di server.");
+  }
+
+  const parsed = geminiEnvSchema.safeParse(process.env);
+
+  return {
+    apiKey: parsed.success ? parsed.data.GEMINI_API_KEY : undefined,
+    model:
+      (parsed.success ? parsed.data.GEMINI_MODERATION_MODEL : undefined) ||
+      "gemini-3.1-flash-lite",
+  } as const;
+}
+
 const serverEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   SUPABASE_SECRET_KEY: z.string().min(1).optional(),

@@ -1,17 +1,13 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input, Label, Select } from "@/components/ui/field";
-import { SearchIcon, SlidersIcon, XIcon } from "@/components/ui/icons";
-import {
-  ACCESSIBILITY_FEATURES,
-  PLACE_CATEGORIES,
-} from "@/lib/constants/places";
+import { Input, Label } from "@/components/ui/field";
+import { SearchIcon, XIcon } from "@/components/ui/icons";
+import { PLACE_CATEGORIES } from "@/lib/constants/places";
 import { cn } from "@/lib/utils/cn";
 
 export type FilterValues = {
   q: string;
   kategori: string;
-  fasilitas: string;
 };
 
 function buildHref(values: Partial<FilterValues>) {
@@ -20,9 +16,6 @@ function buildHref(values: Partial<FilterValues>) {
   if (values.kategori && values.kategori !== "semua") {
     params.set("kategori", values.kategori);
   }
-  if (values.fasilitas && values.fasilitas !== "semua") {
-    params.set("fasilitas", values.fasilitas);
-  }
   const query = params.toString();
   return query ? `/jelajahi?${query}` : "/jelajahi";
 }
@@ -30,18 +23,21 @@ function buildHref(values: Partial<FilterValues>) {
 export function PlaceFilters({ values }: { values: FilterValues }) {
   const hasFilter =
     values.q.length > 0 ||
-    (values.kategori !== "" && values.kategori !== "semua") ||
-    (values.fasilitas !== "" && values.fasilitas !== "semua");
+    (values.kategori !== "" && values.kategori !== "semua");
 
   const activeCategory = values.kategori || "semua";
 
   return (
     <div className="rounded-sheet border border-line bg-surface p-4 shadow-xs sm:p-5">
       <form action="/jelajahi" method="get" role="search" aria-label="Cari tempat">
+        {activeCategory !== "semua" ? (
+          <input type="hidden" name="kategori" value={activeCategory} />
+        ) : null}
+
         <div className="grid gap-3 md:grid-cols-[1fr_auto]">
           <div className="relative">
             <Label htmlFor="q" className="sr-only">
-              Kata kunci pencarian
+              Kata kunci nama tempat
             </Label>
             <SearchIcon
               aria-hidden="true"
@@ -52,7 +48,7 @@ export function PlaceFilters({ values }: { values: FilterValues }) {
               name="q"
               type="search"
               defaultValue={values.q}
-              placeholder="Cari nama tempat, kota, atau alamat"
+              placeholder="Cari nama tempat, misalnya Taman Sari"
               className="h-14 pl-11"
             />
           </div>
@@ -60,50 +56,6 @@ export function PlaceFilters({ values }: { values: FilterValues }) {
             <SearchIcon className="h-4 w-4" />
             Cari
           </Button>
-        </div>
-
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="kategori" className="text-xs text-ink-muted">
-              Kategori
-            </Label>
-            <Select
-              id="kategori"
-              name="kategori"
-              defaultValue={activeCategory}
-              className="h-11 text-sm"
-            >
-              <option value="semua">Semua kategori</option>
-              {PLACE_CATEGORIES.map((category) => (
-                <option key={category.value} value={category.value}>
-                  {category.label}
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label
-              htmlFor="fasilitas"
-              className="flex items-center gap-1.5 text-xs text-ink-muted"
-            >
-              <SlidersIcon className="h-3.5 w-3.5" />
-              Fasilitas aksesibilitas
-            </Label>
-            <Select
-              id="fasilitas"
-              name="fasilitas"
-              defaultValue={values.fasilitas || "semua"}
-              className="h-11 text-sm"
-            >
-              <option value="semua">Semua fasilitas</option>
-              {ACCESSIBILITY_FEATURES.map((feature) => (
-                <option key={feature.key} value={feature.key}>
-                  {feature.label}
-                </option>
-              ))}
-            </Select>
-          </div>
         </div>
       </form>
 
@@ -117,7 +69,7 @@ export function PlaceFilters({ values }: { values: FilterValues }) {
         >
           <li>
             <Link
-              href={buildHref({ q: values.q, fasilitas: values.fasilitas })}
+              href={buildHref({ q: values.q })}
               aria-current={activeCategory === "semua" ? "page" : undefined}
               className={cn(
                 "inline-flex h-10 items-center rounded-full border px-4 text-sm font-medium transition-colors",
@@ -134,11 +86,7 @@ export function PlaceFilters({ values }: { values: FilterValues }) {
             return (
               <li key={category.value}>
                 <Link
-                  href={buildHref({
-                    q: values.q,
-                    kategori: category.value,
-                    fasilitas: values.fasilitas,
-                  })}
+                  href={buildHref({ q: values.q, kategori: category.value })}
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "inline-flex h-10 items-center rounded-full border px-4 text-sm font-medium transition-colors",

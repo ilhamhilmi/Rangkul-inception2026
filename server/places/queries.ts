@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { cacheLife, cacheTag } from "next/cache";
 import { getPrisma } from "@/lib/db/prisma";
-import { isAccessibilityKey, isPlaceCategory } from "@/lib/constants/places";
+import { isPlaceCategory } from "@/lib/constants/places";
 import {
   placeDetailInclude,
   placeSummaryInclude,
@@ -12,7 +12,6 @@ import {
 export type PlaceFilters = {
   q?: string;
   kategori?: string;
-  fasilitas?: string;
 };
 
 export async function getPlaceSummaries(filters: PlaceFilters = {}) {
@@ -20,9 +19,8 @@ export async function getPlaceSummaries(filters: PlaceFilters = {}) {
   cacheLife("minutes");
   cacheTag("places");
 
-  const query = filters.q?.trim() ?? "";
+  const query = filters.q?.trim().slice(0, 120) ?? "";
   const category = filters.kategori?.trim() ?? "";
-  const facility = filters.fasilitas?.trim() ?? "";
 
   const where: Prisma.PlaceWhereInput = {
     status: "PUBLISHED",
@@ -32,10 +30,8 @@ export async function getPlaceSummaries(filters: PlaceFilters = {}) {
   if (query) {
     where.OR = [
       { name: { contains: query, mode: "insensitive" } },
-      { address: { contains: query, mode: "insensitive" } },
       { city: { contains: query, mode: "insensitive" } },
-      { province: { contains: query, mode: "insensitive" } },
-      { description: { contains: query, mode: "insensitive" } },
+      { address: { contains: query, mode: "insensitive" } },
     ];
   }
 
@@ -43,23 +39,12 @@ export async function getPlaceSummaries(filters: PlaceFilters = {}) {
     where.category = category.toUpperCase() as Prisma.PlaceWhereInput["category"];
   }
 
-  if (facility && isAccessibilityKey(facility)) {
-    where.entrances = {
-      some: {
-        features: {
-          some: {
-            value: "AVAILABLE",
-            feature: { key: facility },
-          },
-        },
-      },
-    };
-  }
-
   const places = await getPrisma().place.findMany({
     where,
     include: placeSummaryInclude,
-    orderBy: [{ ratingAvg: "desc" }, { reviewCount: "desc" }, { name: "asc" }],
+    orderBy: query
+      ? [{ likes: { _count: "desc" } }, { createdAt: "desc" }]
+      : [{ createdAt: "desc" }],
   });
 
   return places.map(toPlaceSummary);
@@ -91,6 +76,37 @@ export async function getPlaceBySlug(slug: string) {
   });
 
   return place ? toPlaceDetail(place) : null;
+}
+
+/**
+ * Status "Paling membantu" milik pengguna aktif. Sengaja tidak memakai cache
+ * karena berbeda per pengguna dan berubah setelah tombol ditekan.
+ */
+export async function getViewerLikedPlace(userId: string, placeId: string) {
+  const like = await getPrisma().placeLike.findUnique({
+    where: { placeId_userId: { placeId, userId } },
+    select: { id: true },
+  });
+
+  return Boolean(like);
+}
+
+/**
+ * Ambil like milik pengguna untuk sekumpulan postingan sekaligus, dipakai feed
+ * agar tidak perlu satu query per kartu.
+ */
+export async function getViewerLikedPlaceIds(
+  userId: string,
+  placeIds: string[],
+) {
+  if (placeIds.length === 0) return new Set<string>();
+
+  const rows = await getPrisma().placeLike.findMany({
+    where: { userId, placeId: { in: placeIds } },
+    select: { placeId: true },
+  });
+
+  return new Set(rows.map((row) => row.placeId));
 }
 
 export async function getPlaceForNavigation(slug: string) {

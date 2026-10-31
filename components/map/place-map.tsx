@@ -24,20 +24,19 @@ export function PlaceMap({ className, ...props }: PlaceMapProps) {
   return (
     <figure
       className={cn(
-        "overflow-hidden rounded-card border border-line bg-surface",
+        "relative isolate z-0 overflow-hidden rounded-card border border-line bg-surface",
         className,
       )}
     >
       <div
         role="region"
-        aria-label={`Peta lokasi ${props.name}. Daftar pintu masuk tersedia di bagian Pintu masuk di halaman ini.`}
+        aria-label={`Peta lokasi ${props.name}. Ringkasan lokasi tersedia sebagai teks di halaman ini.`}
         className="h-64 w-full sm:h-72"
       >
         <LeafletPlaceMap {...props} />
       </div>
       <figcaption className="border-t border-line px-3 py-2 text-xs leading-relaxed text-ink-muted">
-        Peta © OpenStreetMap. Pilih penanda untuk melihat pintu dan membuka
-        navigasi.
+        Peta © OpenStreetMap. Pilih penanda untuk membuka navigasi.
       </figcaption>
     </figure>
   );
