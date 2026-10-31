@@ -312,6 +312,7 @@ Setiap halaman dan komponen wajib memenuhi:
 | `/` | `app/(public)/page.tsx` | Publik | Beranda, CTA ke 3 fitur |
 | `/jelajahi` | `app/(public)/jelajahi/page.tsx` | Publik | Katalog tempat + filter + peta |
 | `/jelajahi/[slug]` | `app/(public)/jelajahi/[slug]/page.tsx` | Publik | Detail tempat, pintu masuk, foto, ulasan |
+| `/jelajahi/[slug]/navigasi` | `app/(public)/jelajahi/[slug]/navigasi/page.tsx` | Publik | Peta, pilihan pintu, petunjuk arah, panduan suara |
 | `/komunitas` | `app/(public)/komunitas/page.tsx` | Publik | Direktori komunitas |
 | `/komunitas/[slug]` | `app/(public)/komunitas/[slug]/page.tsx` | Publik | Profil komunitas |
 | `/komunitas/daftar` | `app/(public)/komunitas/daftar/page.tsx` | Login | Formulir pendaftaran komunitas |
@@ -356,6 +357,7 @@ app/
     jelajahi/
       page.tsx
       [slug]/page.tsx
+      [slug]/navigasi/page.tsx
     komunitas/
       page.tsx
       [slug]/page.tsx

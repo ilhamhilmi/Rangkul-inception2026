@@ -55,3 +55,49 @@ export function FieldError({
     />
   );
 }
+
+export function Textarea({
+  className,
+  ...props
+}: ComponentProps<"textarea">) {
+  return (
+    <textarea
+      className={classes(
+        "min-h-28 w-full resize-y rounded-input border border-line-strong bg-surface px-3.5 py-3 text-base leading-relaxed text-ink shadow-xs transition-colors placeholder:text-ink-muted/70 focus:border-primary-600 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-muted [aria-invalid=true]:border-danger-600",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export function Select({
+  className,
+  ...props
+}: ComponentProps<"select">) {
+  return (
+    <select
+      className={classes(
+        "h-12 w-full rounded-input border border-line-strong bg-surface px-3.5 text-base text-ink shadow-xs transition-colors focus:border-primary-600 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-muted [aria-invalid=true]:border-danger-600",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export function Checkbox({
+  className,
+  ...props
+}: ComponentProps<"input">) {
+  return (
+    <input
+      type="checkbox"
+      className={classes(
+        "h-4 w-4 shrink-0 rounded border-line-strong accent-primary-600",
+        className,
+      )}
+      {...props}
+    />
+  );
+}

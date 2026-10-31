@@ -26,7 +26,7 @@ const features = [
       "Filter ramp, lift, toilet aksesibel, dan guiding block",
       "Info sampai pintu masuk mana yang bisa dilewati",
     ],
-    action: { href: "#detail", label: "Lihat detail pintu" },
+    action: { href: "/jelajahi", label: "Mulai jelajahi" },
   },
   {
     id: "komunitas",
@@ -131,7 +131,7 @@ export default function HomePage() {
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <ButtonLink href="#jelajahi" size="lg">
+              <ButtonLink href="/jelajahi" size="lg">
                 Jelajahi tempat
                 <ArrowRightIcon className="h-4 w-4" />
               </ButtonLink>
