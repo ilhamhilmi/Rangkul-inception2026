@@ -2,10 +2,10 @@ import Link from "next/link";
 import { Brand } from "@/components/layout/brand";
 
 const fitur = [
-  { href: "#jelajahi", label: "Jelajahi tempat" },
-  { href: "#komunitas", label: "Direktori komunitas" },
-  { href: "#volunteer", label: "Kegiatan volunteer" },
-  { href: "#detail", label: "Detail pintu masuk" },
+  { href: "/jelajahi", label: "Jelajahi tempat" },
+  { href: "/tambah-info", label: "Tambah info tempat" },
+  { href: "/#komunitas", label: "Direktori komunitas" },
+  { href: "/#volunteer", label: "Kegiatan volunteer" },
 ];
 
 const akun = [

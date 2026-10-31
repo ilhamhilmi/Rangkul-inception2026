@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Rangkul">
+  <rect width="64" height="64" rx="16" fill="#0b5f56" />
+  <path
+    d="M11 45c0-11.6 9.4-21 21-21s21 9.4 21 21"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="5"
+    stroke-linecap="round"
+  />
+  <circle cx="20.5" cy="21.5" r="4.6" fill="#ffffff" />
+  <circle cx="43.5" cy="21.5" r="4.6" fill="#ffffff" />
+</svg>

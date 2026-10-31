@@ -3,9 +3,10 @@ import { Brand } from "@/components/layout/brand";
 import { ButtonLink } from "@/components/ui/button";
 
 const navigation = [
-  { href: "#jelajahi", label: "Jelajahi" },
-  { href: "#komunitas", label: "Komunitas" },
-  { href: "#volunteer", label: "Volunteer" },
+  { href: "/", label: "Beranda" },
+  { href: "/jelajahi", label: "Jelajahi" },
+  { href: "/#komunitas", label: "Komunitas" },
+  { href: "/#volunteer", label: "Volunteer" },
 ];
 
 export function SiteHeader() {
