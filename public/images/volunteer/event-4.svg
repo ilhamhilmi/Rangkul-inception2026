@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500" role="img" aria-labelledby="title">
+  <title id="title">Ilustrasi dua orang berbagi cerita dengan balon percakapan</title>
+  <rect width="800" height="500" fill="#F4F1EA"/>
+  <circle cx="680" cy="92" r="48" fill="#F5B942" opacity="0.85"/>
+  <path d="M0 406c150-28 250 12 390-4s250-30 410 8v90H0Z" fill="#E5DFD3"/>
+
+  <rect x="120" y="104" width="238" height="126" rx="28" fill="#FFFFFF" stroke="#0F7B6F" stroke-width="6"/>
+  <path d="m196 230-18 38 50-38Z" fill="#FFFFFF" stroke="#0F7B6F" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M166 146h146M166 172h112" stroke="#0F7B6F" stroke-width="8" stroke-linecap="round"/>
+
+  <rect x="450" y="78" width="230" height="118" rx="26" fill="#0F7B6F"/>
+  <path d="m606 196 18 38-52-38Z" fill="#0F7B6F"/>
+  <path d="M494 118h142M494 144h100" stroke="#DCF3EF" stroke-width="8" stroke-linecap="round"/>
+
+  <g>
+    <circle cx="266" cy="292" r="30" fill="#78350F"/>
+    <path d="M232 416c0-62 16-96 34-96s34 34 34 96Z" fill="#F5B942"/>
+    <path d="M250 330 216 364M282 330l34 34" stroke="#92400E" stroke-width="9" stroke-linecap="round"/>
+    <path d="M250 416v36M282 416v36" stroke="#5C2A0C" stroke-width="9" stroke-linecap="round"/>
+  </g>
+
+  <g>
+    <circle cx="520" cy="292" r="30" fill="#0A4C45"/>
+    <path d="M486 416c0-62 16-96 34-96s34 34 34 96Z" fill="#86D3C7"/>
+    <path d="M504 330 470 364M538 330l34 34" stroke="#0B5F56" stroke-width="9" stroke-linecap="round"/>
+    <path d="M504 416v36M538 416v36" stroke="#5C2A0C" stroke-width="9" stroke-linecap="round"/>
+  </g>
+
+  <path d="M384 238c10-20 38-18 46 2 8-20 36-22 46-2 14 26-28 52-46 64-18-12-60-38-46-64Z" fill="#0F7B6F"/>
+  <path d="M384 238c-12-8-20-22-18-38M430 302c10 8 16 18 18 30" stroke="#0B5F56" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+
+  <circle cx="108" cy="300" r="8" fill="#0F7B6F"/>
+  <circle cx="706" cy="320" r="10" fill="#F5B942"/>
+  <path d="m660 250 7 16 16 7-16 7-7 16-7-16-16-7 16-7Z" fill="#FFFFFF" opacity="0.8"/>
+</svg>

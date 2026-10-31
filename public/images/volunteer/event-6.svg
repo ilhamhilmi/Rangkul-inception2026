@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500" role="img" aria-labelledby="title">
+  <title id="title">Ilustrasi relawan membersihkan pantai dengan jalur boardwalk aksesibel</title>
+  <rect width="800" height="500" fill="#DCF3EF"/>
+  <circle cx="684" cy="86" r="52" fill="#F5B942"/>
+  <circle cx="684" cy="86" r="76" fill="none" stroke="#FCD98A" stroke-width="12" opacity="0.55"/>
+  <path d="M0 330c120-22 200 16 320-2s220-26 480 6v70H0Z" fill="#86D3C7"/>
+  <path d="M0 372c140-18 240 12 380-2s260-20 420 8v40H0Z" fill="#4DB6A8" opacity="0.75"/>
+  <path d="M0 414c160-20 260 12 400-2s240-18 400 8v80H0Z" fill="#FCD98A"/>
+
+  <path d="M74 418h650v18H74Z" fill="#FFFFFF"/>
+  <path d="M74 436h650v18H74Z" fill="#E5DFD3"/>
+  <path d="M112 418v54M196 418v54M280 418v54M364 418v54M448 418v54M532 418v54M616 418v54" stroke="#78716C" stroke-width="5"/>
+
+  <g>
+    <circle cx="246" cy="292" r="28" fill="#78350F"/>
+    <path d="M216 410c0-58 14-90 30-90s30 32 30 90Z" fill="#F5B942"/>
+    <path d="M232 330 202 362M260 330l30 32" stroke="#92400E" stroke-width="8" stroke-linecap="round"/>
+    <path d="M232 410v26M260 410v26" stroke="#5C2A0C" stroke-width="9" stroke-linecap="round"/>
+    <path d="M274 354h42l-8 38h-34Z" fill="#FFFFFF" stroke="#0B5F56" stroke-width="5"/>
+  </g>
+
+  <g>
+    <circle cx="424" cy="300" r="26" fill="#0A4C45"/>
+    <path d="M396 410c0-54 12-84 28-84s28 30 28 84Z" fill="#0F7B6F"/>
+    <path d="M410 334 382 364M438 334l28 30" stroke="#0A4C45" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="410" cy="424" r="30" fill="none" stroke="#093E39" stroke-width="8"/>
+    <circle cx="456" cy="424" r="12" fill="none" stroke="#093E39" stroke-width="8"/>
+    <path d="M410 396h40v28" fill="none" stroke="#093E39" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M456 356h36l-6 34h-30Z" fill="#FFFFFF" stroke="#0B5F56" stroke-width="5"/>
+  </g>
+
+  <g>
+    <circle cx="566" cy="286" r="24" fill="#78350F"/>
+    <path d="M542 392c0-50 10-78 24-78s24 28 24 78Z" fill="#FEEDC7"/>
+    <path d="M554 324 530 352M578 324l24 28" stroke="#92400E" stroke-width="7" stroke-linecap="round"/>
+    <path d="M554 392v28M578 392v28" stroke="#5C2A0C" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <path d="M672 250c0-42 22-70 44-70s44 28 44 70" fill="none" stroke="#0B5F56" stroke-width="10" stroke-linecap="round"/>
+  <path d="M716 250v-58" stroke="#0B5F56" stroke-width="8" stroke-linecap="round"/>
+  <path d="M716 210c-22-2-38-16-42-38 22 0 40 12 42 38ZM716 228c22-2 38-16 42-38-22 0-40 12-42 38Z" fill="#0F7B6F"/>
+  <path d="M680 286c18-12 38-12 56 0" fill="none" stroke="#F5B942" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="128" cy="250" r="7" fill="#FFFFFF"/>
+  <circle cx="160" cy="278" r="5" fill="#0F7B6F"/>
+</svg>
