@@ -13,7 +13,8 @@ Dokumen ini menerjemahkan sketsa Excalidraw awal (`Untitled-2026-10-30-2329.exca
 **Implementasi saat ini:**
 
 - Navbar: brand Rangkul, **Jelajahi**, **Komunitas**, **Volunteer**, lalu tombol **Masuk/Daftar** bila belum login.
-- Setelah login: tombol **Kelola Kegiatan** (khusus organizer/admin), menu notifikasi, nama pengguna, badge terverifikasi untuk organizer, dan tombol **Keluar**.
+- Setelah login: tombol **Kelola Kegiatan** (khusus organizer/admin), menu notifikasi, nama pengguna (tautan ke `/profil`), badge terverifikasi untuk organizer, dan tombol **Keluar**.
+- Di bawah breakpoint `lg`, navbar diganti tombol hamburger yang membuka panel berisi seluruh CTA: Jelajahi, Komunitas, Volunteer, Profil saya, Kelola kegiatan/Dashboard admin sesuai peran, Keluar, serta Masuk/Daftar dan **Bagikan pengalaman** untuk tamu.
 - Hero: “Membantu sesama, ruang untuk semua.” dengan CTA **Jelajahi tempat** dan **Jadi relawan**.
 - Bagian fitur menjelaskan tiga pilar: informasi & navigasi, direktori komunitas, dan volunteer inklusif.
 - Tautan masuk/daftar membawa parameter `next` agar pengguna kembali ke halaman asal setelah autentikasi.
@@ -22,7 +23,7 @@ Dokumen ini menerjemahkan sketsa Excalidraw awal (`Untitled-2026-10-30-2329.exca
 
 **Sketsa awal:** foto profil, nama lengkap, username, email, no. telepon, alamat, dan bio.
 
-**Implementasi saat ini:** **belum ada halaman profil terpisah**. Profil aplikasi (`profiles`) menyimpan `name`, `email`, `avatarUrl`, dan `bio`, tetapi UI hanya menampilkan nama/avatar sebagai identitas kontributor dan nama pengguna di navbar. Data kontak peserta hanya dipakai di alur pendaftaran kegiatan.
+**Implementasi saat ini:** halaman `/profil` (wajib login) menampilkan inisial nama, nama, email, badge peran, dan tanggal bergabung. Pengguna dapat mengubah nama tampilan dan bio lewat form; email dan peran hanya ditampilkan. Halaman yang sama memuat daftar postingan sendiri beserta status moderasinya (`PUBLISHED`/`PENDING`/`REJECTED`/`ARCHIVED`), daftar pendaftaran volunteer, dan ringkasan kontribusi. Avatar unggahan belum tersedia: UI memakai inisial, meski `profiles.avatarUrl` sudah ada di skema.
 
 ## 3. Fitur 1: Jelajahi & Navigasi
 
@@ -137,7 +138,7 @@ Belum ada halaman admin untuk moderasi tempat atau laporan konten.
 
 | Sketsa awal | Implementasi saat ini |
 |---|---|
-| Halaman profil lengkap | Tidak ada halaman profil; identitas tampil di navbar/kartu |
+| Halaman profil lengkap | `/profil`: edit nama/bio, postingan sendiri, pendaftaran volunteer |
 | Ulasan dan rating opsional setelah posting | Rating pemosting wajib 1–5; ulasan tidak dipakai |
 | Pemilihan pintu masuk | Satu postingan = satu lokasi; navigasi ke koordinat tempat |
 | Form komunitas meminta KTP | Form komunitas meminta data pengurus + logo; KTP hanya untuk pengajuan penyelenggara |

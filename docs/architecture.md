@@ -328,6 +328,7 @@ Setiap halaman dan komponen wajib memenuhi:
 | `/volunteer/[slug]` | `app/(public)/volunteer/[slug]/page.tsx` | Publik | Detail kegiatan + panel pendaftaran |
 | `/volunteer/jadi-penyelenggara` | `app/(public)/volunteer/jadi-penyelenggara/page.tsx` | Publik (form wajib login) | Pengajuan verifikasi penyelenggara |
 | `/tambah-info` | `app/(public)/tambah-info/page.tsx` | Login | Formulir posting tempat |
+| `/profil` | `app/(public)/profil/page.tsx` | Login | Profil pengguna: edit nama/bio, postingan sendiri, pendaftaran volunteer |
 | `/masuk` | `app/(auth)/masuk/page.tsx` | Guest | Login |
 | `/daftar` | `app/(auth)/daftar/page.tsx` | Guest | Registrasi |
 | `/auth/callback` | `app/auth/callback/route.ts` | Publik | Tukar kode konfirmasi Supabase, buat profil, redirect `next` |
@@ -378,6 +379,7 @@ app/
       [slug]/page.tsx
       jadi-penyelenggara/page.tsx
     tambah-info/page.tsx
+    profil/page.tsx
   (auth)/
     layout.tsx                  # layout minimal tanpa header publik
     masuk/page.tsx
@@ -405,12 +407,13 @@ app/
 
 components/
   ui/                           # primitif desain, tanpa data
-  layout/                       # header, footer, brand, auth nav, notification menu
+  layout/                       # header, footer, brand, auth nav, mobile nav, notification menu
   places/                       # feed, form posting, kartu, rating, badge, filter
   communities/                  # direktori, filter, kartu, form, profil
   volunteer/                    # eksplorasi, kartu, dialog, form, pendaftaran
   admin/                        # form login admin, aksi review
   map/                          # Leaflet, marker, routing, fallback, navigasi
+  profile/                      # form edit profil
   auth/                         # form login/daftar
   feedback/                     # (belum ada komponen terpisah; empty state di ui/)
 
@@ -440,6 +443,8 @@ server/
   places/mappers.ts             # Prisma → tipe UI
   communities/queries.ts
   communities/actions.ts
+  profiles/queries.ts           # postingan + pendaftaran volunteer milik pengguna
+  profiles/actions.ts           # update nama/bio profil
   admin/queries.ts
   admin/actions.ts
   admin/auth-actions.ts

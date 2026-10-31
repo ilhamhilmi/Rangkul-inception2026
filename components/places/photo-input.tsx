@@ -22,6 +22,7 @@ export function PhotoInput({
   error?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [processing, setProcessing] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -107,6 +108,17 @@ export function PhotoInput({
         onChange={handleSelect}
         aria-describedby={shownError ? "error-photos" : "hint-photos"}
       />
+      <input
+        ref={cameraInputRef}
+        id="field-camera"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="sr-only"
+        onChange={handleSelect}
+        tabIndex={-1}
+        aria-hidden="true"
+      />
 
       <div
         className={cn(
@@ -114,7 +126,7 @@ export function PhotoInput({
           shownError ? "border-danger-600/50 bg-danger-50/40" : "border-line-strong/60 bg-surface-muted/30",
         )}
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3">
           <div className="flex items-start gap-3">
             <span
               aria-hidden="true"
@@ -127,25 +139,37 @@ export function PhotoInput({
                 Foto tempat <span className="text-danger-700">*</span>
               </p>
               <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">
-                Wajib minimal 1 foto, maksimal {PLACE_PHOTO_MAX_COUNT}. Format
-                JPG, PNG, atau WebP. Foto diperkecil otomatis sebelum dikirim.
+                Wajib minimal 1 foto, maksimal {PLACE_PHOTO_MAX_COUNT}. Ambil
+                langsung dari kamera atau pilih JPG, PNG, WebP dari perangkat.
+                Foto diperkecil otomatis sebelum dikirim.
               </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={processing || remaining <= 0}
-            className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-button border border-line-strong bg-surface px-4 text-sm font-medium text-ink shadow-xs transition-colors hover:bg-surface-muted focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-primary-950 disabled:pointer-events-none disabled:opacity-50"
-          >
-            <UploadIcon className="h-4 w-4" />
-            {processing
-              ? "Menyiapkan foto…"
-              : remaining <= 0
-                ? "Batas foto tercapai"
-                : "Pilih foto"}
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              disabled={processing || remaining <= 0}
+              className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-button bg-primary-600 px-4 text-sm font-medium text-white shadow-xs transition-colors hover:bg-primary-700 focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-primary-950 disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
+            >
+              <CameraIcon className="h-4 w-4" />
+              {processing ? "Menyiapkan foto…" : "Ambil foto"}
+            </button>
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={processing || remaining <= 0}
+              className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-button border border-line-strong bg-surface px-4 text-sm font-medium text-ink shadow-xs transition-colors hover:bg-surface-muted focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-primary-950 disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
+            >
+              <UploadIcon className="h-4 w-4" />
+              {processing
+                ? "Menyiapkan foto…"
+                : remaining <= 0
+                  ? "Batas foto tercapai"
+                  : "Pilih dari perangkat"}
+            </button>
+          </div>
         </div>
 
         <p className="mt-3 text-xs text-ink-muted">

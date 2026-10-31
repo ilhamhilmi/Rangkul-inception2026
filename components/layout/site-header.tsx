@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { AuthNav } from "@/components/layout/auth-nav";
 import { Brand } from "@/components/layout/brand";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import { NotificationMenu } from "@/components/layout/notification-menu";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { CalendarIcon, UserIcon } from "@/components/ui/icons";
@@ -16,11 +17,18 @@ const navigation = [
   { href: "/volunteer", label: "Volunteer" },
 ];
 
-async function AccountNav() {
+async function HeaderActions() {
   const user = await getCurrentUser();
 
   if (!user) {
-    return <AuthNav />;
+    return (
+      <div className="flex items-center gap-1.5">
+        <div className="hidden lg:block">
+          <AuthNav />
+        </div>
+        <MobileNav user={null} />
+      </div>
+    );
   }
 
   const notifications = await getNotificationsForUser(user.id);
@@ -30,31 +38,39 @@ async function AccountNav() {
   return (
     <div className="flex items-center gap-1.5">
       {canManageEvents ? (
-        <ButtonLink
-          href="/dashboard/kegiatan"
-          variant="secondary"
-          size="sm"
-          aria-label="Kelola Kegiatan"
-          className="px-3 sm:px-4"
-        >
-          <CalendarIcon className="h-4 w-4" />
-          <span className="hidden sm:inline">Kelola Kegiatan</span>
-        </ButtonLink>
+        <div className="hidden lg:block">
+          <ButtonLink
+            href="/dashboard/kegiatan"
+            variant="secondary"
+            size="sm"
+            aria-label="Kelola Kegiatan"
+            className="px-3 lg:px-4"
+          >
+            <CalendarIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Kelola Kegiatan</span>
+          </ButtonLink>
+        </div>
       ) : null}
       <NotificationMenu
         items={notifications.items}
         unreadCount={notifications.unreadCount}
       />
-      <span className="hidden max-w-32 items-center gap-1.5 text-sm font-medium text-ink sm:flex sm:max-w-44">
+      <Link
+        href="/profil"
+        className="hidden max-w-32 items-center gap-1.5 rounded-button px-1.5 py-2 text-sm font-medium text-ink transition-colors hover:text-primary-800 focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-focus lg:flex lg:max-w-44"
+      >
         <UserIcon className="h-4 w-4 shrink-0 text-primary-700" />
         <span className="truncate">{user.name}</span>
         {user.role === "ORGANIZER" ? <VerifiedBadge /> : null}
-      </span>
-      <form action={signOutAction}>
+      </Link>
+      <form action={signOutAction} className="hidden lg:block">
         <Button type="submit" variant="ghost" size="sm">
           Keluar
         </Button>
       </form>
+      <MobileNav
+        user={{ name: user.name, email: user.email, role: user.role }}
+      />
     </div>
   );
 }
@@ -65,7 +81,7 @@ export function SiteHeader() {
       <div className="container-page flex h-16 items-center justify-between gap-3">
         <Brand />
 
-        <nav aria-label="Navigasi utama" className="hidden md:block">
+        <nav aria-label="Navigasi utama" className="hidden lg:block">
           <ul className="flex items-center gap-1">
             {navigation.map((item) => (
               <li key={item.href}>
@@ -88,7 +104,7 @@ export function SiteHeader() {
             />
           }
         >
-          <AccountNav />
+          <HeaderActions />
         </Suspense>
       </div>
     </header>

@@ -181,6 +181,16 @@ export function XIcon(props: IconProps) {
   );
 }
 
+export function MenuIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </IconBase>
+  );
+}
+
 export function StarIcon(props: IconProps) {
   return (
     <IconBase fill="currentColor" stroke="none" {...props}>

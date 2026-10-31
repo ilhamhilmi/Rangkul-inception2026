@@ -156,6 +156,8 @@
   body {
     @apply bg-canvas font-sans text-ink antialiased;
     min-height: 100dvh;
+    overflow-x: clip;
+    overflow-wrap: break-word;
     text-rendering: optimizeLegibility;
   }
 

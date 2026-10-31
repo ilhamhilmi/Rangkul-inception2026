@@ -97,7 +97,7 @@ Ketiga fitur saling terhubung: pengguna yang mencari tempat juga bisa menemukan 
 
 **Cari tempat:** buka Jelajahi, cari atau filter kategori, buka detail, lihat rating pemosting dan fasilitas, lalu mulai navigasi dari lokasi perangkat.
 
-**Tambah info tempat:** masuk, buka Tambah Info, isi nama/kategori/cerita, pilih rating 1–5, centang fasilitas yang tersedia, unggah 1–4 foto, tandai titik lokasi, lalu kirim. Postingan langsung tayang bila moderasi AI dimatikan.
+**Tambah info tempat:** masuk, buka Tambah Info, isi nama/kategori/cerita, pilih rating 1–5, centang fasilitas yang tersedia, unggah 1–4 foto (ambil langsung dari kamera atau pilih dari perangkat), tandai titik lokasi, lalu kirim. Postingan langsung tayang bila moderasi AI dimatikan.
 
 **Cari komunitas:** buka Direktori Komunitas, cari atau filter wilayah/fokus, buka profil, lalu hubungi atau gabung lewat tautan yang tersedia.
 
@@ -139,7 +139,8 @@ Halaman yang tersedia:
 7. **Volunteer** (`/volunteer`, `/volunteer/[slug]`, `/volunteer/jadi-penyelenggara`): daftar kegiatan, detail, pendaftaran peserta, dan pengajuan penyelenggara.
 8. **Dashboard penyelenggara** (`/dashboard/kegiatan`): CRUD kegiatan, pendaftar, dan ekspor Excel.
 9. **Dashboard admin** (`/admin`, `/admin/komunitas`, `/admin/penyelenggara`, `/admin/kegiatan`): verifikasi komunitas/penyelenggara dan moderasi kegiatan.
-10. **Auth** (`/masuk`, `/daftar`, `/admin/masuk`, `/auth/callback`): login, registrasi, konfirmasi email, dan login admin.
+10. **Profil** (`/profil`): edit nama/bio, riwayat postingan, dan pendaftaran volunteer pengguna.
+11. **Auth** (`/masuk`, `/daftar`, `/admin/masuk`, `/auth/callback`): login, registrasi, konfirmasi email, dan login admin.
 
 Dilengkapi desain responsif, navigasi keyboard, dan notifikasi in-app.
 
