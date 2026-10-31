@@ -68,9 +68,9 @@ export function CommunityMark({
 
   return (
     <span
-      aria-hidden="true"
+      aria-hidden={community.logoUrl ? undefined : true}
       className={[
-        "grid shrink-0 place-items-center border-2 border-surface font-display font-bold tracking-tight shadow-card",
+        "grid shrink-0 place-items-center overflow-hidden border-2 border-surface font-display font-bold tracking-tight shadow-card",
         markSizes[size],
         variant.mark,
         className,
@@ -78,7 +78,17 @@ export function CommunityMark({
         .filter(Boolean)
         .join(" ")}
     >
-      {getInitials(community.name)}
+      {community.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={community.logoUrl}
+          alt={`Logo ${community.name}`}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      ) : (
+        getInitials(community.name)
+      )}
     </span>
   );
 }

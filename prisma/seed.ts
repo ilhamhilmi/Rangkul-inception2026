@@ -237,6 +237,65 @@ type AuthUserRow = {
   raw_user_meta_data: Record<string, unknown> | null;
 };
 
+function readAdminEmail() {
+  return process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase() ?? "";
+}
+
+/**
+ * Bootstrap admin pertama. Hanya mempromosikan user Supabase Auth yang sudah
+ * ada; seed tidak pernah membuat akun auth atau password.
+ */
+async function seedAdmin() {
+  const email = readAdminEmail();
+
+  if (!email) {
+    console.info(
+      "[seed] SEED_ADMIN_EMAIL kosong. Tidak ada profil admin yang disiapkan.",
+    );
+    return;
+  }
+
+  const rows = await prisma.$queryRaw<AuthUserRow[]>`
+    SELECT id, email, raw_user_meta_data
+    FROM auth.users
+    WHERE lower(email) = ${email}
+    LIMIT 1
+  `;
+
+  const authUser = rows[0];
+
+  if (!authUser) {
+    console.warn(
+      `[seed] Tidak ada auth.users dengan email ${email}. Daftarkan akun terlebih dahulu, lalu jalankan seed lagi.`,
+    );
+    return;
+  }
+
+  const metadata = authUser.raw_user_meta_data ?? {};
+  const rawName = metadata.full_name ?? metadata.name;
+  const name =
+    typeof rawName === "string" && rawName.trim().length > 0
+      ? rawName.trim().slice(0, 80)
+      : email.split("@")[0].slice(0, 80);
+
+  const profile = await prisma.profile.upsert({
+    where: { id: authUser.id },
+    create: {
+      id: authUser.id,
+      email,
+      name,
+      role: "ADMIN",
+    },
+    update: {
+      email,
+      role: "ADMIN",
+    },
+    select: { id: true, email: true, role: true },
+  });
+
+  console.info(`[seed] Profil admin siap: ${profile.id} (${profile.email})`);
+}
+
 function readOrganizerEmail() {
   return process.env.SEED_ORGANIZER_EMAIL?.trim().toLowerCase() ?? "";
 }
@@ -349,7 +408,9 @@ async function seedOrganizer() {
 }
 
 async function main() {
-  console.log("Seeding fasilitas aksesibilitas dan komunitas…");
+  console.log("Seeding admin, fasilitas aksesibilitas, dan komunitas…");
+
+  await seedAdmin();
 
   await seedFeatures();
   console.log(

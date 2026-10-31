@@ -33,6 +33,12 @@ export const communitySchema = z.object({
       "Gunakan nomor Indonesia yang valid, misalnya 0812-3456-7890.",
     ),
   picEmail: z.string().trim().email("Format email belum benar."),
+  logoPath: z
+    .string()
+    .trim()
+    .max(300, "Path logo terlalu panjang.")
+    .optional()
+    .transform((value) => value ?? ""),
   name: z
     .string()
     .trim()

@@ -6,6 +6,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type ChangeEvent,
   type FormEvent,
   type ReactNode,
 } from "react";
@@ -17,18 +18,22 @@ import {
   AlertIcon,
   CheckIcon,
   ShieldCheckIcon,
+  UploadIcon,
+  XIcon,
 } from "@/components/ui/icons";
 import {
   communityFocusOptions,
   communityProvinceOptions,
 } from "@/lib/constants/communities";
-import { createCommunityAction } from "@/server/communities/actions";
+import { createCommunityLogoUploadAction, createCommunityAction } from "@/server/communities/actions";
+import { uploadToSignedPath } from "@/lib/volunteer/upload";
 import type { CommunityFormState } from "@/types/community";
 
 type FieldKey =
   | "picName"
   | "picPhone"
   | "picEmail"
+  | "logo"
   | "name"
   | "description"
   | "province"
@@ -47,6 +52,7 @@ const focusTargets: Record<FieldKey, string> = {
   picName: "picName",
   picPhone: "picPhone",
   picEmail: "picEmail",
+  logo: "logo-input",
   name: "name",
   description: "description",
   province: "province",
@@ -59,6 +65,8 @@ const focusTargets: Record<FieldKey, string> = {
 };
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+const LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 function describedBy(...ids: Array<string | false | undefined>) {
   const value = ids.filter(Boolean).join(" ");
@@ -109,14 +117,30 @@ export function CommunityRegistrationForm({
   );
   const [errors, setErrors] = useState<FormErrors>({});
   const [descriptionLength, setDescriptionLength] = useState(0);
+  const [logoPath, setLogoPath] = useState("");
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoName, setLogoName] = useState("");
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const [isLogoUploading, setIsLogoUploading] = useState(false);
   const successHeadingRef = useRef<HTMLHeadingElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (logoPreview) URL.revokeObjectURL(logoPreview);
+    };
+  }, [logoPreview]);
 
   const serverErrors: FormErrors = {};
   for (const [key, messages] of Object.entries(state.fieldErrors ?? {})) {
     if (messages[0]) serverErrors[key as FieldKey] = messages[0];
   }
 
-  const combinedErrors: FormErrors = { ...serverErrors, ...errors };
+  const combinedErrors: FormErrors = {
+    ...serverErrors,
+    ...errors,
+    ...(logoError ? { logo: logoError } : {}),
+  };
   const errorCount = Object.keys(combinedErrors).length;
 
   useEffect(() => {
@@ -124,6 +148,18 @@ export function CommunityRegistrationForm({
   }, [state.status]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (isLogoUploading) {
+      event.preventDefault();
+      setLogoError("Tunggu sampai logo selesai diunggah.");
+      return;
+    }
+
+    if (logoError) {
+      event.preventDefault();
+      document.getElementById("logo-input")?.focus();
+      return;
+    }
+
     const form = event.currentTarget;
     const data = new FormData(form);
     const read = (key: string) => String(data.get(key) ?? "").trim();
@@ -210,12 +246,77 @@ export function CommunityRegistrationForm({
   }
 
   function clearError(key: FieldKey) {
+    if (key === "logo") setLogoError(null);
+
     setErrors((previous) => {
       if (!previous[key]) return previous;
       const next = { ...previous };
       delete next[key];
       return next;
     });
+  }
+
+  function clearLogo() {
+    setLogoPath("");
+    setLogoPreview(null);
+    setLogoName("");
+    setLogoError(null);
+    if (logoInputRef.current) logoInputRef.current.value = "";
+  }
+
+  async function handleLogoChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+
+    if (!file) {
+      clearLogo();
+      return;
+    }
+
+    setLogoName(file.name);
+    setLogoError(null);
+
+    if (!LOGO_TYPES.has(file.type)) {
+      setLogoError("Logo harus berupa JPG, PNG, atau WebP.");
+      return;
+    }
+
+    if (file.size > MAX_LOGO_BYTES) {
+      setLogoError("Ukuran logo maksimal 5 MB.");
+      return;
+    }
+
+    setIsLogoUploading(true);
+
+    try {
+      const upload = await createCommunityLogoUploadAction({
+        fileName: file.name,
+        contentType: file.type,
+        size: file.size,
+      });
+
+      if (!upload.ok) {
+        setLogoError(upload.message);
+        return;
+      }
+
+      await uploadToSignedPath({
+        bucket: upload.data.bucket,
+        path: upload.data.path,
+        token: upload.data.token,
+        file,
+      });
+
+      setLogoPath(upload.data.path);
+      setLogoPreview(URL.createObjectURL(file));
+      setLogoError(null);
+      clearError("logo");
+    } catch {
+      setLogoError(
+        "Logo gagal diunggah. Periksa koneksi lalu pilih file kembali.",
+      );
+    } finally {
+      setIsLogoUploading(false);
+    }
   }
 
   if (state.status === "success") {
@@ -287,6 +388,8 @@ export function CommunityRegistrationForm({
       noValidate
       className="space-y-4"
     >
+      <input type="hidden" name="logoPath" value={logoPath} />
+
       {state.status === "error" && state.message ? (
         <div
           role="alert"
@@ -422,6 +525,80 @@ export function CommunityRegistrationForm({
         title="Profil komunitas"
         description="Informasi ini akan tampil di direktori setelah diverifikasi admin."
       >
+        <div className="space-y-2">
+          <Label htmlFor="logo-input">Logo komunitas (opsional)</Label>
+
+          <div className="flex flex-wrap items-center gap-4 rounded-input border border-dashed border-line-strong/80 bg-surface-muted/40 p-4">
+            <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-card border border-line bg-surface text-primary-700 shadow-xs">
+              {logoPreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoPreview}
+                  alt="Pratinjau logo komunitas"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <UploadIcon className="h-6 w-6" aria-hidden="true" />
+              )}
+            </span>
+
+            <div className="min-w-0 flex-1">
+              <input
+                ref={logoInputRef}
+                id="logo-input"
+                name="logoFile"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                aria-invalid={combinedErrors.logo ? true : undefined}
+                aria-describedby={describedBy(
+                  "logo-hint",
+                  combinedErrors.logo && "logo-error",
+                )}
+                onChange={handleLogoChange}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <label
+                  htmlFor="logo-input"
+                  className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-button border border-line-strong bg-surface px-4 text-sm font-medium text-ink shadow-xs transition-colors hover:bg-surface-muted focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-focus"
+                >
+                  <UploadIcon className="h-4 w-4" aria-hidden="true" />
+                  {logoPath ? "Ganti logo" : "Pilih logo"}
+                </label>
+
+                {logoName || logoPath ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearLogo}
+                    disabled={isLogoUploading}
+                  >
+                    <XIcon className="h-4 w-4" aria-hidden="true" />
+                    Hapus
+                  </Button>
+                ) : null}
+              </div>
+              <FieldHint id="logo-hint">
+                JPG, PNG, atau WebP maksimal 5 MB. Logo akan tampil di kartu
+                komunitas.
+              </FieldHint>
+              {isLogoUploading ? (
+                <p role="status" className="mt-1 text-sm text-primary-700">
+                  Mengunggah {logoName}…
+                </p>
+              ) : logoName && !logoError ? (
+                <p className="mt-1 truncate text-sm text-ink-muted">
+                  {logoName}
+                </p>
+              ) : null}
+              {combinedErrors.logo ? (
+                <FieldError id="logo-error">{combinedErrors.logo}</FieldError>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="name">
             Nama komunitas
@@ -697,9 +874,13 @@ export function CommunityRegistrationForm({
             type="submit"
             size="lg"
             className="w-full sm:w-auto"
-            disabled={isPending}
+            disabled={isPending || isLogoUploading}
           >
-            {isPending ? "Mengirim..." : "Ajukan komunitas"}
+            {isPending
+              ? "Mengirim..."
+              : isLogoUploading
+                ? "Menunggu logo..."
+                : "Ajukan komunitas"}
           </Button>
         </div>
       </FormSection>

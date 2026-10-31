@@ -1,11 +1,113 @@
 "use server";
 
 import { updateTag } from "next/cache";
+import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth/guards";
+import { getAuthorizedProfile, requireUser } from "@/lib/auth/guards";
+import {
+  createSignedUploadUrl,
+  getPublicStorageUrl,
+  STORAGE_BUCKETS,
+} from "@/lib/supabase/storage";
 import type { CommunityFormState } from "@/types/community";
 import { communitySchema } from "@/lib/validation/community";
 import { buildUniqueSlug } from "@/lib/utils/slug";
+
+const LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+const logoUploadSchema = z.object({
+  fileName: z.string().trim().min(1).max(200),
+  contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+  size: z
+    .number()
+    .int()
+    .positive()
+    .max(5 * 1024 * 1024, "Ukuran logo maksimal 5 MB."),
+});
+
+export type CommunityLogoUploadResult =
+  | {
+      ok: true;
+      data: {
+        bucket: typeof STORAGE_BUCKETS.communityLogos;
+        path: string;
+        token: string;
+        signedUrl: string;
+      };
+    }
+  | { ok: false; message: string };
+
+function extensionFor(contentType: string) {
+  switch (contentType) {
+    case "image/png":
+      return "png";
+    case "image/webp":
+      return "webp";
+    default:
+      return "jpg";
+  }
+}
+
+function isCommunityLogoPath(path: string, userId: string) {
+  return (
+    path.startsWith(`community/${userId}/`) &&
+    !path.includes("..") &&
+    /^[a-zA-Z0-9._/-]+$/.test(path)
+  );
+}
+
+export async function createCommunityLogoUploadAction(input: {
+  fileName: string;
+  contentType: string;
+  size: number;
+}): Promise<CommunityLogoUploadResult> {
+  const auth = await getAuthorizedProfile([]);
+
+  if (!auth.allowed) {
+    return {
+      ok: false,
+      message:
+        auth.reason === "UNAUTHENTICATED"
+          ? "Silakan masuk terlebih dahulu untuk mengunggah logo."
+          : "Akun ini tidak bisa mengunggah logo.",
+    };
+  }
+
+  const parsed = logoUploadSchema.safeParse(input);
+
+  if (!parsed.success || !LOGO_TYPES.has(parsed.data.contentType)) {
+    return {
+      ok: false,
+      message: "Gunakan logo JPG, PNG, atau WebP maksimal 5 MB.",
+    };
+  }
+
+  try {
+    const path = `community/${auth.profile.id}/${crypto.randomUUID()}.${extensionFor(
+      parsed.data.contentType,
+    )}`;
+    const data = await createSignedUploadUrl(
+      STORAGE_BUCKETS.communityLogos,
+      path,
+    );
+
+    return {
+      ok: true,
+      data: {
+        bucket: STORAGE_BUCKETS.communityLogos,
+        path,
+        token: data.token,
+        signedUrl: data.signedUrl,
+      },
+    };
+  } catch {
+    return {
+      ok: false,
+      message:
+        "Logo belum bisa diunggah. Pastikan bucket community-logos sudah dibuat, lalu coba lagi.",
+    };
+  }
+}
 
 function fieldErrorsFrom(error: {
   issues: Array<{ path: PropertyKey[]; message: string }>;
@@ -30,6 +132,7 @@ export async function createCommunityAction(
     picName: formData.get("picName"),
     picPhone: formData.get("picPhone"),
     picEmail: formData.get("picEmail"),
+    logoPath: formData.get("logoPath"),
     name: formData.get("name"),
     description: formData.get("description"),
     province: formData.get("province"),
@@ -48,6 +151,20 @@ export async function createCommunityAction(
       fieldErrors: fieldErrorsFrom(parsed.error),
     };
   }
+
+  const logoPath = parsed.data.logoPath;
+
+  if (logoPath && !isCommunityLogoPath(logoPath, user.id)) {
+    return {
+      status: "error",
+      message: "Logo komunitas tidak valid. Unggah ulang logo.",
+      fieldErrors: { logo: ["Logo komunitas tidak valid."] },
+    };
+  }
+
+  const logoUrl = logoPath
+    ? getPublicStorageUrl(STORAGE_BUCKETS.communityLogos, logoPath)
+    : null;
 
   const pending = await prisma.verificationRequest.findFirst({
     where: {
@@ -93,6 +210,7 @@ export async function createCommunityAction(
             ...(parsed.data.website ? { website: parsed.data.website } : {}),
           },
           joinUrl: parsed.data.channel,
+          logoUrl,
           status: "PENDING",
           ownerId: user.id,
         },
