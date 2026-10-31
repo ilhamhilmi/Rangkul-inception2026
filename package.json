@@ -10,18 +10,18 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "node scripts/with-env.mjs prisma generate",
     "db:migrate": "node scripts/with-env.mjs prisma migrate dev",
+    "db:migrate:deploy": "node scripts/with-env.mjs prisma migrate deploy",
     "db:deploy": "node scripts/migrate.mjs",
+    "db:push": "node scripts/with-env.mjs prisma db push",
     "db:seed": "node scripts/with-env.mjs prisma db seed",
     "db:studio": "node scripts/with-env.mjs prisma studio"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "@react-leaflet/core": "3.0.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
+    "exceljs": "^4.4.0",
     "leaflet": "^1.9.4",
     "next": "16.4.3",
     "react": "19.3.0",

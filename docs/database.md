@@ -2,7 +2,9 @@
 
 Dokumen ini adalah **sumber kebenaran skema database** untuk tiga fitur Rangkul: informasi aksesibilitas tempat, direktori komunitas, dan volunteer inklusif.
 
-Status: **Fitur 1 sudah diimplementasikan sebagai feed postingan.** Tabel `profiles`, `places`, `place_likes`, `entrances`, `accessibility_features`, `entrance_features`, `place_photos`, dan `reviews` sudah ada di `prisma/schema.prisma`. Postingan baru dari `/tambah-info` wajib menyertakan minimal satu foto dan satu titik lokasi. Moderasi AI dinonaktifkan sementara (`AI_MODERATION_ENABLED=false`), jadi postingan langsung `PUBLISHED`. Satu postingan mewakili satu lokasi; tidak ada lagi pemilihan pintu masuk per postingan. Tabel komunitas dan volunteer sudah ditambahkan lewat migrasi terpisah.
+Status: **Fitur 1 (feed postingan) dan modul Volunteer sudah diimplementasikan.** Tabel `profiles`, `places`, `place_likes`, `entrances`, `accessibility_features`, `entrance_features`, `place_photos`, dan `reviews` sudah ada di `prisma/schema.prisma`. Postingan baru dari `/tambah-info` wajib menyertakan minimal satu foto dan satu titik lokasi. Moderasi AI dinonaktifkan sementara (`AI_MODERATION_ENABLED=false`), jadi postingan langsung `PUBLISHED`. Satu postingan mewakili satu lokasi; tidak ada lagi pemilihan pintu masuk per postingan.
+
+Modul Volunteer menambahkan `volunteer_events`, `event_registrations`, enum baru, trigger, dan RLS secara additive. Tabel bersama `profiles`, `communities`, dan `verification_requests` dipakai bersama dan tidak dibuat ulang oleh migration Volunteer. Semua migration fitur 1, komunitas, dan volunteer tersedia di `prisma/migrations`; periksa status apply ke database sebelum deploy.
 
 - Ringkasan entitas dan aturan tingkat arsitektur: [`docs/architecture.md`](./architecture.md) §10.
 - Kebutuhan produk: [`docs/product.md`](./product.md).
@@ -110,7 +112,9 @@ Catatan relasi:
 
 ## 4. Enum
 
-### 4.1 `user_role`
+Nama tipe enum bersama di PostgreSQL memakai PascalCase: `UserRole`, `CommunityStatus`, `ContentStatus`, `FeatureValue`, `PlaceCategory`, `ReviewStatus`, `VerificationStatus`, `VerificationType`. Enum baru Volunteer juga PascalCase: `EventStatus`, `EventCategory`, `RegistrationStatus`. Model Prisma tidak memakai `@@map` untuk enum.
+
+### 4.1 `UserRole`
 
 | Nilai | Arti |
 |---|---|
@@ -118,46 +122,46 @@ Catatan relasi:
 | `ORGANIZER` | Penyelenggara kegiatan yang sudah terverifikasi |
 | `ADMIN` | Moderator dan admin platform |
 
-### 4.2 `place_category`
+### 4.2 `PlaceCategory`
 
 `WISATA`, `KULINER`, `TRANSPORTASI`, `IBADAH`, `KESEHATAN`
 
-### 4.3 `content_status`
+### 4.3 `ContentStatus`
 
 Dipakai `places.status`.
 
 `PENDING`, `PUBLISHED`, `REJECTED`, `ARCHIVED`
 
-### 4.4 `review_status`
+### 4.4 `ReviewStatus`
 
 `PENDING`, `PUBLISHED`, `REJECTED`
 
-### 4.5 `feature_value`
+### 4.5 `FeatureValue`
 
 `AVAILABLE`, `NOT_AVAILABLE`, `UNKNOWN`
 
-### 4.6 `community_status`
+### 4.6 `CommunityStatus`
 
 `PENDING`, `VERIFIED`, `REJECTED`, `SUSPENDED`
 
-### 4.7 `event_status`
+### 4.7 `EventStatus`
 
 `DRAFT`, `PENDING`, `PUBLISHED`, `CLOSED`, `REJECTED`
 
-### 4.8 `event_category`
+### 4.8 `EventCategory`
 
 `EVENT_SUPPORT`, `ACCESSIBILITY_AUDIT`, `SOCIAL_ACTIVITY`, `INCLUSIVE_PROGRAM`, `OTHER`
 
-### 4.9 `registration_status`
+### 4.9 `RegistrationStatus`
 
 `PENDING`, `CONFIRMED`, `CANCELLED`
 
-### 4.10 `verification_type` & `verification_status`
+### 4.10 `VerificationType` & `VerificationStatus`
 
 | Enum | Nilai |
 |---|---|
-| `verification_type` | `COMMUNITY`, `ORGANIZER` |
-| `verification_status` | `PENDING`, `APPROVED`, `REJECTED` |
+| `VerificationType` | `COMMUNITY`, `ORGANIZER` |
+| `VerificationStatus` | `PENDING`, `APPROVED`, `REJECTED` |
 
 ### 4.11 `report_*`
 
@@ -179,20 +183,25 @@ Dipakai `places.status`.
 
 Profil aplikasi. `id` sama dengan UUID Supabase Auth, bukan auto-increment.
 
+Struktur aktual database bersama (bukan dibuat ulang oleh Volunteer):
+
 | Kolom | Tipe | Null | Default | Constraint |
 |---|---|---|---|---|
 | `id` | `uuid` | tidak | — | PK (FK `auth.users(id)` **belum** dibuat) |
-| `email` | `text` | tidak | — | unik lewat `lower(email)` |
-| `name` | `text` | tidak | — | panjang 1–80 |
-| `role` | `user_role` | tidak | `'USER'` | — |
+| `email` | `text` | tidak | — | unik `profiles_email_key` + unik `lower(email)` |
+| `name` | `text` | tidak | — | panjang 1–80 (`chk_profiles_name_length`) |
+| `role` | `UserRole` | tidak | `'USER'` | — |
 | `avatar_url` | `text` | ya | — | URL storage |
-| `bio` | `text` | ya | — | maksimal 500 karakter |
-| `created_at` | `timestamptz` | tidak | `now()` | — |
-| `updated_at` | `timestamptz` | tidak | `now()` | trigger |
+| `bio` | `text` | ya | — | maksimal 500 karakter (`chk_profiles_bio_length`) |
+| `created_at` | `timestamptz` | tidak | `CURRENT_TIMESTAMP` | — |
+| `updated_at` | `timestamptz` | tidak | — (diisi trigger) | trigger `trg_profiles_updated_at` |
 
-Index: `uq_profiles_email_lower` pada `lower(email)`, `idx_profiles_role`.
+Index: `profiles_email_key` (`email`), `uq_profiles_email_lower` (`lower(email)`), `idx_profiles_role`.
 
-Catatan: role disimpan di database, tidak pernah di cookie atau state client. Perubahan role hanya lewat admin/server.
+Catatan:
+- Database bersama saat ini **tidak memiliki FK `profiles.id` → `auth.users(id)`**. Pasangan auth divalidasi di server/seed. Ini keputusan pemilik fitur bersama dan tidak diubah oleh Volunteer.
+- Role disimpan di database, tidak pernah di cookie atau state client. Perubahan role hanya lewat admin/server.
+- Trigger proteksi role pada tabel bersama **belum ada** di database saat ini. Volunteer tidak menambahkannya tanpa persetujuan; lihat rekomendasi keamanan terpisah.
 
 Catatan implementasi Fitur 1: relasi ke `auth.users` dan RLS sengaja ditunda sampai fase auth. Saat ini `profiles.id` diisi UUID acak oleh seed, dan query publik tidak pernah membaca `profiles` secara langsung (hanya `name` lewat relasi `createdBy`/`author`).
 
@@ -203,14 +212,14 @@ Catatan implementasi Fitur 1: relasi ke `auth.users` dan RLS sengaja ditunda sam
 | `id` | `uuid` | tidak | `gen_random_uuid()` | PK |
 | `slug` | `text` | tidak | — | unik, `^[a-z0-9]+(-[a-z0-9]+)*$` |
 | `name` | `text` | tidak | — | panjang 2–120 |
-| `category` | `place_category` | tidak | — | — |
+| `category` | `PlaceCategory` | tidak | — | — |
 | `description` | `text` | tidak | — | panjang 40–2000 (validasi server) |
 | `address` | `text` | ya | — | panjang 5–300 |
 | `city` | `text` | ya | — | — |
 | `province` | `text` | ya | — | — |
 | `latitude` | `numeric(9,6)` | tidak | — | `-90..90` |
 | `longitude` | `numeric(9,6)` | tidak | — | `-180..180` |
-| `status` | `content_status` | tidak | `'PENDING'` | — |
+| `status` | `ContentStatus` | tidak | `'PENDING'` | — |
 | `created_by` | `uuid` | tidak | — | FK `profiles(id)` `ON DELETE RESTRICT` |
 | `rating_avg` | `numeric(3,2)` | tidak | `0` | `0..5`, dihitung trigger |
 | `review_count` | `integer` | tidak | `0` | `>= 0`, dihitung trigger |
@@ -322,7 +331,7 @@ Sumber kebenaran untuk filter fasilitas. Satu baris per pasangan pintu–fasilit
 | `id` | `uuid` | tidak | `gen_random_uuid()` | PK |
 | `entrance_id` | `uuid` | tidak | — | FK `entrances(id)` `ON DELETE CASCADE` |
 | `feature_id` | `uuid` | tidak | — | FK `accessibility_features(id)` `ON DELETE RESTRICT` |
-| `value` | `feature_value` | tidak | `'UNKNOWN'` | — |
+| `value` | `FeatureValue` | tidak | `'UNKNOWN'` | — |
 | `notes` | `text` | ya | — | maksimal 300 karakter |
 | `updated_by` | `uuid` | ya | — | FK `profiles(id)` `ON DELETE SET NULL` |
 | `created_at` | `timestamptz` | tidak | `now()` | — |
@@ -386,7 +395,7 @@ Baca publik dilakukan lewat endpoint `storage/v1/object/public/...` sehingga tid
 | `rating` | `smallint` | tidak | — | `1..5` |
 | `body` | `text` | tidak | — | panjang 10–2000 |
 | `accessibility_note` | `text` | ya | — | maksimal 500 karakter |
-| `status` | `review_status` | tidak | `'PENDING'` | — |
+| `status` | `ReviewStatus` | tidak | `'PENDING'` | — |
 | `published_at` | `timestamptz` | ya | — | — |
 | `created_at` | `timestamptz` | tidak | `now()` | — |
 | `updated_at` | `timestamptz` | tidak | `now()` | trigger |
@@ -415,7 +424,7 @@ Aturan: review yang di-`ARCHIVED`/`REJECTED` tidak dihitung ke `rating_avg`. Edi
 | `socials` | `jsonb` | tidak | `'{}'` | kunci: `instagram`, `facebook`, `website` |
 | `join_url` | `text` | tidak | — | URL grup/tautan pendaftaran eksternal |
 | `logo_url` | `text` | ya | — | bucket `community-logos` |
-| `status` | `community_status` | tidak | `'PENDING'` | — |
+| `status` | `CommunityStatus` | tidak | `'PENDING'` | — |
 | `owner_id` | `uuid` | tidak | — | FK `profiles(id)` `ON DELETE RESTRICT` |
 | `verified_at` | `timestamptz` | ya | — | — |
 | `verified_by` | `uuid` | ya | — | FK `profiles(id)` `ON DELETE SET NULL` |
@@ -440,21 +449,26 @@ Aturan: `status = 'VERIFIED'` wajib punya `verified_at` dan `verified_by`. Hanya
 | `id` | `uuid` | tidak | `gen_random_uuid()` | PK |
 | `slug` | `text` | tidak | — | unik |
 | `organizer_id` | `uuid` | tidak | — | FK `profiles(id)` `ON DELETE RESTRICT`, role `ORGANIZER`/`ADMIN` |
-| `community_id` | `uuid` | ya | — | FK `communities(id)` `ON DELETE SET NULL` |
+| `community_id` | `uuid` | ya | — | belum ada FK; menunggu struktur `communities` disepakati |
 | `title` | `text` | tidak | — | panjang 5–150 |
 | `description` | `text` | tidak | — | panjang 20–5000 |
-| `category` | `event_category` | tidak | — | — |
+| `category` | `EventCategory` | tidak | — | — |
 | `location_name` | `text` | tidak | — | — |
 | `address` | `text` | tidak | — | — |
+| `city` | `text` | tidak | — | tidak boleh kosong |
+| `province` | `text` | tidak | — | tidak boleh kosong |
 | `latitude` | `numeric(9,6)` | ya | — | `-90..90` |
 | `longitude` | `numeric(9,6)` | ya | — | `-180..180` |
 | `starts_at` | `timestamptz` | tidak | — | — |
 | `ends_at` | `timestamptz` | tidak | — | `> starts_at` |
-| `requirements` | `text` | ya | — | maksimal 2000 karakter |
+| `requirements` | `text` | ya | — | maksimal 2000 karakter; satu persyaratan per baris (`\n`) |
+| `accessibility_notes` | `text` | ya | — | maksimal 2000 karakter |
 | `slots` | `integer` | tidak | — | `> 0` |
 | `registered_count` | `integer` | tidak | `0` | `0..slots`, dihitung trigger |
-| `status` | `event_status` | tidak | `'DRAFT'` | — |
-| `published_at` | `timestamptz` | ya | — | — |
+| `status` | `EventStatus` | tidak | `'DRAFT'` | — |
+| `cover_url` | `text` | ya | — | path/URL bucket `event-covers` |
+| `cover_alt` | `text` | ya | — | wajib bila `cover_url` terisi |
+| `published_at` | `timestamptz` | ya | — | wajib saat `PUBLISHED` |
 | `archived_at` | `timestamptz` | ya | — | — |
 | `created_at` | `timestamptz` | tidak | `now()` | — |
 | `updated_at` | `timestamptz` | tidak | `now()` | trigger |
@@ -465,9 +479,15 @@ Index:
 - `idx_volunteer_events_status_start` (`status`, `starts_at`)
 - `idx_volunteer_events_organizer` (`organizer_id`)
 - `idx_volunteer_events_community` (`community_id`)
+- `idx_volunteer_events_location` (`province`, `city`)
 - `idx_volunteer_events_title_trgm` GIN (`title gin_trgm_ops`)
 
-Aturan: `registered_count` dihitung dari `event_registrations` berstatus `CONFIRMED`. Jangan menulis manual. Event `PUBLISHED` yang `ends_at` sudah lewat boleh ditandai `CLOSED` oleh job terjadwal.
+Aturan:
+
+- `registered_count` dihitung dari `event_registrations` berstatus `CONFIRMED`. Jangan menulis manual. Event `PUBLISHED` yang `ends_at` sudah lewat boleh ditandai `CLOSED` oleh job terjadwal.
+- `community_id` sengaja nullable dan **belum memiliki relasi/FK** di Prisma maupun SQL. FK ditambahkan lewat migrasi baru setelah tabel `communities` disepakati.
+- `requirements` disimpan sebagai satu kolom `text`. UI memecahnya per baris baru; jangan mengubahnya menjadi array di database.
+- `cover_url` menunjuk ke bucket `event-covers`. `cover_alt` wajib diisi agar gambar informatif tetap aksesibel.
 
 ### 5.11 `event_registrations`
 
@@ -480,7 +500,7 @@ Aturan: `registered_count` dihitung dari `event_registrations` berstatus `CONFIR
 | `email` | `text` | tidak | — | format email |
 | `phone` | `text` | tidak | — | `^\+?[0-9 -]{8,20}$` |
 | `accessibility_needs` | `text` | ya | — | maksimal 500 karakter |
-| `status` | `registration_status` | tidak | `'PENDING'` | — |
+| `status` | `RegistrationStatus` | tidak | `'PENDING'` | — |
 | `cancelled_at` | `timestamptz` | ya | — | wajib saat `CANCELLED` |
 | `created_at` | `timestamptz` | tidak | `now()` | — |
 | `updated_at` | `timestamptz` | tidak | `now()` | trigger |
@@ -504,12 +524,12 @@ Aturan:
 |---|---|---|---|---|
 | `id` | `uuid` | tidak | `gen_random_uuid()` | PK |
 | `user_id` | `uuid` | tidak | — | FK `profiles(id)` `ON DELETE CASCADE` |
-| `type` | `verification_type` | tidak | — | — |
+| `type` | `VerificationType` | tidak | — | — |
 | `payload` | `jsonb` | tidak | `'{}'` | tanpa dokumen sensitif |
 | `document_url` | `text` | ya | — | path bucket privat `verification-docs` |
-| `status` | `verification_status` | tidak | `'PENDING'` | — |
+| `status` | `VerificationStatus` | tidak | `'PENDING'` | — |
 | `reviewer_id` | `uuid` | ya | — | FK `profiles(id)` `ON DELETE SET NULL` |
-| `review_note` | `text` | ya | — | maksimal 1000 karakter |
+| `review_note` | `text` | ya | — | maksimal 1000 karakter (`chk_verification_review_note_length`) |
 | `submitted_at` | `timestamptz` | tidak | `now()` | — |
 | `reviewed_at` | `timestamptz` | ya | — | — |
 | `created_at` | `timestamptz` | tidak | `now()` | — |
@@ -627,7 +647,7 @@ Agregat tidak dihitung saat request halaman. Nilainya dipelihara di database.
 | `volunteer_events.registered_count` | `event_registrations` berstatus `CONFIRMED` | insert/update/delete pada `event_registrations` |
 | `updated_at` | baris mana pun | trigger `set_updated_at()` |
 
-Fungsi yang direncanakan:
+Fungsi bersama `set_updated_at()` sudah ada dan dipakai ulang oleh trigger Volunteer. Fungsi `refresh_event_registration_count()` dijalankan `SECURITY DEFINER` dengan `search_path = public, pg_temp` dan hanya mengubah `registered_count`.
 
 ```sql
 create or replace function refresh_place_rating(target_place_id uuid)
@@ -674,6 +694,7 @@ Aturan implementasi:
 - Trigger memanggil fungsi di atas; jangan menduplikasi logika hitung di server action.
 - Backfill awal dijalankan sekali setelah migrasi.
 - Nilai agregat boleh dibaca langsung untuk tampilan daftar. Untuk keputusan yang butuh akurasi mutlak (misalnya validasi kuota), hitung ulang di dalam transaksi.
+- Penulisan manual `registered_count` oleh non-admin hanya diterima bila nilainya sama dengan hasil hitung `CONFIRMED` **dan** tidak ada kolom lain yang berubah. Tidak ada flag sesi yang dapat dipalsukan client.
 
 ---
 
@@ -698,15 +719,19 @@ RLS tetap diaktifkan sebagai lapisan pertahanan kedua.
 | `entrances`, `place_photos`, `entrance_features` | baca bila place `PUBLISHED` | sama | semua |
 | `accessibility_features` | baca `is_active` | baca | semua |
 | `reviews` | baca `PUBLISHED` | baca `PUBLISHED` + milik sendiri | semua |
-| `profiles` | tidak | baca profil publik, ubah milik sendiri (kecuali `role`) | semua |
+| `profiles` | tidak | baca semua (policy bersama saat ini), ubah milik sendiri | semua |
 | `communities` | baca `VERIFIED` | baca `VERIFIED` + milik sendiri | semua |
 | `volunteer_events` | baca `PUBLISHED` | baca `PUBLISHED` + milik sendiri | semua |
-| `event_registrations` | tidak | milik sendiri | semua |
-| `verification_requests` | tidak | milik sendiri | semua |
+| `event_registrations` | tidak | milik sendiri, atau pendaftar event miliknya | semua |
+| `verification_requests` | tidak | milik sendiri, hanya pengajuan `PENDING` | semua; review/ubah |
 | `reports` | tidak | buat, baca milik sendiri | semua |
 | `moderation_logs` | tidak | tidak | semua |
 
-Kolom `profiles.role` tidak boleh bisa diubah oleh pemilik profil. Perubahan role hanya lewat server dengan service role setelah verifikasi.
+Aturan yang dituju: kolom `profiles.role` tidak boleh bisa diubah oleh pemilik profil; perubahan role hanya lewat server dengan service role setelah verifikasi.
+
+**Status aktual database bersama:** policy `profiles_update_own` saat ini hanya membatasi `id = auth.uid()` dan belum ada trigger yang melindungi `role`. Policy `profiles_insert_own` juga belum membatasi `role = 'USER'`. Policy `communities_update_own` belum mencegah owner mengubah status verifikasi sendiri. Selain itu `profiles_select_authenticated USING (true)` membuat seluruh pengguna authenticated dapat membaca `email` semua profil.
+
+Temuan ini **tidak diperbaiki oleh migration Volunteer** karena menyentuh policy/trigger tabel bersama. Perbaikannya membutuhkan persetujuan pemilik fitur Places/Communities dan migration hardening terpisah. Sementara itu, semua otorisasi Volunteer tetap wajib dicek di server dari `profiles.role`.
 
 ### 8.3 Privasi & retensi
 
@@ -782,14 +807,47 @@ Status per 31 Oktober 2026:
 2. ✅ `profiles` (tanpa FK ke `auth.users`; lihat §5.1).
 3. ✅ `accessibility_features`.
 4. ✅ `places` → `entrances` → `entrance_features` → `place_photos` → `reviews`.
-5. ⬜ `communities` → `volunteer_events` → `event_registrations`.
-6. ⬜ `verification_requests`, `reports`, `moderation_logs`.
-7. ✅ Fungsi & trigger agregat untuk `places.rating_avg`/`review_count`.
-8. ✅ Index tambahan dan backfill agregat (dijalankan oleh seed).
+5. ✅ `communities` → `verification_requests` (+ `place_likes`).
+6. ⬜ `volunteer_events` → `event_registrations` (migration tersedia, belum diterapkan).
+7. ⬜ `reports`, `moderation_logs`.
+8. ✅ Fungsi & trigger agregat untuk `places.rating_avg`/`review_count`.
+9. ✅ Index tambahan dan backfill agregat (dijalankan oleh seed).
 
-Migrasi Fitur 1: [`prisma/migrations/20261031083304_init_feature1/migration.sql`](../prisma/migrations/20261031083304_init_feature1/migration.sql). Migrasi ini juga memuat objek yang tidak bisa diekspresikan di `schema.prisma`: index trigram, partial unique index, check constraint, `set_updated_at()`, dan `reviews_refresh_place_rating()`.
+Migrasi yang tersedia di repo:
 
-Migrasi foto postingan: [`prisma/migrations/20261103100000_place_photos_storage/migration.sql`](../prisma/migrations/20261103100000_place_photos_storage/migration.sql). Migrasi ini membuat bucket `place-photos` beserta policy RLS-nya secara idempoten (aman dijalankan ulang).
+| Migrasi | Isi |
+|---|---|
+| `20261031083304_init_feature1` | enum, `profiles`, `places`, `entrances`, `entrance_features`, `place_photos`, `reviews`, fungsi & trigger agregat, index trigram |
+| `20261101120000_init_communities` | `communities`, `verification_requests`, bucket logo komunitas |
+| `20261102120000_add_place_likes_and_post_moderation` | `place_likes`, kolom moderasi postingan |
+| `20261103100000_place_photos_storage` | bucket `place-photos` + policy RLS (idempoten) |
+| `20261101121000`–`20261101121400` | modul Volunteer (enum, tabel, trigger, RLS) |
+
+Migrasi Fitur 1 memuat objek yang tidak bisa diekspresikan di `schema.prisma`: index trigram, partial unique index, check constraint, `set_updated_at()`, dan `reviews_refresh_place_rating()`.
+
+#### Status rekonsiliasi Tahap 2 (Volunteer)
+
+Migration Volunteer bersifat **additive** dan ditulis setelah migration bersama terakhir yang tercatat, `20261101120000_init_communities`. Migration ini **belum dijalankan**:
+
+| Migrasi | Isi |
+|---|---|
+| `20261101121000_create_volunteer_enums` | `pg_trgm` (jika belum ada), `EventStatus`, `EventCategory`, `RegistrationStatus` |
+| `20261101121100_create_volunteer_events` | tabel, check constraint, index, trigram, FK ke `profiles` |
+| `20261101121200_create_event_registrations` | pendaftaran, unique `(event_id, user_id)` |
+| `20261101121300_add_volunteer_triggers` | `updated_at` Volunteer, agregat `registered_count`, proteksi kegiatan/pendaftaran |
+| `20261101121400_enable_volunteer_rls` | RLS dan grant khusus tabel Volunteer |
+
+Yang **tidak** dilakukan migration ini:
+
+- Tidak membuat ulang `profiles`, `communities`, atau `verification_requests`.
+- Tidak membuat enum bersama `UserRole`, `VerificationType`, `VerificationStatus`.
+- Tidak mengubah policy/grant tabel bersama.
+- Tidak menambah trigger pada `profiles`.
+- Tidak menambahkan FK `community_id` → `communities`.
+
+Catatan urutan: migration bersama `20261101120000_init_communities` sudah diterapkan tetapi bertimestamp lebih besar dari waktu lokal saat rekonsiliasi. Karena aturannya adalah membuat migration setelah migration terakhir yang tercatat dan tidak mengubah timestamp lama, migration Volunteer memakai timestamp `20261101121000`–`20261101121400`. Tim perlu menormalkan urutan timestamp pada kesempatan terpisah.
+
+Migration ini bergantung pada schema `auth`, role Supabase (`anon`, `authenticated`, `service_role`), serta objek bersama `public.set_updated_at()` dan `public.is_admin()`. Karena itu hanya dijalankan pada project Supabase yang sudah memiliki schema bersama. Sebelum dijalankan, koneksi `DIRECT_URL` dan status project development wajib diverifikasi.
 
 ### 10.2 Aturan migrasi
 
@@ -818,20 +876,20 @@ npm run db:generate
 Aturan praktis:
 
 - `npm run db:migrate` (`prisma migrate dev`) hanya untuk membuat migrasi baru di mesin lokal. Jangan dipakai untuk sekadar menyamakan database bersama.
-- `npm run db:deploy` (`prisma migrate deploy`) adalah perintah untuk environment bersama/produksi.
+- `npm run db:deploy` menjalankan `scripts/migrate.mjs` (deploy + objek manual) untuk environment bersama/produksi. `npm run db:migrate:deploy` tersedia bila hanya butuh `prisma migrate deploy`.
 - Jika `migrate dev` menawarkan migrasi tambahan padahal tidak ada perubahan schema, itu akibat objek SQL manual (index parsial, trigger). Pilih **no** dan gunakan `db:deploy`, jangan biarkan Prisma menghapus objek tersebut.
 - `DATABASE_URL` memakai pooler transaksi (port 6543) untuk runtime; `DIRECT_URL` memakai session pooler (port 5432) untuk migrasi.
 
 ### 10.4 Seed
 
-Seed Fitur 1 ada di [`prisma/seed.ts`](../prisma/seed.ts) dengan data di [`prisma/seed-data.ts`](../prisma/seed-data.ts). Urutan yang sudah berjalan:
+Seed ada di [`prisma/seed.ts`](../prisma/seed.ts) dengan data fitur di [`prisma/seed-data.ts`](../prisma/seed-data.ts). Urutan saat ini:
 
-1. `profiles` demo (upsert berdasarkan `email`).
-2. `accessibility_features` (upsert berdasarkan `key`).
-3. `places` (upsert berdasarkan `slug`) + `entrances` (upsert berdasarkan `place_id` + `label`) + `entrance_features` (upsert berdasarkan pasangan) + `reviews` (upsert berdasarkan `place_id` + `author_id`).
-4. Agregat `rating_avg`/`review_count` diperbarui oleh trigger setelah review ditulis.
+1. `accessibility_features` (data sistem, upsert berdasarkan `key`).
+2. Komunitas `VERIFIED` (upsert berdasarkan `slug`; dilewati bila belum ada profil).
+3. Profil organizer volunteer untuk `auth.users` yang **sudah ada** (`SEED_ORGANIZER_EMAIL`).
+4. Event `PUBLISHED` contoh, hanya bila `NODE_ENV=development`.
 
-Urutan rencana untuk fitur berikutnya: komunitas `VERIFIED`, event `PUBLISHED` + pendaftaran, lalu contoh laporan dan log moderasi.
+Seed **tidak** lagi membuat tempat atau ulasan contoh; data tempat berasal dari postingan pengguna.
 
 Aturan seed:
 
@@ -839,6 +897,9 @@ Aturan seed:
 - Seed demo tidak boleh mengandung PII nyata.
 - Seed produksi hanya `accessibility_features` dan akun admin awal.
 - Konstanta label/ikon UI ada di `lib/constants/places.ts`; data domain ada di database. Jangan menghidupkan kembali `lib/mock/places.ts`.
+- Profil volunteer hanya dibuat untuk user yang sudah terdaftar di `auth.users`; seed tidak pernah membuat profil yatim tanpa pasangan auth.
+- Promosi role `USER` → `ORGANIZER` hanya berjalan bila `NODE_ENV=development` **dan** `SEED_ALLOW_ROLE_PROMOTION=true`. Di production/staging seed tidak pernah menaikkan role; persetujuan tetap harus lewat admin/verifikasi.
+- Seed tidak membuat event demo di luar `NODE_ENV=development`.
 
 ---
 
@@ -871,8 +932,9 @@ Aturan query:
 
 Hal berikut sengaja belum ditetapkan di dokumen ini dan perlu keputusan terpisah:
 
-- Skema dan migrasi untuk `communities`, `volunteer_events`, `event_registrations`, `verification_requests`, `reports`, dan `moderation_logs`.
-- PostGIS. Routing pejalan kaki Fitur 1 memakai OSRM (bukan PostGIS) dan tidak disimpan di database; lihat `docs/architecture.md` §13.
+- Skema dan migrasi untuk `reports` dan `moderation_logs` (masih berupa rencana).
+- Relasi FK `volunteer_events.community_id` → `communities.id` (belum disepakati).
+- PostGIS. Routing pejalan kaki memakai OSRM (bukan PostGIS) dan tidak disimpan di database; lihat `docs/architecture.md` §13.
 - Penyimpanan hasil rute OSRM di database (cache rute masih in-memory di browser).
 - Full-text search dengan ranking dan sinonim.
 - Notifikasi email/push dan tabel antreannya.

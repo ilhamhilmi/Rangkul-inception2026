@@ -1,14 +1,16 @@
 import "server-only";
 
 import { PrismaClient } from "@prisma/client";
-import { assertDatabaseEnv } from "@/lib/env";
+import { getDatabaseEnv } from "@/lib/env";
 
 const globalForPrisma = globalThis as unknown as {
   rangkulPrisma?: PrismaClient;
 };
 
 function createPrismaClient() {
-  assertDatabaseEnv();
+  // Validasi env database hanya saat Prisma benar-benar dipakai di server,
+  // bukan saat proses build/import.
+  getDatabaseEnv();
 
   return new PrismaClient({
     log:

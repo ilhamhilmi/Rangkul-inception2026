@@ -2,7 +2,8 @@ export type VolunteerCategory =
   | "Bantuan Acara"
   | "Pendataan Aksesibilitas"
   | "Kegiatan Sosial"
-  | "Program Inklusif";
+  | "Program Inklusif"
+  | "Lainnya";
 
 export type VolunteerCategoryFilter = "all" | VolunteerCategory;
 
@@ -20,7 +21,11 @@ export type VolunteerEvent = {
   registeredCount: number;
   slots: number;
   description: string;
-  requirements: string[];
+  /**
+   * Teks bebas yang dipisahkan baris baru, sesuai kolom
+   * `volunteer_events.requirements` (text) di database.
+   */
+  requirements: string;
   accessibilityNotes: string;
   coverImage: string;
   coverAlt: string;

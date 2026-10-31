@@ -175,15 +175,19 @@ export function VolunteerDetailDialog({
                   Yang perlu disiapkan
                 </h3>
                 <ul className="mt-2 space-y-2">
-                  {event.requirements.map((requirement) => (
-                    <li
-                      key={requirement}
-                      className="flex items-start gap-2 text-sm text-ink-muted"
-                    >
-                      <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
-                      <span>{requirement}</span>
-                    </li>
-                  ))}
+                  {event.requirements
+                    .split("\n")
+                    .map((requirement) => requirement.trim())
+                    .filter(Boolean)
+                    .map((requirement, index) => (
+                      <li
+                        key={`${index}-${requirement}`}
+                        className="flex items-start gap-2 text-sm text-ink-muted"
+                      >
+                        <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary-700" />
+                        <span>{requirement}</span>
+                      </li>
+                    ))}
                 </ul>
               </div>
 
@@ -204,8 +208,11 @@ export function VolunteerDetailDialog({
                 masuk terlebih dahulu.
               </p>
               <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
-                <ButtonLink href="/masuk?next=/volunteer" size="md">
-                  Daftar sebagai volunteer
+                <ButtonLink
+                  href={`/volunteer/${event.slug}`}
+                  size="md"
+                >
+                  Lihat detail & daftar
                 </ButtonLink>
                 <Button
                   type="button"

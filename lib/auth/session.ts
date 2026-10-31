@@ -1,8 +1,9 @@
 import "server-only";
 
 import type { User } from "@supabase/supabase-js";
-import { Prisma } from "@prisma/client";
+import { Prisma, type Profile, type UserRole } from "@prisma/client";
 import { connection } from "next/server";
+import { cache } from "react";
 import { prisma } from "@/lib/db/prisma";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -10,7 +11,7 @@ export type CurrentUser = {
   id: string;
   email: string;
   name: string;
-  role: "USER" | "ORGANIZER" | "ADMIN";
+  role: UserRole;
 };
 
 type ProfileInput = {
@@ -77,19 +78,52 @@ function profileFromAuthUser(user: User): ProfileInput {
   };
 }
 
-export async function getCurrentUser(): Promise<CurrentUser | null> {
+/**
+ * User Supabase Auth yang sedang login. Hasil di-cache per request agar tidak
+ * memanggil Supabase berkali-kali dalam satu render.
+ */
+export const getAuthUser = cache(async (): Promise<User | null> => {
   // Supabase memakai waktu saat memvalidasi sesi. Tunggu request masuk dulu
   // agar nilainya tidak dihitung saat prerender (Cache Components).
   await connection();
+
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
+
+  if (error) return null;
+
+  return user;
+});
+
+/**
+ * Profil aplikasi milik user yang sedang login (dibuat bila belum ada).
+ */
+export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+  const user = await getAuthUser();
 
   if (!user) return null;
 
   return ensureProfile(profileFromAuthUser(user));
-}
+});
+
+/**
+ * Profil Prisma lengkap (seluruh kolom) untuk halaman volunteer/dashboard.
+ */
+export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
+  const user = await getAuthUser();
+
+  if (!user) return null;
+
+  const existing = await prisma.profile.findUnique({ where: { id: user.id } });
+  if (existing) return existing;
+
+  const created = await ensureProfile(profileFromAuthUser(user));
+
+  return prisma.profile.findUnique({ where: { id: created.id } });
+});
 
 export async function ensureProfileForAuthUser(user: User) {
   return ensureProfile(profileFromAuthUser(user));
