@@ -39,7 +39,7 @@ const features = [
       "Filter berdasarkan wilayah dan fokus kegiatan",
       "Profil komunitas dengan tautan gabung yang jelas",
     ],
-    action: { href: "/daftar", label: "Daftarkan komunitas" },
+    action: { href: "/komunitas", label: "Jelajahi komunitas" },
   },
   {
     id: "volunteer",
