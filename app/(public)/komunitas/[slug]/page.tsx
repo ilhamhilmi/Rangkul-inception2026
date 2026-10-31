@@ -31,8 +31,8 @@ const shortDateFormatter = new Intl.DateTimeFormat("id-ID", {
 
 const joinSteps = [
   "Hubungi pengurus lewat kontak yang tertera atau tombol bergabung.",
-  "Ikuti satu kegiatan perkenalan agar saling mengenal.",
-  "Masuk ke grup komunikasi komunitas dan mulai terlibat.",
+  "Kenali pengurus dan anggota lewat grup komunikasi komunitas.",
+  "Mulai terlibat sesuai minat dan kenyamananmu.",
 ];
 
 function isEmail(value: string) {
@@ -41,6 +41,19 @@ function isEmail(value: string) {
 
 function isPhone(value: string) {
   return /^(\+62|62|0)[0-9\s-]{8,18}$/.test(value);
+}
+
+function websiteHref(value: string) {
+  try {
+    const url = new URL(
+      /^https?:\/\//i.test(value) ? value : `https://${value}`,
+    );
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function DetailSkeleton() {
@@ -76,6 +89,7 @@ function ContactList({ community }: { community: Community }) {
           ? "Telepon"
           : "Kontak",
       value: community.contact,
+      href: null,
     },
     ...(community.socials.instagram
       ? [
@@ -83,6 +97,7 @@ function ContactList({ community }: { community: Community }) {
             icon: InstagramIcon,
             label: "Instagram",
             value: community.socials.instagram,
+            href: null,
           },
         ]
       : []),
@@ -92,6 +107,7 @@ function ContactList({ community }: { community: Community }) {
             icon: GlobeIcon,
             label: "Facebook",
             value: community.socials.facebook,
+            href: null,
           },
         ]
       : []),
@@ -101,6 +117,7 @@ function ContactList({ community }: { community: Community }) {
             icon: GlobeIcon,
             label: "Situs web",
             value: community.socials.website,
+            href: websiteHref(community.socials.website),
           },
         ]
       : []),
@@ -118,7 +135,18 @@ function ContactList({ community }: { community: Community }) {
             <div className="min-w-0">
               <dt className="text-xs text-ink-muted">{item.label}</dt>
               <dd className="mt-0.5 break-words text-sm font-medium text-ink">
-                {item.value}
+                {item.href ? (
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline-offset-4 hover:text-primary-800 hover:underline"
+                  >
+                    {item.value}
+                  </a>
+                ) : (
+                  item.value
+                )}
               </dd>
             </div>
           </div>
@@ -178,7 +206,7 @@ async function CommunityDetail({
               <div>
                 <dt className="text-xs text-ink-muted">Fokus utama</dt>
                 <dd className="mt-1 text-sm font-medium text-ink">
-                  {community.focus.length} fokus kegiatan
+                  {community.focus.length} fokus komunitas
                 </dd>
               </div>
               <div>
@@ -188,32 +216,6 @@ async function CommunityDetail({
                 </dd>
               </div>
             </dl>
-          </section>
-
-          <section
-            aria-labelledby="kegiatan-komunitas"
-            className="rounded-card border border-line bg-surface p-5 shadow-xs sm:p-6"
-          >
-            <h2
-              id="kegiatan-komunitas"
-              className="text-lg font-semibold tracking-tight text-ink"
-            >
-              Kegiatan mendatang
-            </h2>
-            <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-              Kegiatan komunitas ini akan tampil di sini setelah fitur Volunteer
-              tersambung. Sementara itu, hubungi pengurus lewat kontak di samping
-              untuk mengetahui agenda terdekat.
-            </p>
-            <ButtonLink
-              href="/volunteer"
-              variant="secondary"
-              size="sm"
-              className="mt-4"
-            >
-              Lihat kegiatan volunteer
-              <ArrowRightIcon className="h-4 w-4" />
-            </ButtonLink>
           </section>
         </div>
 

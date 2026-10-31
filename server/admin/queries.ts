@@ -83,6 +83,19 @@ export async function getPendingCommunityApplications() {
   });
 }
 
+/** Komunitas terverifikasi yang sudah tampil di direktori publik. */
+export async function getVerifiedCommunities() {
+  await connection();
+
+  return prisma.community.findMany({
+    where: { status: "VERIFIED", archivedAt: null },
+    include: {
+      owner: { select: { id: true, name: true, email: true } },
+    },
+    orderBy: { verifiedAt: "desc" },
+  });
+}
+
 export async function getPendingOrganizerApplications() {
   await connection();
 

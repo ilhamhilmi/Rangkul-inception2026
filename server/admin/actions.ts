@@ -131,6 +131,16 @@ export async function approveCommunityAction(
         });
       }
 
+      await tx.notification.create({
+        data: {
+          userId: current.ownerId,
+          type: "COMMUNITY_APPROVED",
+          title: "Komunitas disetujui",
+          body: `Komunitas "${current.name}" sudah terverifikasi dan tampil di direktori publik Rangkul.`,
+          href: `/komunitas/${current.slug}`,
+        },
+      });
+
       return current;
     });
 
@@ -248,6 +258,67 @@ export async function rejectCommunityAction(
     return {
       ok: false,
       message: "Komunitas belum bisa ditolak. Coba lagi beberapa saat.",
+    };
+  }
+}
+
+export async function deleteCommunityAction(
+  communityId: string,
+): Promise<AdminActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.profile) return auth.error;
+
+  const parsedId = idSchema.safeParse(communityId);
+  if (!parsedId.success) {
+    return { ok: false, message: "ID komunitas tidak valid." };
+  }
+
+  try {
+    const community = await prisma.$transaction(async (tx) => {
+      const current = await tx.community.findUnique({
+        where: { id: parsedId.data },
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          status: true,
+          ownerId: true,
+        },
+      });
+
+      if (!current) throw new ActionFailure("Komunitas tidak ditemukan.");
+      if (current.status !== "VERIFIED") {
+        throw new ActionFailure(
+          "Hanya komunitas terverifikasi yang bisa dihapus.",
+        );
+      }
+
+      await tx.notification.create({
+        data: {
+          userId: current.ownerId,
+          type: "COMMUNITY_DELETED",
+          title: "Komunitas dihapus admin",
+          body: `Komunitas "${current.name}" telah dihapus dari direktori publik oleh admin. Hubungi admin bila kamu membutuhkan informasi lanjutan.`,
+          href: "/komunitas",
+        },
+      });
+
+      await tx.community.delete({ where: { id: current.id } });
+
+      return current;
+    });
+
+    revalidateCommunity(community.slug);
+
+    return { ok: true, message: "Komunitas dihapus." };
+  } catch (error) {
+    if (error instanceof ActionFailure) {
+      return { ok: false, message: error.message };
+    }
+
+    return {
+      ok: false,
+      message: "Komunitas belum bisa dihapus. Coba lagi beberapa saat.",
     };
   }
 }

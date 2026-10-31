@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import {
-  ExternalLinkIcon,
   MapPinIcon,
   ShieldCheckIcon,
 } from "@/components/ui/icons";
@@ -13,13 +12,6 @@ import { JoinCommunityButton } from "@/components/communities/join-community-but
 function contactLabel(contact: string) {
   if (contact.startsWith("@")) return contact;
   return contact;
-}
-
-function getMapsHref(community: Community) {
-  const query = encodeURIComponent(
-    `${community.name}, ${community.city}, ${community.province}`,
-  );
-  return `https://www.google.com/maps/search/?api=1&query=${query}`;
 }
 
 export function CommunityCard({ community }: { community: Community }) {
@@ -81,23 +73,7 @@ export function CommunityCard({ community }: { community: Community }) {
         </ul>
 
         <div className="mt-auto border-t border-line pt-4">
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-ink-muted">
-            <span>Komunitas terverifikasi</span>
-            <a
-              href={getMapsHref(community)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-11 items-center gap-1.5 rounded font-medium text-primary-700 underline-offset-4 hover:text-primary-800 hover:underline"
-            >
-              <MapPinIcon className="h-3.5 w-3.5" />
-              Peta lokasi
-              <span className="sr-only">
-                {" "}
-                {community.name} (buka di tab baru)
-              </span>
-              <ExternalLinkIcon className="h-3 w-3" />
-            </a>
-          </div>
+          <p className="text-xs text-ink-muted">Komunitas terverifikasi</p>
 
           <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <ButtonLink

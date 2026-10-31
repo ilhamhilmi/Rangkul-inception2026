@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 
+import { DeleteCommunityButton } from "@/components/admin/delete-community-button";
 import { ReviewActions } from "@/components/admin/review-actions";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -14,7 +16,10 @@ import {
   UsersIcon,
 } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getPendingCommunityApplications } from "@/server/admin/queries";
+import {
+  getPendingCommunityApplications,
+  getVerifiedCommunities,
+} from "@/server/admin/queries";
 
 export const metadata: Metadata = {
   title: "Approval Komunitas",
@@ -54,7 +59,10 @@ function AdminCommunitiesSkeleton() {
 }
 
 async function AdminCommunitiesContent() {
-  const applications = await getPendingCommunityApplications();
+  const [applications, published] = await Promise.all([
+    getPendingCommunityApplications(),
+    getVerifiedCommunities(),
+  ]);
 
   return (
     <div className="container-page py-8 lg:py-10">
@@ -213,6 +221,56 @@ async function AdminCommunitiesContent() {
           ))}
         </div>
       )}
+
+      <section className="mt-10" aria-labelledby="komunitas-terpublikasi">
+        <h2
+          id="komunitas-terpublikasi"
+          className="text-lg font-semibold tracking-tight text-ink"
+        >
+          Komunitas terpublikasi
+        </h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Hapus komunitas yang melanggar pedoman. Pemilik akan menerima
+          notifikasi.
+        </p>
+
+        {published.length === 0 ? (
+          <p className="mt-4 rounded-card border border-line bg-surface px-4 py-6 text-center text-sm text-ink-muted">
+            Belum ada komunitas terpublikasi.
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-line rounded-card border border-line bg-surface shadow-xs">
+            {published.map((community) => (
+              <li
+                key={community.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-ink">
+                    <Link
+                      href={`/komunitas/${community.slug}`}
+                      className="underline-offset-4 hover:text-primary-800 hover:underline"
+                    >
+                      {community.name}
+                    </Link>
+                  </p>
+                  <p className="mt-0.5 text-xs text-ink-muted">
+                    {community.city}, {community.province} ·{" "}
+                    {community.owner.name} ({community.owner.email}) ·{" "}
+                    {community.verifiedAt
+                      ? `Terverifikasi ${formatDate(community.verifiedAt)}`
+                      : "Terverifikasi"}
+                  </p>
+                </div>
+                <DeleteCommunityButton
+                  communityId={community.id}
+                  name={community.name}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

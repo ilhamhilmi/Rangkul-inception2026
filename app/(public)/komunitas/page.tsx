@@ -9,7 +9,7 @@ import { getCommunityDirectory } from "@/server/communities/queries";
 export const metadata: Metadata = {
   title: "Komunitas",
   description:
-    "Direktori komunitas disabilitas dan komunitas inklusif di Indonesia. Cari berdasarkan wilayah dan fokus kegiatan, lalu bergabung langsung.",
+    "Direktori komunitas disabilitas dan komunitas inklusif di Indonesia. Cari berdasarkan wilayah dan fokus komunitas, lalu bergabung langsung.",
 };
 
 const registrationSteps = [
@@ -112,7 +112,7 @@ export default function CommunityPage({
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ink-muted">
               Jelajahi komunitas disabilitas dan komunitas inklusif dari
-              berbagai daerah. Lihat fokus kegiatan, kenali pengurusnya, lalu
+              berbagai daerah. Lihat fokus komunitas, kenali pengurusnya, lalu
               bergabung lewat saluran yang tersedia.
             </p>
           </div>

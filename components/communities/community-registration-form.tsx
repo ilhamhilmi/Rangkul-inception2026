@@ -630,7 +630,7 @@ export function CommunityRegistrationForm({
           <Textarea
             id="description"
             name="description"
-            placeholder="Ceritakan siapa yang kamu dampingi, kegiatan rutin, dan hal yang membuat komunitas ini unik."
+            placeholder="Ceritakan siapa yang kamu dampingi, program rutin, dan hal yang membuat komunitas ini unik."
             required
             maxLength={3000}
             onChange={(event) => {
