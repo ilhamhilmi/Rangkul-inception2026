@@ -81,7 +81,7 @@ export function NotificationMenu({
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="lg:relative">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -105,7 +105,7 @@ export function NotificationMenu({
       {open ? (
         <div
           id="menu-notifikasi"
-          className="absolute right-0 z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-card border border-line bg-surface shadow-card"
+          className="absolute inset-x-4 top-full z-50 mt-2 overflow-hidden rounded-card border border-line bg-surface shadow-card lg:inset-x-auto lg:right-0 lg:w-[min(22rem,calc(100vw-2rem))]"
         >
           <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
             <div>

@@ -150,7 +150,7 @@ function PlaceDetailView({
           </nav>
 
           <div className="mt-5 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl">
+            <div className="min-w-0 max-w-3xl">
               <div className="flex flex-wrap items-center gap-2">
                 <CategoryBadge category={place.category} />
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-muted">
@@ -159,7 +159,7 @@ function PlaceDetailView({
                 </span>
               </div>
 
-              <h1 className="mt-3 text-display-sm font-bold tracking-tight text-ink">
+              <h1 className="mt-3 break-words text-display-sm font-bold tracking-tight text-ink">
                 {place.name}
               </h1>
 
@@ -211,8 +211,8 @@ function PlaceDetailView({
       </section>
 
       <div className="container-page py-8 lg:py-10">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
-          <div className="order-2 space-y-10 lg:order-1">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
+          <div className="order-2 min-w-0 space-y-10 lg:order-1">
             <section aria-labelledby="tentang-heading">
               <h2
                 id="tentang-heading"
@@ -265,7 +265,7 @@ function PlaceDetailView({
             </section>
           </div>
 
-          <aside className="order-1 space-y-4 lg:order-2 lg:sticky lg:top-24">
+          <aside className="order-1 min-w-0 space-y-4 lg:order-2 lg:sticky lg:top-24">
             <PhotoCarousel
               photos={place.photos}
               name={place.name}

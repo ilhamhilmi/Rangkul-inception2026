@@ -120,13 +120,13 @@ export function PlaceExplorer({
       {filtered.length > 0 ? (
         <ol
           className={[
-            "mt-5 grid gap-5 transition-opacity sm:grid-cols-2 lg:grid-cols-3",
+            "mt-5 grid grid-cols-1 gap-4 transition-opacity sm:grid-cols-2 sm:gap-5 lg:grid-cols-3",
             isFiltering ? "opacity-60" : "opacity-100",
           ].join(" ")}
           aria-busy={isFiltering}
         >
           {filtered.map((place) => (
-            <li key={place.id} className="flex">
+            <li key={place.id} className="flex min-w-0">
               <PostCard place={place} isAuthenticated={isAuthenticated} />
             </li>
           ))}

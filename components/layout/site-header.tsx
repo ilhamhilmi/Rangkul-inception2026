@@ -4,18 +4,13 @@ import { AuthNav } from "@/components/layout/auth-nav";
 import { Brand } from "@/components/layout/brand";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { NotificationMenu } from "@/components/layout/notification-menu";
+import { PrimaryNav } from "@/components/layout/primary-nav";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { CalendarIcon, UserIcon } from "@/components/ui/icons";
 import { VerifiedBadge } from "@/components/ui/verified-badge";
 import { getCurrentUser } from "@/lib/auth/session";
 import { signOutAction } from "@/server/auth/actions";
 import { getNotificationsForUser } from "@/server/notifications/queries";
-
-const navigation = [
-  { href: "/jelajahi", label: "Jelajahi" },
-  { href: "/komunitas", label: "Komunitas" },
-  { href: "/volunteer", label: "Volunteer" },
-];
 
 async function HeaderActions() {
   const user = await getCurrentUser();
@@ -81,20 +76,11 @@ export function SiteHeader() {
       <div className="container-page flex h-16 items-center justify-between gap-3">
         <Brand />
 
-        <nav aria-label="Navigasi utama" className="hidden lg:block">
-          <ul className="flex items-center gap-1">
-            {navigation.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className="inline-flex h-11 items-center rounded-button px-3 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
-                >
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <Suspense
+          fallback={<div aria-hidden="true" className="hidden h-11 w-60 lg:block" />}
+        >
+          <PrimaryNav />
+        </Suspense>
 
         <Suspense
           fallback={

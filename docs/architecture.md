@@ -473,7 +473,8 @@ Catatan struktur:
 
 - Route dashboard berada di `app/dashboard`, bukan route group `(dashboard)`.
 - Modul Volunteer tidak memakai `server/volunteer`; logikanya ada di `lib/volunteer`.
-- Notifikasi memakai `server/notifications`.
+- Notifikasi memakai `server/notifications`. Notifikasi konfirmasi pendaftaran dibuat di dalam transaksi `updateRegistrationStatusAction` (`lib/volunteer/actions.ts`).
+- Navigasi utama memakai `components/layout/primary-nav.tsx` (desktop) dan `components/layout/mobile-nav.tsx` (mobile). Keduanya menandai halaman aktif lewat `usePathname` + `aria-current="page"`; item **Beranda** mengarah ke `/`.
 - Folder route tanpa `page.tsx` tidak menghasilkan URL; jangan menambahkan folder baru tanpa alasan yang jelas.
 - `error.tsx`/`not-found.tsx` hanya ada di route yang membutuhkannya saat ini: `app/(public)/volunteer/error.tsx`, `app/dashboard/error.tsx`, serta `not-found.tsx` di detail komunitas dan detail volunteer. Tidak ada error boundary global di root.
 - Folder kosong sisa scaffold (`app/api`, `app/admin/tempat`, `app/admin/laporan`, `app/(dashboard)`) tidak menghasilkan route dan tidak dilacak Git; jangan dianggap fitur yang sudah ada.
@@ -695,7 +696,7 @@ Prisma terhubung langsung ke Postgres, sehingga **RLS Supabase tidak berlaku unt
 | `VolunteerEvent` | `slug`, `organizerId`, `communityId?`, `title`, `description`, `category`, `locationName`, `address`, `lat`, `lng`, `startsAt`, `endsAt`, `requirements`, `slots`, `registeredCount`, `status`, `moderationNote` |
 | `EventRegistration` | `eventId`, `userId`, `name`, `email`, `phone`, `accessibilityNeeds`, `status`; unik `(eventId, userId)` |
 | `VerificationRequest` | `type` (`COMMUNITY/ORGANIZER`), `payload`, `documentUrl`, `status`, `reviewerId`, `reviewedAt` |
-| `Notification` | `userId`, `type` (`EVENT_UPDATED/EVENT_ARCHIVED`), `title`, `body`, `href`, `eventId?`, `readAt`, `createdAt` |
+| `Notification` | `userId`, `type` (`EVENT_UPDATED/EVENT_ARCHIVED/REGISTRATION_CONFIRMED/EVENT_CANCELLED`), `title`, `body`, `href`, `eventId?`, `readAt`, `createdAt` |
 | `Report`, `ModerationLog` | **belum ada di schema**; rencana |
 
 ### 10.2 Relasi
@@ -723,7 +724,7 @@ Profile 1─* Notification
 | `Place` | `PENDING`, `PUBLISHED`, `REJECTED`, `ARCHIVED` |
 | `Review` (legacy) | `PENDING`, `PUBLISHED`, `REJECTED` |
 | `Community` | `PENDING`, `VERIFIED`, `REJECTED`, `SUSPENDED` |
-| `VolunteerEvent` | `DRAFT`, `PENDING`, `PUBLISHED`, `CLOSED`, `REJECTED` |
+| `VolunteerEvent` | `DRAFT`, `PENDING`, `PUBLISHED`, `CLOSED`, `REJECTED`, `CANCELLED` |
 | `EventRegistration` | `PENDING`, `CONFIRMED`, `CANCELLED` |
 | `VerificationRequest` | `PENDING`, `APPROVED`, `REJECTED` |
 
@@ -1090,7 +1091,7 @@ Setiap PR/fitur dianggap selesai jika:
 | Database lokal/bersama | Diputuskan | Supabase hosted + Prisma; `DATABASE_URL` pooler, `DIRECT_URL` migrasi |
 | RLS | Sebagian | Prisma bypass RLS; semua mutasi lewat server action. Policy `profiles`/`communities` masih perlu hardening (lihat `docs/database.md` §8) |
 | Rate limiting | Terbuka | Belum ada; perlu Upstash/Redis atau edge function |
-| Notifikasi in-app | Diputuskan | Tabel `notifications` + `NotificationType` untuk update/arsip kegiatan |
+| Notifikasi in-app | Diputuskan | Tabel `notifications` + `NotificationType` untuk update/arsip kegiatan dan konfirmasi pendaftaran volunteer |
 | Notifikasi email/push | Terbuka | Supabase Auth email vs Resend |
 | Export Excel | Diputuskan | ExcelJS di server |
 | Dark mode | Ditunda | Light-first; high contrast + forced-colors didukung |

@@ -48,7 +48,7 @@ export function PhotoCarousel({
 
   if (!photo) {
     return (
-      <figure>
+      <figure className="min-w-0 max-w-full">
         <PlaceMedia
           category={category}
           className={cn(
@@ -65,7 +65,7 @@ export function PhotoCarousel({
   }
 
   return (
-    <figure>
+    <figure className="min-w-0 max-w-full">
       <div
         role={total > 1 ? "group" : undefined}
         aria-roledescription={total > 1 ? "carousel" : undefined}

@@ -33,7 +33,7 @@ export type EventFormValues = {
   slots: string;
   coverUrl: string;
   coverAlt: string;
-  status: "DRAFT" | "PENDING" | "PUBLISHED" | "CLOSED" | "REJECTED";
+  status: "DRAFT" | "PENDING" | "PUBLISHED" | "CLOSED" | "REJECTED" | "CANCELLED";
   coverPreviewUrl?: string;
 };
 

@@ -26,7 +26,7 @@ export type ProfileVolunteerRegistration = {
     endsAt: string;
     coverImage: string;
     organizer: string;
-    status: "DRAFT" | "PENDING" | "PUBLISHED" | "CLOSED" | "REJECTED";
+    status: "DRAFT" | "PENDING" | "PUBLISHED" | "CLOSED" | "REJECTED" | "CANCELLED";
   };
 };
 

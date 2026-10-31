@@ -32,14 +32,14 @@ export function CommunityProfileHeader({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
             <CommunityMark community={community} size="lg" />
 
-            <div className="pb-1">
+            <div className="min-w-0 pb-1">
               <Badge tone="success">
                 <ShieldCheckIcon className="h-3.5 w-3.5" />
                 Terverifikasi admin
               </Badge>
               <h1
                 id="judul-komunitas"
-                className="mt-2 text-2xl font-bold tracking-tight text-ink sm:text-3xl"
+                className="mt-2 break-words text-2xl font-bold tracking-tight text-ink sm:text-3xl"
               >
                 {community.name}
               </h1>
@@ -54,7 +54,7 @@ export function CommunityProfileHeader({
           />
         </div>
 
-        <p className="mt-4 line-clamp-3 max-w-2xl text-lg leading-relaxed text-ink-muted">
+        <p className="mt-4 line-clamp-3 max-w-2xl break-words text-lg leading-relaxed text-ink-muted">
           {community.description}
         </p>
 

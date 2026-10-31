@@ -6,7 +6,9 @@ import type { EventStatus } from "@prisma/client";
 import { Button, ButtonLink } from "@/components/ui/button";
 import {
   archiveEventAction,
+  cancelEventAction,
   closeEventAction,
+  deleteEventAction,
   submitEventAction,
 } from "@/lib/volunteer/actions";
 
@@ -65,6 +67,40 @@ export function EventManageActions({
     );
   }
 
+  if (status === "CANCELLED") {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <ButtonLink
+          href={`/dashboard/kegiatan/${eventId}/pendaftar`}
+          variant="secondary"
+          size="sm"
+        >
+          Lihat pendaftar
+        </ButtonLink>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={isPending}
+          className="text-danger-700"
+          onClick={() =>
+            run(
+              deleteEventAction,
+              "Hapus kegiatan ini secara permanen? Peserta sudah menerima notifikasi pembatalan.",
+            )
+          }
+        >
+          {isPending ? "Memproses…" : "Hapus kegiatan"}
+        </Button>
+        {message ? (
+          <p role="alert" className="w-full text-xs text-danger-700">
+            {message}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       <ButtonLink
@@ -108,6 +144,24 @@ export function EventManageActions({
           }
         >
           Tutup pendaftaran
+        </Button>
+      ) : null}
+
+      {status === "PUBLISHED" || status === "CLOSED" ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={isPending}
+          className="text-danger-700"
+          onClick={() =>
+            run(
+              cancelEventAction,
+              "Batalkan kegiatan ini? Semua peserta aktif akan menerima notifikasi pembatalan.",
+            )
+          }
+        >
+          Batalkan kegiatan
         </Button>
       ) : null}
 

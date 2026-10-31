@@ -152,8 +152,8 @@ async function CommunityDetail({
         <CommunityProfileHeader community={community} />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)] lg:items-start">
-        <div className="space-y-4">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)] lg:items-start">
+        <div className="min-w-0 space-y-4">
           <section
             aria-labelledby="tentang-komunitas"
             className="rounded-card border border-line bg-surface p-5 shadow-xs sm:p-6"
@@ -164,7 +164,7 @@ async function CommunityDetail({
             >
               Tentang komunitas
             </h2>
-            <p className="mt-3 max-w-[68ch] whitespace-pre-line leading-relaxed text-ink-muted">
+            <p className="mt-3 max-w-[68ch] whitespace-pre-line break-words leading-relaxed text-ink-muted">
               {community.description}
             </p>
 
@@ -217,7 +217,7 @@ async function CommunityDetail({
           </section>
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-24">
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-24">
           <section
             aria-labelledby="kontak-komunitas"
             className="rounded-card border border-line bg-surface p-5 shadow-xs"
@@ -303,9 +303,9 @@ async function CommunityDetail({
             </ButtonLink>
           </div>
 
-          <ul className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
             {related.map((item) => (
-              <li key={item.slug} className="h-full">
+              <li key={item.slug} className="h-full min-w-0">
                 <CommunityCard community={item} />
               </li>
             ))}

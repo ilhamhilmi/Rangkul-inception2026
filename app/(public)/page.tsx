@@ -113,7 +113,7 @@ export default function HomePage() {
                 Jelajahi tempat
                 <ArrowRightIcon className="h-4 w-4" />
               </ButtonLink>
-              <ButtonLink href="/daftar" variant="secondary" size="lg">
+              <ButtonLink href="/volunteer" variant="secondary" size="lg">
                 Jadi relawan
               </ButtonLink>
             </div>

@@ -80,6 +80,7 @@ enum EventStatus {
   PUBLISHED
   CLOSED
   REJECTED
+  CANCELLED
 }
 
 enum EventCategory {
@@ -99,6 +100,8 @@ enum RegistrationStatus {
 enum NotificationType {
   EVENT_UPDATED
   EVENT_ARCHIVED
+  REGISTRATION_CONFIRMED
+  EVENT_CANCELLED
 }
 
 model Profile {

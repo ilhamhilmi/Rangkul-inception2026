@@ -12,9 +12,10 @@ Dokumen ini menerjemahkan sketsa Excalidraw awal (`Untitled-2026-10-30-2329.exca
 
 **Implementasi saat ini:**
 
-- Navbar: brand Rangkul, **Jelajahi**, **Komunitas**, **Volunteer**, lalu tombol **Masuk/Daftar** bila belum login.
+- Navbar: brand Rangkul, **Beranda**, **Jelajahi**, **Komunitas**, **Volunteer**, lalu tombol **Masuk/Daftar** bila belum login.
+- Halaman aktif ditandai berdasarkan `pathname`: item mendapat `aria-current="page"` dan gaya `bg-primary-50 text-primary-800`. Path turunan ikut aktif (mis. `/jelajahi/[slug]` menandai **Jelajahi**).
 - Setelah login: tombol **Kelola Kegiatan** (khusus organizer/admin), menu notifikasi, nama pengguna (tautan ke `/profil`), badge terverifikasi untuk organizer, dan tombol **Keluar**.
-- Di bawah breakpoint `lg`, navbar diganti tombol hamburger yang membuka panel berisi seluruh CTA: Jelajahi, Komunitas, Volunteer, Profil saya, Kelola kegiatan/Dashboard admin sesuai peran, Keluar, serta Masuk/Daftar dan **Bagikan pengalaman** untuk tamu.
+- Di bawah breakpoint `lg`, navbar diganti tombol hamburger yang membuka panel berisi seluruh CTA: Beranda, Jelajahi, Komunitas, Volunteer, Profil saya, Kelola kegiatan/Dashboard admin sesuai peran, Keluar, serta Masuk/Daftar dan **Bagikan pengalaman** untuk tamu. Item aktif memakai penanda yang sama.
 - Hero: “Membantu sesama, ruang untuk semua.” dengan CTA **Jelajahi tempat** dan **Jadi relawan**.
 - Bagian fitur menjelaskan tiga pilar: informasi & navigasi, direktori komunitas, dan volunteer inklusif.
 - Tautan masuk/daftar membawa parameter `next` agar pengguna kembali ke halaman asal setelah autentikasi.
@@ -132,7 +133,7 @@ Belum ada halaman admin untuk moderasi tempat atau laporan konten.
 4. Komunitas baru → form (login) → verifikasi admin → tampil di direktori.
 5. Volunteer → pilih kegiatan → login → daftar → penyelenggara konfirmasi.
 6. Pengajuan penyelenggara → verifikasi admin → dashboard → buat kegiatan → ajukan → admin terbitkan → peserta mendaftar.
-7. Perubahan/arsip kegiatan → notifikasi in-app ke peserta aktif.
+7. Perubahan/arsip kegiatan dan konfirmasi pendaftaran → notifikasi in-app ke peserta aktif.
 
 ## Ringkasan Perbedaan dari Sketsa Awal
 

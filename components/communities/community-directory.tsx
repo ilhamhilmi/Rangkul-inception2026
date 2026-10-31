@@ -114,13 +114,13 @@ export function CommunityDirectory({
       {filtered.length > 0 ? (
         <ul
           className={[
-            "mt-6 grid gap-5 transition-opacity sm:grid-cols-2 lg:grid-cols-3",
+            "mt-6 grid grid-cols-1 gap-4 transition-opacity sm:grid-cols-2 sm:gap-5 lg:grid-cols-3",
             isFiltering ? "opacity-60" : "opacity-100",
           ].join(" ")}
           aria-busy={isFiltering}
         >
           {filtered.map((community) => (
-            <li key={community.slug} className="h-full">
+            <li key={community.slug} className="h-full min-w-0">
               <CommunityCard community={community} />
             </li>
           ))}

@@ -721,6 +721,124 @@ export async function archiveEventAction(
   return { ok: true, data: { id: event.id } };
 }
 
+export async function cancelEventAction(
+  formData: FormData,
+): Promise<VolunteerActionResult<{ id: string }>> {
+  const { profile, error } = await requireRole([UserRole.ORGANIZER, UserRole.ADMIN]);
+  if (!profile) return error;
+
+  const { event, error: loadError } = await loadOwnedEvent(
+    readString(formData, "eventId"),
+    profile,
+  );
+  if (!event) return loadError;
+
+  if (event.archivedAt || event.status === EventStatus.CANCELLED) {
+    return { ok: true, data: { id: event.id } };
+  }
+
+  if (
+    event.status !== EventStatus.PUBLISHED &&
+    event.status !== EventStatus.CLOSED
+  ) {
+    return actionError(
+      "INVALID_STATUS",
+      "Hanya kegiatan terbit atau ditutup yang dapat dibatalkan.",
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.volunteerEvent.findUnique({
+      where: { id: event.id },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        organizerId: true,
+        registrations: {
+          where: {
+            status: {
+              in: [RegistrationStatus.PENDING, RegistrationStatus.CONFIRMED],
+            },
+          },
+          select: { userId: true },
+        },
+      },
+    });
+
+    if (!existing) return;
+
+    await tx.volunteerEvent.update({
+      where: { id: existing.id },
+      data: { status: EventStatus.CANCELLED },
+    });
+
+    await tx.eventRegistration.updateMany({
+      where: {
+        eventId: existing.id,
+        status: {
+          in: [RegistrationStatus.PENDING, RegistrationStatus.CONFIRMED],
+        },
+      },
+      data: { status: RegistrationStatus.CANCELLED, cancelledAt: new Date() },
+    });
+
+    const userIds = [
+      ...new Set(
+        existing.registrations
+          .map((registration) => registration.userId)
+          .filter(
+            (userId) =>
+              userId !== existing.organizerId && userId !== profile.id,
+          ),
+      ),
+    ];
+
+    if (userIds.length > 0) {
+      await tx.notification.createMany({
+        data: userIds.map((userId) => ({
+          userId,
+          eventId: existing.id,
+          type: "EVENT_CANCELLED" as const,
+          title: "Kegiatan dibatalkan penyelenggara",
+          body: `Kegiatan "${existing.title}" dibatalkan oleh penyelenggara. Pendaftaranmu ikut dibatalkan. Hubungi penyelenggara bila kamu masih membutuhkan informasi lanjutan.`,
+          href: "/profil",
+        })),
+      });
+    }
+  });
+
+  revalidateVolunteerPaths(event.slug);
+  return { ok: true, data: { id: event.id } };
+}
+
+export async function deleteEventAction(
+  formData: FormData,
+): Promise<VolunteerActionResult<{ id: string }>> {
+  const { profile, error } = await requireRole([UserRole.ORGANIZER, UserRole.ADMIN]);
+  if (!profile) return error;
+
+  const { event, error: loadError } = await loadOwnedEvent(
+    readString(formData, "eventId"),
+    profile,
+  );
+  if (!event) return loadError;
+
+  if (event.status !== EventStatus.CANCELLED) {
+    return actionError(
+      "INVALID_STATUS",
+      "Hanya kegiatan yang sudah dibatalkan yang dapat dihapus.",
+    );
+  }
+
+  // shortcut: file cover di storage tidak dihapus, bersihkan manual bila perlu.
+  await prisma.volunteerEvent.delete({ where: { id: event.id } });
+
+  revalidateVolunteerPaths(event.slug);
+  revalidatePath("/profil");
+  return { ok: true, data: { id: event.id } };
+}
+
 /** Titik integrasi untuk dashboard admin global. Jangan dipakai UI Volunteer. */
 export async function adminModerateEventAction(
   formData: FormData,
@@ -950,7 +1068,7 @@ export async function updateRegistrationStatusAction(
         const registration = await tx.eventRegistration.findUnique({
           where: { id: registrationId },
           include: {
-            event: { select: { id: true, slug: true, organizerId: true, slots: true } },
+            event: { select: { id: true, slug: true, title: true, organizerId: true, slots: true } },
           },
         });
 
@@ -1003,6 +1121,19 @@ export async function updateRegistrationStatusAction(
           },
           select: { id: true },
         });
+
+        if (parsedStatus.data === "CONFIRMED") {
+          await tx.notification.create({
+            data: {
+              userId: registration.userId,
+              eventId: registration.event.id,
+              type: "REGISTRATION_CONFIRMED",
+              title: "Pendaftaran volunteer dikonfirmasi",
+              body: `Pendaftaranmu untuk kegiatan "${registration.event.title}" telah dikonfirmasi penyelenggara. Buka detail kegiatan untuk melihat informasi terbaru.`,
+              href: `/volunteer/${registration.event.slug}`,
+            },
+          });
+        }
 
         return { updated, slug: registration.event.slug, eventId: registration.event.id } as const;
       },

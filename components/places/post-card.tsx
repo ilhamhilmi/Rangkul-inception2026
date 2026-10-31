@@ -40,7 +40,7 @@ export function PostCard({
   const detailHref = `/jelajahi/${place.slug}`;
 
   return (
-    <article className="group flex h-full w-full flex-col overflow-hidden rounded-sheet border border-line bg-surface shadow-xs transition-shadow focus-within:shadow-card hover:shadow-card">
+    <article className="group flex h-full w-full min-w-0 flex-col overflow-hidden rounded-sheet border border-line bg-surface shadow-xs transition-shadow focus-within:shadow-card hover:shadow-card">
       <Link
         href={detailHref}
         aria-hidden="true"
@@ -70,7 +70,7 @@ export function PostCard({
         ) : null}
       </Link>
 
-      <header className="flex items-start gap-3 px-5 pt-4">
+      <header className="flex items-start gap-3 px-4 pt-4 sm:px-5">
         <span
           aria-hidden="true"
           className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-primary-100 text-sm font-bold text-primary-800"
@@ -102,8 +102,8 @@ export function PostCard({
         </div>
       </header>
 
-      <div className="flex-1 px-5 pb-4 pt-3">
-        <h2 className="text-lg font-semibold leading-snug tracking-tight text-ink">
+      <div className="min-w-0 flex-1 px-4 pb-4 pt-3 sm:px-5">
+        <h2 className="break-words text-lg font-semibold leading-snug tracking-tight text-ink">
           <Link
             href={detailHref}
             className="underline-offset-4 hover:text-primary-800 hover:underline"
@@ -117,7 +117,7 @@ export function PostCard({
           <span className="truncate">{placeLocationLabel(place)}</span>
         </p>
 
-        <p className="mt-3 line-clamp-4 whitespace-pre-line text-sm leading-relaxed text-ink">
+        <p className="mt-3 line-clamp-4 whitespace-pre-line break-words text-sm leading-relaxed text-ink">
           {place.description}
         </p>
 
@@ -140,7 +140,7 @@ export function PostCard({
         ) : null}
       </div>
 
-      <footer className="mt-auto border-t border-line bg-surface-muted/30 px-5 py-3">
+      <footer className="mt-auto border-t border-line bg-surface-muted/30 px-4 py-3 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <HelpfulButton
             placeId={place.id}

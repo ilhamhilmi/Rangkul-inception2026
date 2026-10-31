@@ -153,7 +153,7 @@ Dipakai `places.status`.
 
 ### 4.7 `EventStatus`
 
-`DRAFT`, `PENDING`, `PUBLISHED`, `CLOSED`, `REJECTED`
+`DRAFT`, `PENDING`, `PUBLISHED`, `CLOSED`, `REJECTED`, `CANCELLED`
 
 ### 4.8 `EventCategory`
 
@@ -174,7 +174,7 @@ Dipakai `places.status`.
 
 Dipakai `notifications.type`.
 
-`EVENT_UPDATED`, `EVENT_ARCHIVED`
+`EVENT_UPDATED`, `EVENT_ARCHIVED`, `REGISTRATION_CONFIRMED`, `EVENT_CANCELLED`
 
 ### 4.12 Enum yang belum dimigrasikan
 
@@ -577,7 +577,7 @@ Notifikasi in-app untuk pengguna. Hanya dibuat oleh server (Prisma) dan dibaca/d
 |---|---|---|---|---|
 | `id` | `uuid` | tidak | `gen_random_uuid()` | PK |
 | `user_id` | `uuid` | tidak | — | FK `profiles(id)` `ON DELETE CASCADE` |
-| `type` | `NotificationType` | tidak | — | `EVENT_UPDATED`, `EVENT_ARCHIVED` |
+| `type` | `NotificationType` | tidak | — | `EVENT_UPDATED`, `EVENT_ARCHIVED`, `REGISTRATION_CONFIRMED`, `EVENT_CANCELLED` |
 | `title` | `varchar(160)` | tidak | — | — |
 | `body` | `varchar(500)` | tidak | — | — |
 | `href` | `varchar(300)` | ya | — | tujuan setelah diklik |
@@ -587,7 +587,7 @@ Notifikasi in-app untuk pengguna. Hanya dibuat oleh server (Prisma) dan dibaca/d
 
 Index: `idx_notifications_user_read_created` (`user_id`, `read_at`, `created_at`). RLS: `notifications_select_own` dan `notifications_update_own` membatasi ke `user_id = auth.uid()`.
 
-Aturan: notifikasi `EVENT_UPDATED` dikirim ke peserta aktif saat detail kegiatan yang sudah terbit berubah; `EVENT_ARCHIVED` dikirim saat kegiatan diarsipkan. Pengguna hanya dapat menandai notifikasinya sendiri sebagai dibaca.
+Aturan: notifikasi `EVENT_UPDATED` dikirim ke peserta aktif saat detail kegiatan yang sudah terbit berubah; `EVENT_ARCHIVED` dikirim saat kegiatan diarsipkan; `REGISTRATION_CONFIRMED` dibuat saat penyelenggara/admin mengubah status pendaftaran menjadi `CONFIRMED`; `EVENT_CANCELLED` dibuat saat kegiatan dibatalkan. Notifikasi konfirmasi dan pembatalan dibuat di dalam transaksi yang sama dengan perubahan status. Pengguna hanya dapat menandai notifikasinya sendiri sebagai dibaca.
 
 ### 5.14 Tabel yang belum dimigrasikan
 
@@ -638,6 +638,8 @@ DRAFT ──ajukan──> PENDING ──approve──> PUBLISHED ──tutup─�
 - `submitEventAction` mengubah `DRAFT`/`REJECTED` → `PENDING`.
 - `adminModerateEventAction` mengubah `PENDING` → `PUBLISHED` (mengisi `published_at`) atau `PENDING`/`PUBLISHED` → `REJECTED` dengan catatan.
 - `closeEventAction` mengubah `PUBLISHED` → `CLOSED`.
+- `cancelEventAction` mengubah `PUBLISHED`/`CLOSED` → `CANCELLED`, membatalkan pendaftaran aktif, dan mengirim notifikasi `EVENT_CANCELLED` ke peserta.
+- `deleteEventAction` hanya menghapus kegiatan berstatus `CANCELLED`; pendaftaran dan notifikasi terkait ikut terhapus lewat cascade.
 - `PUBLISHED` wajib punya `published_at` dan `slots > 0`.
 
 ### 6.5 `event_registrations.status`
@@ -862,6 +864,8 @@ Migrasi yang tersedia di repo (12 file):
 | `20261104100000_community_and_volunteer_storage` | bucket `community-logos`, `event-covers`, `verification-docs` + policy |
 | `20261104110000_add_notifications_and_event_moderation` | `notifications`, `NotificationType`, `volunteer_events.moderation_note` |
 | `20261105100000_place_categories_and_poster_data` | kategori baru, `places.poster_rating`, `places.facilities`, check constraint |
+| `20261105110000_add_registration_confirmed_notification` | nilai enum `NotificationType.REGISTRATION_CONFIRMED` |
+| `20261105120000_add_event_cancellation` | nilai enum `EventStatus.CANCELLED` dan `NotificationType.EVENT_CANCELLED` |
 
 Migrasi Fitur 1 memuat objek yang tidak bisa diekspresikan di `schema.prisma`: index trigram, partial unique index, check constraint, `set_updated_at()`, dan `reviews_refresh_place_rating()`.
 

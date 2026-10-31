@@ -27,7 +27,7 @@ export function CommunityCard({ community }: { community: Community }) {
   const remainingFocus = community.focus.length - visibleFocus.length;
 
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-card border border-line bg-surface shadow-xs transition-shadow duration-150 hover:shadow-card">
+    <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-card border border-line bg-surface shadow-xs transition-shadow duration-150 hover:shadow-card">
       <div className="relative">
         <CommunityCover community={community} className="h-36 sm:h-40" />
         <Badge
@@ -47,7 +47,7 @@ export function CommunityCard({ community }: { community: Community }) {
           </span>
         </p>
 
-        <h3 className="mt-1.5 text-xl font-semibold tracking-tight text-ink">
+        <h3 className="mt-1.5 break-words text-xl font-semibold tracking-tight text-ink">
           <Link
             href={`/komunitas/${community.slug}`}
             className="rounded underline-offset-4 transition-colors hover:text-primary-800 hover:underline"
@@ -60,7 +60,7 @@ export function CommunityCard({ community }: { community: Community }) {
           Kontak: {contactLabel(community.contact)}
         </p>
 
-        <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-ink-muted">
+        <p className="mt-3 line-clamp-3 break-words text-sm leading-relaxed text-ink-muted">
           {community.description}
         </p>
 
@@ -99,7 +99,7 @@ export function CommunityCard({ community }: { community: Community }) {
             </a>
           </div>
 
-          <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <ButtonLink
               href={`/komunitas/${community.slug}`}
               variant="secondary"

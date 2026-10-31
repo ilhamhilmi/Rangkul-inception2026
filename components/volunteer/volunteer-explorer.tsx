@@ -191,9 +191,9 @@ export function VolunteerExplorer({
       </div>
 
       {filteredEvents.length > 0 ? (
-        <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
           {filteredEvents.map((event) => (
-            <li key={event.slug} className="h-full">
+            <li key={event.slug} className="h-full min-w-0">
               <VolunteerEventCard
                 event={event}
                 onViewDetail={() => setSelectedEvent(event)}

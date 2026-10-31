@@ -78,9 +78,12 @@ Menghubungkan orang yang ingin berkontribusi dengan penyelenggara yang butuh ban
 - Halaman `/volunteer` menampilkan kegiatan `PUBLISHED` yang belum berakhir. Pencarian dan filter kategori/lokasi/waktu berjalan di sisi klien; detail kegiatan dapat dibuka lewat dialog atau halaman `/volunteer/[slug]`.
 - Pengguna yang login dapat mendaftar sebagai volunteer. Pendaftaran berstatus **PENDING** sampai dikonfirmasi penyelenggara; pengguna dapat membatalkan pendaftaran.
 - Calon penyelenggara mengajukan verifikasi lewat `/volunteer/jadi-penyelenggara` dengan data organisasi, kontak, pengalaman, dan dokumen pendukung. Pengajuan masuk ke `verification_requests` tipe `ORGANIZER`.
-- Setelah disetujui admin, akun berrole **ORGANIZER** dapat membuat kegiatan lewat dashboard (`/dashboard/kegiatan`), mengajukan penerbitan ke admin, menutup kegiatan, mengarsipkan kegiatan, melihat pendaftar, dan mengekspor data pendaftar ke Excel.
+- Setelah disetujui admin, akun berrole **ORGANIZER** dapat membuat kegiatan lewat dashboard (`/dashboard/kegiatan`), mengajukan penerbitan ke admin, menutup kegiatan, membatalkan kegiatan, mengarsipkan kegiatan, melihat pendaftar, dan mengekspor data pendaftar ke Excel.
+- Pembatalan kegiatan mengubah status menjadi **CANCELLED**, membatalkan pendaftaran aktif, dan mengirim **notifikasi pembatalan** ke peserta.
+- Kegiatan berstatus **CANCELLED** dapat dihapus permanen oleh penyelenggara; kegiatan dengan status lain tidak dapat dihapus.
 - Perubahan detail kegiatan yang sudah terbit mengirim **notifikasi in-app** ke peserta aktif.
 - Kegiatan yang diarsipkan juga mengirim notifikasi ke peserta.
+- Saat penyelenggara mengonfirmasi pendaftaran, peserta menerima **notifikasi konfirmasi** di menu lonceng navbar.
 
 Ketiga fitur saling terhubung: pengguna yang mencari tempat juga bisa menemukan komunitas dan kegiatan, dan volunteer bisa membantu memperkaya data tempat.
 
@@ -114,7 +117,7 @@ Karena kontennya dari pengguna, platform menjaga kualitas dan keamanan lewat:
 - **Moderasi AI opsional** untuk postingan Jelajahi memakai Gemini. **Saat ini default mati** (`AI_MODERATION_ENABLED=false`), sehingga postingan langsung `PUBLISHED`. Bila diaktifkan, hasil `SAFE` tayang, `REVIEW` ditahan sebagai `PENDING`, `BLOCK` ditolak, dan kegagalan moderasi selalu ditahan (`PENDING`).
 - **Verifikasi admin** untuk komunitas dan penyelenggara kegiatan.
 - **Moderasi kegiatan** oleh admin sebelum kegiatan tampil publik.
-- **Notifikasi in-app** untuk perubahan atau pengarsipan kegiatan yang diikuti.
+- **Notifikasi in-app** untuk perubahan atau pengarsipan kegiatan yang diikuti, serta konfirmasi pendaftaran volunteer.
 - **Otorisasi di server** untuk semua mutasi; role dibaca dari database, bukan dari client.
 
 Belum tersedia: mekanisme laporan konten (report), antrean moderasi tempat di dashboard admin, dan rate limiting submission.

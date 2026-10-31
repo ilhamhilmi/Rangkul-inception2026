@@ -53,6 +53,7 @@ Dashboard admin menampilkan kegiatan `PENDING` di `/admin/kegiatan` melalui `get
 ## 3. Data dan query yang dipakai modul Volunteer
 
 - Publik: `volunteer_events` dengan `status = 'PUBLISHED'`, `archived_at IS NULL`, dan `ends_at > now()` untuk pendaftaran.
+- Pembatalan: `cancelEventAction` mengubah `PUBLISHED`/`CLOSED` → `CANCELLED`, membatalkan pendaftaran aktif, dan mengirim `EVENT_CANCELLED`. `deleteEventAction` hanya menghapus kegiatan `CANCELLED` (pendaftaran/notifikasi ikut cascade).
 - Dashboard penyelenggara: kegiatan milik `organizer_id` sendiri, atau semua kegiatan bila role `ADMIN`.
 - Ekspor peserta: hanya pemilik kegiatan atau `ADMIN`, lewat route `/dashboard/kegiatan/[id]/pendaftar/export`.
 - `registered_count` dipelihara trigger database dari pendaftaran berstatus `CONFIRMED`. Jangan menulis kolom ini secara manual.
@@ -64,6 +65,8 @@ Tabel `notifications` sudah diterapkan dan dipakai untuk:
 
 - `EVENT_UPDATED`: dikirim ke peserta `PENDING`/`CONFIRMED` saat penyelenggara mengubah detail kegiatan yang sudah `PUBLISHED`/`CLOSED`.
 - `EVENT_ARCHIVED`: dikirim ke peserta `PENDING`/`CONFIRMED` saat kegiatan diarsipkan.
+- `REGISTRATION_CONFIRMED`: dikirim ke peserta saat penyelenggara/admin mengonfirmasi pendaftarannya. Dibuat di dalam transaksi `updateRegistrationStatusAction` setelah status berubah menjadi `CONFIRMED`, dengan `href` ke detail kegiatan.
+- `EVENT_CANCELLED`: dikirim ke peserta aktif saat penyelenggara membatalkan kegiatan. Dibuat di dalam transaksi `cancelEventAction`; pendaftaran peserta ikut dibatalkan dan `href` mengarah ke `/profil`.
 
 Notifikasi dibaca lewat `getNotificationsForUser()` dan ditampilkan di menu lonceng navbar. Pengguna dapat menandai satu atau semua notifikasi sebagai dibaca lewat `server/notifications/actions.ts`. RLS `notifications_select_own` / `notifications_update_own` membatasi akses ke pemiliknya.
 
@@ -90,6 +93,7 @@ Migration Volunteer sudah diterapkan ke database bersama:
 | `20261101121400_enable_volunteer_rls` | RLS dan grant khusus tabel Volunteer |
 | `20261104100000_community_and_volunteer_storage` | bucket `community-logos`, `event-covers`, `verification-docs` + policy |
 | `20261104110000_add_notifications_and_event_moderation` | `notifications`, `NotificationType`, `volunteer_events.moderation_note` |
+| `20261105120000_add_event_cancellation` | nilai enum `EventStatus.CANCELLED` dan `NotificationType.EVENT_CANCELLED` |
 
 Checklist:
 
@@ -97,5 +101,5 @@ Checklist:
 - [x] Bucket `event-covers` (publik) dan `verification-docs` (privat) tersedia beserta policy storage.
 - [x] `SUPABASE_SERVICE_ROLE_KEY` hanya tersedia di environment server.
 - [x] Dashboard admin menangani pengajuan `ORGANIZER` dan moderasi kegiatan `PENDING`.
-- [x] Notifikasi in-app untuk perubahan dan pengarsipan kegiatan.
+- [x] Notifikasi in-app untuk perubahan, pengarsipan kegiatan, dan konfirmasi pendaftaran.
 - [ ] Policy tabel bersama ditinjau ulang oleh pemilik fitur bersama.

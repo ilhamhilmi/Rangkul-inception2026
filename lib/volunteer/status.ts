@@ -32,6 +32,12 @@ export const EVENT_STATUS_META: Record<EventStatus, StatusMeta> = {
     tone: "danger",
     description: "Pengajuan ditolak admin. Perbaiki data lalu ajukan kembali.",
   },
+  CANCELLED: {
+    label: "Dibatalkan",
+    tone: "danger",
+    description:
+      "Kegiatan dibatalkan penyelenggara. Peserta sudah menerima notifikasi.",
+  },
 };
 
 export const REGISTRATION_STATUS_META: Record<RegistrationStatus, StatusMeta> = {

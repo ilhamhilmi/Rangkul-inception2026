@@ -22,12 +22,19 @@ export type MobileNavUser = {
 };
 
 const navigation = [
+  { href: "/", label: "Beranda" },
   { href: "/jelajahi", label: "Jelajahi tempat" },
   { href: "/komunitas", label: "Komunitas" },
   { href: "/volunteer", label: "Volunteer" },
 ];
 
 const AUTH_PATHS = new Set(["/masuk", "/daftar"]);
+
+function isActivePath(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  if (href === "/jelajahi" && pathname === "/tambah-info") return true;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 const roleLabels: Record<MobileNavUser["role"], string> = {
   USER: "Pengguna",
@@ -97,7 +104,7 @@ export function MobileNav({ user }: { user: MobileNavUser | null }) {
             <nav aria-label="Navigasi mobile">
               <ul className="space-y-1">
                 {navigation.map((item) => {
-                  const active = pathname === item.href;
+                  const active = isActivePath(pathname, item.href);
 
                   return (
                     <li key={item.href}>
@@ -146,7 +153,15 @@ export function MobileNav({ user }: { user: MobileNavUser | null }) {
                   <Link
                     href="/profil"
                     onClick={() => setOpen(false)}
-                    className="flex min-h-11 items-center gap-2.5 rounded-button px-3 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
+                    aria-current={
+                      isActivePath(pathname, "/profil") ? "page" : undefined
+                    }
+                    className={[
+                      "flex min-h-11 items-center gap-2.5 rounded-button px-3 text-sm font-medium transition-colors",
+                      isActivePath(pathname, "/profil")
+                        ? "bg-primary-50 text-primary-800"
+                        : "text-ink-muted hover:bg-surface-muted hover:text-ink",
+                    ].join(" ")}
                   >
                     <UserIcon className="h-4 w-4 shrink-0" />
                     Profil saya
@@ -155,7 +170,17 @@ export function MobileNav({ user }: { user: MobileNavUser | null }) {
                     <Link
                       href="/dashboard/kegiatan"
                       onClick={() => setOpen(false)}
-                      className="flex min-h-11 items-center gap-2.5 rounded-button px-3 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
+                      aria-current={
+                        isActivePath(pathname, "/dashboard/kegiatan")
+                          ? "page"
+                          : undefined
+                      }
+                      className={[
+                        "flex min-h-11 items-center gap-2.5 rounded-button px-3 text-sm font-medium transition-colors",
+                        isActivePath(pathname, "/dashboard/kegiatan")
+                          ? "bg-primary-50 text-primary-800"
+                          : "text-ink-muted hover:bg-surface-muted hover:text-ink",
+                      ].join(" ")}
                     >
                       <CalendarIcon className="h-4 w-4 shrink-0" />
                       Kelola kegiatan
@@ -165,7 +190,15 @@ export function MobileNav({ user }: { user: MobileNavUser | null }) {
                     <Link
                       href="/admin"
                       onClick={() => setOpen(false)}
-                      className="flex min-h-11 items-center gap-2.5 rounded-button px-3 text-sm font-medium text-ink-muted transition-colors hover:bg-surface-muted hover:text-ink"
+                      aria-current={
+                        isActivePath(pathname, "/admin") ? "page" : undefined
+                      }
+                      className={[
+                        "flex min-h-11 items-center gap-2.5 rounded-button px-3 text-sm font-medium transition-colors",
+                        isActivePath(pathname, "/admin")
+                          ? "bg-primary-50 text-primary-800"
+                          : "text-ink-muted hover:bg-surface-muted hover:text-ink",
+                      ].join(" ")}
                     >
                       <ShieldCheckIcon className="h-4 w-4 shrink-0" />
                       Dashboard admin
