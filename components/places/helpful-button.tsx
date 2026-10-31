@@ -80,7 +80,7 @@ export function HelpfulButton({
         <ThumbsUpIcon
           className={cn("h-4 w-4", liked ? "fill-current" : undefined)}
         />
-        <span>Paling membantu</span>
+        <span>Membantu</span>
         <span
           className={cn(
             "rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",

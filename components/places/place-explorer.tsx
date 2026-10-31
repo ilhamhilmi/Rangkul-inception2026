@@ -5,7 +5,6 @@ import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { PlaceFeedEmpty } from "@/components/places/place-feed-states";
 import { PlaceFilters } from "@/components/places/place-filters";
 import { PostCard } from "@/components/places/post-card";
-import { ThumbsUpIcon } from "@/components/ui/icons";
 import type { PlaceSummary } from "@/types/place";
 
 type PlaceExplorerProps = {
@@ -20,15 +19,24 @@ function normalize(value: string) {
   return value.toLocaleLowerCase("id-ID");
 }
 
-function sortPlaces(places: PlaceSummary[]) {
+type SortOrder = "terbaru" | "terlama" | "membantu";
+
+const SORT_OPTIONS: Array<{ value: SortOrder; label: string }> = [
+  { value: "terbaru", label: "Terbaru" },
+  { value: "terlama", label: "Terlama" },
+  { value: "membantu", label: "Paling membantu" },
+];
+
+function sortPlaces(places: PlaceSummary[], sort: SortOrder) {
   return [...places].sort((a, b) => {
-    if (b.likeCount !== a.likeCount) {
+    if (sort === "membantu" && b.likeCount !== a.likeCount) {
       return b.likeCount - a.likeCount;
     }
 
-    return (
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    const diff =
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+
+    return sort === "terlama" ? -diff : diff;
   });
 }
 
@@ -41,6 +49,7 @@ export function PlaceExplorer({
 }: PlaceExplorerProps) {
   const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState(initialCategory || "semua");
+  const [sort, setSort] = useState<SortOrder>("terbaru");
 
   const deferredQuery = useDeferredValue(query);
   const deferredCategory = useDeferredValue(category);
@@ -65,8 +74,8 @@ export function PlaceExplorer({
         .some((value) => value.includes(keyword));
     });
 
-    return sortPlaces(matches);
-  }, [places, deferredQuery, deferredCategory]);
+    return sortPlaces(matches, sort);
+  }, [places, deferredQuery, deferredCategory, sort]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -111,10 +120,22 @@ export function PlaceExplorer({
         >
           {isFiltering ? "Memuat hasil pencarian…" : summary}
         </p>
-        <p className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1 text-xs font-medium text-ink-muted">
-          <ThumbsUpIcon className="h-3.5 w-3.5" />
-          Diurutkan dari yang paling membantu
-        </p>
+        <label className="inline-flex items-center gap-2 text-xs font-medium text-ink-muted">
+          Urutkan
+          <select
+            value={sort}
+            onChange={(event) =>
+              setSort(event.currentTarget.value as SortOrder)
+            }
+            className="h-9 rounded-full border border-line bg-surface pl-3 pr-8 text-xs font-medium text-ink shadow-xs transition-colors focus:border-primary-600"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {filtered.length > 0 ? (

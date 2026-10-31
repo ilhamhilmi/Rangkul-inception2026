@@ -164,12 +164,12 @@ const geminiEnvSchema = z.object({
 });
 
 /**
- * Moderasi AI bisa dimatikan sementara agar postingan langsung tayang.
- * Default mati; aktifkan dengan `AI_MODERATION_ENABLED=true`.
+ * Moderasi AI aktif secara default. Matikan hanya dengan
+ * `AI_MODERATION_ENABLED=false` (atau `0`).
  */
 export function isModerationEnabled() {
   const value = process.env.AI_MODERATION_ENABLED?.trim().toLowerCase();
-  return value === "true" || value === "1";
+  return value !== "false" && value !== "0";
 }
 
 /**
@@ -187,7 +187,7 @@ export function getGeminiEnv() {
     apiKey: parsed.success ? parsed.data.GEMINI_API_KEY : undefined,
     model:
       (parsed.success ? parsed.data.GEMINI_MODERATION_MODEL : undefined) ||
-      "gemini-3.1-flash-lite",
+      "gemini-3.6-flash",
   } as const;
 }
 

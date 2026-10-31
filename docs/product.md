@@ -114,7 +114,8 @@ Ketiga fitur saling terhubung: pengguna yang mencari tempat juga bisa menemukan 
 
 Karena kontennya dari pengguna, platform menjaga kualitas dan keamanan lewat:
 
-- **Moderasi AI opsional** untuk postingan Jelajahi memakai Gemini. **Saat ini default mati** (`AI_MODERATION_ENABLED=false`), sehingga postingan langsung `PUBLISHED`. Bila diaktifkan, hasil `SAFE` tayang, `REVIEW` ditahan sebagai `PENDING`, `BLOCK` ditolak, dan kegagalan moderasi selalu ditahan (`PENDING`).
+- **Moderasi AI** untuk postingan Jelajahi memakai Gemini. **Aktif secara default** (`AI_MODERATION_ENABLED=true`), sehingga `SAFE` tayang, `REVIEW` ditahan sebagai `PENDING` untuk diputuskan admin di `/admin/tempat`, `BLOCK` ditolak, dan kegagalan moderasi selalu ditahan (`PENDING`).
+- **Hapus postingan**: pemilik dapat menghapus postingannya dari halaman profil; admin dapat menghapus postingan dari `/admin/tempat`.
 - **Verifikasi admin** untuk komunitas dan penyelenggara kegiatan.
 - **Moderasi kegiatan** oleh admin sebelum kegiatan tampil publik.
 - **Notifikasi in-app** untuk perubahan atau pengarsipan kegiatan yang diikuti, serta konfirmasi pendaftaran volunteer.

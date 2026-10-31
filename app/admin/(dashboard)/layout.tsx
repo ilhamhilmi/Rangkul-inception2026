@@ -14,6 +14,7 @@ const navigation = [
   { href: "/admin/komunitas", label: "Komunitas" },
   { href: "/admin/penyelenggara", label: "Penyelenggara" },
   { href: "/admin/kegiatan", label: "Kegiatan" },
+  { href: "/admin/tempat", label: "Tempat" },
 ];
 
 function AdminSkeleton() {

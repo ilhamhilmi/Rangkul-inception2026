@@ -1,9 +1,9 @@
 "use server";
 
-import { updateTag } from "next/cache";
+import { updateTag, revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { requireUser } from "@/lib/auth/guards";
+import { getAuthorizedProfile, requireUser } from "@/lib/auth/guards";
 import { moderatePlacePost } from "@/lib/ai/moderation";
 import { isModerationEnabled } from "@/lib/env";
 import { PLACE_CATEGORY_TO_PRISMA } from "@/lib/constants/places";
@@ -271,4 +271,110 @@ export async function togglePlaceLikeAction(
   updateTag(`place:${place.slug}`);
 
   return { ok: true, liked, likeCount };
+}
+
+export type PlaceActionResult =
+  | { ok: true; message: string }
+  | { ok: false; message: string };
+
+function revalidatePlace(slug: string) {
+  updateTag("places");
+  updateTag(`place:${slug}`);
+  revalidatePath("/jelajahi");
+  revalidatePath(`/jelajahi/${slug}`);
+  revalidatePath("/profil");
+  revalidatePath("/admin/tempat");
+}
+
+/** Pemilik postingan atau admin dapat menghapus postingan. */
+export async function deletePlacePostAction(
+  placeId: string,
+): Promise<PlaceActionResult> {
+  const user = await requireUser("/jelajahi");
+
+  const place = await prisma.place.findUnique({
+    where: { id: placeId },
+    select: { id: true, slug: true, createdById: true },
+  });
+
+  if (!place) {
+    return { ok: false, message: "Postingan tidak ditemukan." };
+  }
+
+  if (place.createdById !== user.id && user.role !== "ADMIN") {
+    return {
+      ok: false,
+      message: "Kamu hanya dapat menghapus postinganmu sendiri.",
+    };
+  }
+
+  // shortcut: foto di Supabase Storage tidak ikut dihapus, bersihkan manual bila perlu.
+  await prisma.place.delete({ where: { id: place.id } });
+
+  revalidatePlace(place.slug);
+  return { ok: true, message: "Postingan dihapus." };
+}
+
+/** Keputusan admin atas postingan yang ditahan moderasi otomatis. */
+export async function moderatePlaceAction(
+  placeId: string,
+  status: "PUBLISHED" | "REJECTED",
+  note = "",
+): Promise<PlaceActionResult> {
+  const auth = await getAuthorizedProfile(["ADMIN"]);
+
+  if (!auth.allowed) {
+    return { ok: false, message: "Akun ini tidak memiliki akses admin." };
+  }
+
+  const reason = note.trim();
+
+  if (status === "REJECTED" && reason.length < 3) {
+    return {
+      ok: false,
+      message: "Tulis alasan penolakan minimal 3 karakter.",
+    };
+  }
+
+  const place = await prisma.place.findUnique({
+    where: { id: placeId },
+    select: {
+      id: true,
+      slug: true,
+      status: true,
+      publishedAt: true,
+      moderationNote: true,
+    },
+  });
+
+  if (!place) {
+    return { ok: false, message: "Postingan tidak ditemukan." };
+  }
+
+  if (place.status !== "PENDING" && place.status !== "REJECTED") {
+    return {
+      ok: false,
+      message: "Postingan ini sudah tidak dalam antrean moderasi.",
+    };
+  }
+
+  await prisma.place.update({
+    where: { id: place.id },
+    data: {
+      status,
+      moderatedAt: new Date(),
+      moderationNote: reason || place.moderationNote,
+      publishedAt:
+        status === "PUBLISHED" ? (place.publishedAt ?? new Date()) : null,
+    },
+  });
+
+  revalidatePlace(place.slug);
+  return {
+    ok: true,
+    message:
+      status === "PUBLISHED"
+        ? "Postingan diterbitkan."
+        : "Postingan ditolak dan catatan disimpan.",
+  };
 }

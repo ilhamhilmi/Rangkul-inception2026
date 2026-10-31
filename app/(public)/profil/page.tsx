@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { ProfileForm } from "@/components/profile/profile-form";
+import { DeletePlaceButton } from "@/components/places/delete-place-button";
 import { PlaceMedia } from "@/components/places/place-media";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -279,6 +280,11 @@ async function ProfileContent() {
                                 <ThumbsUpIcon className="h-3.5 w-3.5" />
                                 {post.likeCount} membantu
                               </span>
+                              <DeletePlaceButton
+                                placeId={post.id}
+                                name={post.name}
+                                className="h-8 px-2 text-xs"
+                              />
                             </div>
                           </div>
                         </article>

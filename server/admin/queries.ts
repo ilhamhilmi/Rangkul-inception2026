@@ -121,3 +121,35 @@ export async function getPendingVolunteerEvents() {
     orderBy: [{ updatedAt: "asc" }, { createdAt: "asc" }],
   });
 }
+
+/**
+ * Postingan tempat yang ditahan moderasi otomatis (`PENDING`) atau ditolak
+ * (`REJECTED`). Admin memutuskan terbit atau tolak dari antrean ini.
+ */
+export async function getPlaceModerationQueue() {
+  await connection();
+
+  return prisma.place.findMany({
+    where: { status: { in: ["PENDING", "REJECTED"] }, archivedAt: null },
+    include: {
+      createdBy: { select: { name: true, email: true } },
+      _count: { select: { likes: true } },
+    },
+    orderBy: [{ createdAt: "asc" }],
+  });
+}
+
+/** Postingan tayang terbaru, dipakai admin untuk menurunkan konten bermasalah. */
+export async function getRecentPublishedPlaces(limit = 12) {
+  await connection();
+
+  return prisma.place.findMany({
+    where: { status: "PUBLISHED", archivedAt: null },
+    include: {
+      createdBy: { select: { name: true, email: true } },
+      _count: { select: { likes: true } },
+    },
+    orderBy: [{ createdAt: "desc" }],
+    take: limit,
+  });
+}

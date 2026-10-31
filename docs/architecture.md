@@ -16,7 +16,7 @@ Rangkul adalah platform komunitas yang menyatukan tiga hal:
 2. **Direktori komunitas disabilitas dan inklusif** di Indonesia.
 3. **Kegiatan volunteer inklusif** yang bisa diikuti langsung.
 
-Data tempat dikumpulkan lewat crowdsourcing dan saat ini langsung tayang setelah dikirim (moderasi AI dinonaktifkan sementara lewat `AI_MODERATION_ENABLED`). Verifikasi admin tetap dipakai untuk komunitas/penyelenggara.
+Data tempat dikumpulkan lewat crowdsourcing dan diperiksa moderasi AI sebelum tayang. Hasil yang meragukan masuk antrean admin di `/admin/tempat`. Verifikasi admin tetap dipakai untuk komunitas/penyelenggara.
 
 ### Prinsip teknis
 
@@ -48,7 +48,7 @@ Data tempat dikumpulkan lewat crowdsourcing dan saat ini langsung tayang setelah
 | Form | React `useActionState` + Server Action + Zod | Validasi ganda client & server |
 | Tanggal & angka | `Intl.DateTimeFormat` / `Intl.NumberFormat` | Locale `id-ID`; tanpa date-fns |
 | Export | ExcelJS | Export pendaftar kegiatan |
-| Moderasi | Gemini API | Opsional; aktif hanya bila `AI_MODERATION_ENABLED=true` |
+| Moderasi | Gemini API | Aktif default; matikan dengan `AI_MODERATION_ENABLED=false` |
 
 ### Konfigurasi Next.js yang sudah aktif
 
@@ -534,7 +534,7 @@ Client form (useActionState + Zod)
        └─ updateTag / revalidatePath → redirect
 ```
 
-Saat `AI_MODERATION_ENABLED=false` (default), postingan tempat langsung `PUBLISHED` tanpa memanggil Gemini. Saat aktif, kegagalan moderasi selalu menghasilkan `PENDING`.
+Saat `AI_MODERATION_ENABLED=true` (default), postingan tempat diperiksa Gemini: `SAFE` tayang, `REVIEW` ditahan `PENDING` untuk diputuskan admin, dan `BLOCK` menjadi `REJECTED`. Kegagalan moderasi selalu menghasilkan `PENDING`. Saat dimatikan (`false`), postingan langsung `PUBLISHED` tanpa memanggil Gemini.
 
 Bentuk hasil action mengikuti domainnya:
 
@@ -786,7 +786,7 @@ Aturan:
 
 Menyaring **postingan tempat** dari spam, konten tidak senonoh, ujaran kebencian, dan potensi pelanggaran hukum. Moderasi berjalan di belakang layar dan tidak menampilkan alasan mentah ke pengguna.
 
-Saat ini moderasi AI **default mati** (`AI_MODERATION_ENABLED=false`). Komunitas dan kegiatan tetap melewati verifikasi/moderasi admin, bukan AI.
+Moderasi AI **aktif secara default**. Postingan `SAFE` langsung tayang, `REVIEW` masuk antrean `/admin/tempat` untuk diputuskan admin, dan `BLOCK` ditolak. Pemilik postingan dapat menghapus postingannya dari halaman profil; admin juga dapat menghapus postingan dari `/admin/tempat`. Komunitas dan kegiatan tetap melewati verifikasi/moderasi admin, bukan AI.
 
 ### 12.2 Kontrak
 
@@ -800,7 +800,7 @@ type ModerationResult = {
 };
 ```
 
-Implementasi: `lib/ai/moderation.ts` memakai Gemini `generateContent` dengan `responseSchema` JSON. Provider dan model diatur lewat `GEMINI_API_KEY` dan `GEMINI_MODERATION_MODEL` (default `gemini-3.1-flash-lite`).
+Implementasi: `lib/ai/moderation.ts` memakai Gemini `generateContent` dengan `responseSchema` JSON. Provider dan model diatur lewat `GEMINI_API_KEY` dan `GEMINI_MODERATION_MODEL` (default `gemini-3.6-flash`).
 
 ### 12.3 Aturan
 
@@ -948,9 +948,9 @@ DATABASE_URL=
 DIRECT_URL=
 
 # Moderasi AI (Gemini)
-AI_MODERATION_ENABLED=false
+AI_MODERATION_ENABLED=true
 GEMINI_API_KEY=
-GEMINI_MODERATION_MODEL=gemini-3.1-flash-lite
+GEMINI_MODERATION_MODEL=gemini-3.6-flash
 
 # Peta & routing
 NEXT_PUBLIC_MAP_TILE_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
@@ -969,7 +969,7 @@ Aturan:
 - `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL`, dan `GEMINI_API_KEY` hanya di server.
 - `lib/env.ts` memvalidasi env dengan Zod. Env publik dibaca lewat `lib/env/public.ts`; `assertDatabaseEnv()` dipanggil lazy di `lib/db/prisma.ts` supaya `next build` tidak butuh koneksi database.
 - Prisma CLI tidak membaca `.env.local`. Script `db:*` memakai `scripts/with-env.mjs` untuk memuat env tersebut.
-- `AI_MODERATION_ENABLED=false` membuat postingan langsung tayang. Set `true` hanya setelah `GEMINI_API_KEY` tersedia, karena tanpa key semua postingan akan ditahan `PENDING`.
+- `AI_MODERATION_ENABLED=true` (default) membuat postingan diperiksa Gemini sebelum tayang. Tanpa `GEMINI_API_KEY` semua postingan baru ditahan `PENDING` (fail-safe). Set `false` hanya bila ingin postingan langsung tayang tanpa moderasi.
 - Jangan commit `.env.local`. Template ada di `.env.example`.
 
 ---
@@ -1085,7 +1085,7 @@ Setiap PR/fitur dianggap selesai jika:
 
 | Topik | Status | Catatan |
 |---|---|---|
-| Provider moderasi AI | Diputuskan | Gemini `generateContent`; kode sudah ada dan default dimatikan lewat `AI_MODERATION_ENABLED` |
+| Provider moderasi AI | Diputuskan | Gemini `generateContent`; aktif default lewat `AI_MODERATION_ENABLED`; antrean admin di `/admin/tempat` |
 | Tile peta produksi | Terbuka | OSM publik hanya untuk dev; perlu provider/self-host |
 | OSRM produksi | Terbuka | `routing.openstreetmap.de` dipakai untuk dev; rate limit/SLA perlu self-host |
 | Database lokal/bersama | Diputuskan | Supabase hosted + Prisma; `DATABASE_URL` pooler, `DIRECT_URL` migrasi |

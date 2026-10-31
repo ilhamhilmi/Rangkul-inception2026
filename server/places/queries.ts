@@ -42,7 +42,7 @@ export async function getPlaceSummaries(filters: PlaceFilters = {}) {
   const places = await getPrisma().place.findMany({
     where,
     include: placeSummaryInclude,
-    orderBy: [{ likes: { _count: "desc" } }, { createdAt: "desc" }],
+    orderBy: [{ createdAt: "desc" }],
   });
 
   return places.map(toPlaceSummary);
