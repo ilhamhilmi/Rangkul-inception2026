@@ -51,6 +51,7 @@ function revalidateOrganizer() {
   revalidatePath("/volunteer/jadi-penyelenggara");
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/kegiatan");
+  revalidatePath("/profil");
 }
 
 export async function approveCommunityAction(
@@ -451,6 +452,53 @@ export async function rejectOrganizerAction(
     return {
       ok: false,
       message: "Pengajuan belum bisa ditolak. Coba lagi beberapa saat.",
+    };
+  }
+}
+
+export async function revokeOrganizerAction(
+  profileId: string,
+): Promise<AdminActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.profile) return auth.error;
+
+  const parsedId = idSchema.safeParse(profileId);
+  if (!parsedId.success) {
+    return { ok: false, message: "ID akun tidak valid." };
+  }
+
+  try {
+    const target = await prisma.profile.findUnique({
+      where: { id: parsedId.data },
+      select: { id: true, name: true, role: true },
+    });
+
+    if (!target) {
+      return { ok: false, message: "Akun tidak ditemukan." };
+    }
+
+    if (target.role !== "ORGANIZER") {
+      return {
+        ok: false,
+        message: "Akun ini bukan penyelenggara terverifikasi.",
+      };
+    }
+
+    await prisma.profile.update({
+      where: { id: target.id },
+      data: { role: "USER" },
+    });
+
+    revalidateOrganizer();
+
+    return {
+      ok: true,
+      message: `Verifikasi penyelenggara ${target.name} dicabut.`,
+    };
+  } catch {
+    return {
+      ok: false,
+      message: "Verifikasi belum bisa dicabut. Coba lagi beberapa saat.",
     };
   }
 }

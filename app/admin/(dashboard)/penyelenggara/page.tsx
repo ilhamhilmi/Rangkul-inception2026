@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { ReviewActions } from "@/components/admin/review-actions";
+import { RevokeOrganizerButton } from "@/components/admin/revoke-organizer-button";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import {
@@ -15,7 +16,10 @@ import {
 } from "@/components/ui/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createVerificationDocumentSignedUrl } from "@/lib/supabase/storage";
-import { getPendingOrganizerApplications } from "@/server/admin/queries";
+import {
+  getPendingOrganizerApplications,
+  getVerifiedOrganizers,
+} from "@/server/admin/queries";
 
 export const metadata: Metadata = {
   title: "Approval Penyelenggara",
@@ -55,7 +59,10 @@ function AdminOrganizersSkeleton() {
 }
 
 async function AdminOrganizersContent() {
-  const applications = await getPendingOrganizerApplications();
+  const [applications, organizers] = await Promise.all([
+    getPendingOrganizerApplications(),
+    getVerifiedOrganizers(),
+  ]);
 
   const items = await Promise.all(
     applications.map(async (application) => {
@@ -233,6 +240,48 @@ async function AdminOrganizersContent() {
           ))}
         </div>
       )}
+
+      <section className="mt-10" aria-labelledby="penyelenggara-terverifikasi">
+        <h2
+          id="penyelenggara-terverifikasi"
+          className="text-lg font-semibold tracking-tight text-ink"
+        >
+          Penyelenggara terverifikasi
+        </h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Cabut verifikasi bila penyelenggara melanggar pedoman. Akun akan
+          kembali menjadi pengguna biasa.
+        </p>
+
+        {organizers.length === 0 ? (
+          <p className="mt-4 rounded-card border border-line bg-surface px-4 py-6 text-center text-sm text-ink-muted">
+            Belum ada penyelenggara terverifikasi.
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-line rounded-card border border-line bg-surface shadow-xs">
+            {organizers.map((organizer) => (
+              <li
+                key={organizer.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-ink">
+                    {organizer.name}
+                  </p>
+                  <p className="mt-0.5 text-xs text-ink-muted">
+                    {organizer.email} · {organizer._count.organizedEvents}{" "}
+                    kegiatan · Akun sejak {formatDate(organizer.createdAt)}
+                  </p>
+                </div>
+                <RevokeOrganizerButton
+                  profileId={organizer.id}
+                  name={organizer.name}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

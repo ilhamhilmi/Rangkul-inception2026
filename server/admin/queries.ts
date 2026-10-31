@@ -110,6 +110,23 @@ export async function getPendingOrganizerApplications() {
   });
 }
 
+/** Penyelenggara terverifikasi (role ORGANIZER) yang bisa dicabut admin. */
+export async function getVerifiedOrganizers() {
+  await connection();
+
+  return prisma.profile.findMany({
+    where: { role: "ORGANIZER" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      createdAt: true,
+      _count: { select: { organizedEvents: true } },
+    },
+    orderBy: { name: "asc" },
+  });
+}
+
 /**
  * Kegiatan Volunteer yang diajukan penyelenggara dan menunggu keputusan admin.
  * Kegiatan berstatus PENDING belum tampil di halaman publik.
