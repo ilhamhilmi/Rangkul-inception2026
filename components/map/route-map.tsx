@@ -56,7 +56,7 @@ export function RouteMap({ className, ...props }: RouteMapProps) {
             aria-hidden="true"
             className="h-1 w-5 rounded-full bg-[#2563eb]"
           />
-          Rute pejalan kaki
+          Rute
         </span>
         <span className="w-full text-[11px] text-ink-muted">
           Peta © OpenStreetMap · rute dari OSRM

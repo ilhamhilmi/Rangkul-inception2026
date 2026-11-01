@@ -56,7 +56,7 @@ Kategori yang tersedia: **Wisata, Kuliner, Transportasi, Ibadah, Fasilitas Umum,
 
 **Navigasi** (`/jelajahi/[slug]/navigasi`):
 
-- Rute pejalan kaki dihitung dari **lokasi perangkat** (GPS) ke titik lokasi.
+- Rute dihitung dari **lokasi perangkat** (GPS) ke titik lokasi.
 - Peta Leaflet, garis rute, petunjuk arah teks, estimasi jarak/waktu, dan panduan suara opsional.
 - Bila izin lokasi ditolak atau GPS gagal, pengguna mendapat pesan dan tombol coba lagi; rute tidak digambar dengan titik karangan.
 
@@ -137,7 +137,7 @@ Halaman yang tersedia:
 1. **Beranda** (`/`): penjelasan platform dan jalan pintas ke tiga fitur.
 2. **Jelajahi** (`/jelajahi`): feed postingan dengan pencarian, filter kategori, dan like.
 3. **Detail tempat** (`/jelajahi/[slug]`): foto, rating pemosting, badge ramah disabilitas, fasilitas, peta, dan tautan navigasi.
-4. **Navigasi** (`/jelajahi/[slug]/navigasi`): rute pejalan kaki dari lokasi perangkat.
+4. **Navigasi** (`/jelajahi/[slug]/navigasi`): rute dari lokasi perangkat.
 5. **Tambah Info** (`/tambah-info`): form posting tempat bertahap.
 6. **Komunitas** (`/komunitas`, `/komunitas/[slug]`, `/komunitas/daftar`): direktori, profil, dan pendaftaran komunitas.
 7. **Volunteer** (`/volunteer`, `/volunteer/[slug]`, `/volunteer/jadi-penyelenggara`): daftar kegiatan, detail, pendaftaran peserta, dan pengajuan penyelenggara.

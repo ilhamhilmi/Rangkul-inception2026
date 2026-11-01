@@ -821,7 +821,7 @@ Implementasi: `lib/ai/moderation.ts` memakai Gemini `generateContent` dengan `re
 
 - **Leaflet** + **react-leaflet** untuk peta.
 - **OpenStreetMap** sebagai tile sumber.
-- **OSRM** untuk rute pejalan kaki, dipanggil langsung dari browser dengan `fetch`, lalu digambar sebagai `<Polyline>`.
+- **OSRM** untuk perhitungan rute, dipanggil langsung dari browser dengan `fetch`, lalu digambar sebagai `<Polyline>`. Default mengikuti proyek `testing-map`: `https://router.project-osrm.org/route/v1` dengan profil `driving`. Ganti lewat `NEXT_PUBLIC_OSRM_URL` + `NEXT_PUBLIC_OSRM_PROFILE` (mis. `routed-foot` + `foot` untuk rute pejalan kaki).
 - Semua komponen peta adalah client component dan di-`dynamic import` dengan `ssr: false`.
 - Kita **tidak** memakai Leaflet Routing Machine. Library itu menambah dependensi dan sulit dikontrol untuk instruksi aksesibel; kita hanya butuh geometri rute dan langkah-langkahnya.
 
@@ -843,8 +843,9 @@ Detail perilaku:
 - Hasil rute disimpan cache in-memory 5 menit per pasangan koordinat (presisi 5 desimal) dan di-`AbortController` saat titik awal berubah.
 - Timeout 8 detik. Jika gagal, UI menampilkan pesan + tombol “Hitung ulang rute”, tanpa langkah arah karangan.
 - Titik awal **hanya** lokasi perangkat via `navigator.geolocation.watchPosition`. Tidak ada input manual, titik contoh, atau fallback `places.default_origin_*`.
-- Rute dihitung ulang otomatis saat pengguna bergerak > 80 m atau menyimpang > 35 m dari garis rute.
+- Rute dihitung ulang otomatis saat pengguna bergerak > 150 m atau menyimpang > 60 m dari garis rute selama dua sampel GPS berturut-turut.
 - Garis rute memakai biru literal `#2563eb` dengan casing putih; marker pengguna berupa titik biru berdenyut. Peta mengikuti pengguna sampai pengguna menggeser peta, lalu tombol “Ikuti lokasi” mengaktifkannya lagi.
+- Polyline memakai geometri rute OSRM apa adanya (tidak dipotong mengikuti posisi GPS), supaya garis tidak melompat ke segmen lain pada rute yang berpotongan. OSRM men-snap ujung rute ke jalan terdekat; sambungan ke posisi GPS/tujuan asli digambar putus-putus hanya bila jaraknya > 15 m.
 - Panduan suara (opsional) membacakan langkah aktif setiap kali langkah berubah.
 
 ### 13.3 Aturan

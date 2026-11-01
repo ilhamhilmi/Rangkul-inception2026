@@ -20,7 +20,7 @@ const features = [
     eyebrow: "Informasi & navigasi",
     title: "Tahu medan sebelum berangkat",
     description:
-      "Cari tempat berdasarkan fasilitas yang benar-benar kamu butuhkan, bukan sekadar label “ramah disabilitas”.",
+      "Cari tempat yang benar-benar bisa dipakai penyandang disabilitas, bukan sekadar label “ramah disabilitas” di brosur.",
     points: [
       "Filter ramp, lift, toilet aksesibel, dan guiding block",
       "Satu postingan mewakili satu lokasi dengan titik peta yang jelas",
@@ -44,9 +44,9 @@ const features = [
     id: "volunteer",
     icon: HeartHandshakeIcon,
     eyebrow: "Volunteer inklusif",
-    title: "Ubah niat baik jadi aksi nyata",
+    title: "Aksi nyata untuk inklusi disabilitas",
     description:
-      "Temukan kegiatan yang benar-benar membutuhkan tenaga dan keahlianmu, lalu daftar langsung di platform.",
+      "Temukan kegiatan yang benar-benar membutuhkan tenaga dan keahlianmu — termasuk mendampingi penyandang disabilitas — lalu daftar langsung di platform.",
     points: [
       "Pendampingan acara, pendataan aksesibilitas, dan kegiatan sosial",
       "Penyandang disabilitas didorong ikut sebagai peserta maupun relawan",
@@ -92,20 +92,24 @@ export default function HomePage() {
         <div className="container-page relative grid gap-14 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:py-24">
           <div>
             <p className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-3.5 py-1.5 text-sm font-medium text-primary-800">
-              <SparklesIcon className="h-4 w-4" />
-              Platform komunitas inklusif
+              <AccessibilityIcon className="h-4 w-4" />
+              Platform aksesibilitas untuk penyandang disabilitas
             </p>
 
             <h1 className="mt-6 max-w-3xl text-display-sm font-bold tracking-tight text-ink sm:text-display">
-              Membantu sesama,
+              Aksesibilitas nyata,
               <br />
-              <span className="text-primary-700">ruang untuk semua.</span>
+              <span className="text-primary-700">
+                untuk penyandang disabilitas.
+              </span>
             </h1>
 
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-muted">
-              Temukan tempat yang benar-benar bisa diakses, kenali komunitas di
-              sekitarmu, dan ikut kegiatan volunteer yang inklusif. Semuanya
-              dalam satu platform.
+              Rangkul membantu penyandang disabilitas — termasuk pengguna kursi
+              roda serta disabilitas netra, rungu, dan intelektual — bersama
+              keluarga dan pendampingnya untuk menemukan tempat yang benar-benar
+              bisa dipakai, komunitas yang tepat, dan kegiatan volunteer
+              inklusif. Semuanya dalam satu platform.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -233,8 +237,9 @@ export default function HomePage() {
             Mulai dari kebutuhanmu, bukan dari daftar fitur.
           </h2>
           <p className="mt-4 text-lg leading-relaxed text-ink-muted">
-            Informasi, komunitas, dan aksi sosial saling terhubung. Kamu bisa
-            mulai dari mana saja.
+            Dibuat untuk penyandang disabilitas dan orang-orang yang
+            mendukungnya. Informasi, komunitas, dan aksi sosial saling
+            terhubung, jadi kamu bisa mulai dari mana saja.
           </p>
         </div>
 
@@ -297,8 +302,9 @@ export default function HomePage() {
             </h2>
             <p className="mt-4 text-lg leading-relaxed text-ink-muted">
               Satu postingan mewakili satu lokasi. Rangkul menyimpan foto,
-              fasilitas, dan titik peta yang bisa langsung dipakai untuk
-              navigasi, supaya kamu tahu kondisi tempat sebelum berangkat.
+              fasilitas, dan titik peta yang bisa langsung dipakai penyandang
+              disabilitas untuk navigasi, supaya kamu tahu kondisi tempat
+              sebelum berangkat.
             </p>
 
             <ul className="mt-8 space-y-4">
@@ -422,12 +428,13 @@ export default function HomePage() {
 
           <div className="relative max-w-2xl">
             <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Ruang yang lebih ramah dimulai dari satu kontribusi.
+              Ruang yang lebih ramah disabilitas dimulai dari satu kontribusi.
             </h2>
             <p className="mt-4 text-lg leading-relaxed text-primary-100">
-              Tambahkan info tempat, perkenalkan komunitasmu, atau ikut kegiatan
-              volunteer. Setiap detail membantu orang lain berangkat dengan
-              lebih percaya diri.
+              Tambahkan info tempat aksesibel, perkenalkan komunitas
+              disabilitasmu, atau ikut kegiatan volunteer inklusif. Setiap
+              detail membantu penyandang disabilitas berangkat dengan lebih
+              percaya diri.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <ButtonLink href="/daftar" variant="inverse" size="lg">

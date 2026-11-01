@@ -46,7 +46,7 @@ Dokumen ini menerjemahkan sketsa Excalidraw awal (`Untitled-2026-10-30-2329.exca
 
 **Halaman navigasi** (`/jelajahi/[slug]/navigasi`):
 
-- Peta besar dengan rute pejalan kaki dari lokasi perangkat.
+- Peta besar dengan rute dari lokasi perangkat.
 - Tombol menghitung ulang rute, ringkasan jarak/waktu, petunjuk arah teks, dan opsi panduan suara.
 - Tidak ada input titik awal manual atau fallback titik contoh.
 

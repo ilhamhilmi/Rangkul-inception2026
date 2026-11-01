@@ -25,7 +25,7 @@ export async function generateMetadata({
 
   return {
     title: `Navigasi ke ${place.name}`,
-    description: `Rute pejalan kaki live dan petunjuk arah menuju ${place.name} dari lokasi perangkatmu.`,
+    description: `Rute live dan petunjuk arah menuju ${place.name} dari lokasi perangkatmu.`,
   };
 }
 

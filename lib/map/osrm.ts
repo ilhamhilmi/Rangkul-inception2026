@@ -106,6 +106,36 @@ function toSteps(steps: OsrmStep[]): RouteStep[] {
     }));
 }
 
+function buildRouteUrl(
+  baseUrl: string,
+  coordinates: string,
+  snapping?: "any",
+) {
+  const url = new URL(
+    `${baseUrl}/route/v1/${mapEnv.osrmProfile}/${coordinates}`,
+  );
+  url.searchParams.set("overview", "full");
+  url.searchParams.set("geometries", "geojson");
+  url.searchParams.set("steps", "true");
+  url.searchParams.set("annotations", "false");
+  url.searchParams.set("alternatives", "false");
+
+  if (snapping) url.searchParams.set("snapping", snapping);
+
+  return url;
+}
+
+async function requestRoute(url: URL, signal: AbortSignal) {
+  const response = await fetch(url, {
+    signal,
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) return null;
+
+  return (await response.json()) as OsrmResponse;
+}
+
 export async function fetchWalkingRoute({
   origin,
   destination,
@@ -129,12 +159,12 @@ export async function fetchWalkingRoute({
 
   // Jangan memakai string path berawalan "/" pada `new URL`, karena akan
   // membuang sub-path endpoint (mis. `/routed-foot`) dan menghasilkan 404.
-  const baseUrl = mapEnv.osrmUrl.replace(/\/+$/, "");
-  const url = new URL(`${baseUrl}/route/v1/foot/${coordinates}`);
-  url.searchParams.set("overview", "full");
-  url.searchParams.set("geometries", "geojson");
-  url.searchParams.set("steps", "true");
-  url.searchParams.set("annotations", "false");
+  // Sebagian konfigurasi sudah menulis `/route/v1` di akhir URL (mis.
+  // `https://router.project-osrm.org/route/v1`), jadi akhiran itu dibuang dulu
+  // supaya tidak tergabung dua kali.
+  const baseUrl = mapEnv.osrmUrl
+    .replace(/\/+$/, "")
+    .replace(/\/route\/v1$/, "");
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -143,17 +173,24 @@ export async function fetchWalkingRoute({
   signal?.addEventListener("abort", abortFromCaller, { once: true });
 
   try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: { Accept: "application/json" },
-    });
+    let data = await requestRoute(
+      buildRouteUrl(baseUrl, coordinates),
+      controller.signal,
+    );
+    let route = data?.code === "Ok" ? data.routes?.[0] : undefined;
 
-    if (!response.ok) return null;
+    // Titik di dalam kompleks atau gang kadang tidak tersambung ke jaringan
+    // jalan, sehingga rute tidak ketemu sama sekali. snapping=any tetap
+    // men-snap ke sisi terdekat supaya tujuan masih bisa dicapai.
+    if (!route) {
+      data = await requestRoute(
+        buildRouteUrl(baseUrl, coordinates, "any"),
+        controller.signal,
+      );
+      route = data?.code === "Ok" ? data.routes?.[0] : undefined;
+    }
 
-    const data = (await response.json()) as OsrmResponse;
-    const route = data.routes?.[0];
-
-    if (data.code !== "Ok" || !route) return null;
+    if (!route) return null;
 
     const walkingRoute: WalkingRoute = {
       distanceMeters: Math.round(route.distance),

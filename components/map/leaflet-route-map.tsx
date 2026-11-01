@@ -15,9 +15,22 @@ import { LeafletMapShell } from "@/components/map/leaflet-map-shell";
 import { createMapIcon } from "@/components/map/markers";
 import type { RouteMapCanvasProps } from "@/components/map/types";
 import { mapEnv } from "@/lib/env";
+import { haversineMeters } from "@/lib/map/geo";
 import { osmViewUrl } from "@/lib/map/osm";
 
 const ROUTE_BLUE = "#2563eb";
+const SNAP_TOLERANCE_METERS = 15;
+
+function toLatLng([latitude, longitude]: readonly [number, number]): LatLngTuple {
+  return [latitude, longitude];
+}
+
+function gapMeters(from: LatLngTuple, to: LatLngTuple) {
+  return haversineMeters(
+    { latitude: from[0], longitude: from[1] },
+    { latitude: to[0], longitude: to[1] },
+  );
+}
 
 function MapController({
   origin,
@@ -100,19 +113,48 @@ export function LeafletRouteMap({
 }: RouteMapCanvasProps) {
   const [tileErrors, setTileErrors] = useState(0);
 
-  const points = useMemo<LatLngTuple[]>(() => {
-    if (route && route.geometry.length > 0) {
-      return route.geometry;
+  /**
+   * Garis rute digambar apa adanya dari OSRM. Sebelumnya garis dipotong ke
+   * "sisa rute di depan pengguna"; pemotongan itu memilih segmen terdekat di
+   * seluruh rute, sehingga pada rute yang berpotongan garis bisa melompat ke
+   * segmen lain (terlihat memutar) dan selalu menarik garis lurus dari posisi
+   * GPS mentah ke jalan terdekat.
+   *
+   * OSRM men-snap ujung rute ke jalan terdekat. Sambungan ke titik asli hanya
+   * digambar putus-putus bila jaraknya melebihi toleransi, supaya jelas itu
+   * bukan jalan.
+   */
+  const { routePoints, originGap, destinationGap } = useMemo(() => {
+    if (!route || route.geometry.length < 2) {
+      return {
+        routePoints: [] as LatLngTuple[],
+        originGap: null as [LatLngTuple, LatLngTuple] | null,
+        destinationGap: null as [LatLngTuple, LatLngTuple] | null,
+      };
     }
 
-    if (origin) {
-      return [
-        [origin.latitude, origin.longitude],
-        [destination.latitude, destination.longitude],
-      ];
-    }
+    const points = route.geometry.map(toLatLng);
+    const first = points[0]!;
+    const last = points[points.length - 1]!;
+    const originPoint: LatLngTuple | null = origin
+      ? [origin.latitude, origin.longitude]
+      : null;
+    const destinationPoint: LatLngTuple = [
+      destination.latitude,
+      destination.longitude,
+    ];
 
-    return [[destination.latitude, destination.longitude]];
+    return {
+      routePoints: points,
+      originGap:
+        originPoint && gapMeters(originPoint, first) > SNAP_TOLERANCE_METERS
+          ? [originPoint, first]
+          : null,
+      destinationGap:
+        gapMeters(last, destinationPoint) > SNAP_TOLERANCE_METERS
+          ? [last, destinationPoint]
+          : null,
+    };
   }, [destination, origin, route]);
 
   return (
@@ -130,10 +172,10 @@ export function LeafletRouteMap({
           }}
         />
 
-        {route && route.geometry.length > 1 ? (
+        {routePoints.length > 1 ? (
           <>
             <Polyline
-              positions={route.geometry}
+              positions={routePoints}
               pathOptions={{
                 color: "#ffffff",
                 weight: 9,
@@ -143,7 +185,7 @@ export function LeafletRouteMap({
               }}
             />
             <Polyline
-              positions={route.geometry}
+              positions={routePoints}
               pathOptions={{
                 color: ROUTE_BLUE,
                 weight: 5,
@@ -153,6 +195,32 @@ export function LeafletRouteMap({
               }}
             />
           </>
+        ) : null}
+
+        {originGap ? (
+          <Polyline
+            positions={originGap}
+            pathOptions={{
+              color: "#64748b",
+              weight: 4,
+              opacity: 0.9,
+              dashArray: "6 8",
+              lineCap: "round",
+            }}
+          />
+        ) : null}
+
+        {destinationGap ? (
+          <Polyline
+            positions={destinationGap}
+            pathOptions={{
+              color: "#64748b",
+              weight: 4,
+              opacity: 0.9,
+              dashArray: "6 8",
+              lineCap: "round",
+            }}
+          />
         ) : null}
 
         {origin && origin.accuracyMeters && origin.accuracyMeters < 200 ? (
@@ -228,7 +296,7 @@ export function LeafletRouteMap({
       ) : null}
 
       <span className="sr-only" aria-live="polite">
-        {points.length > 1 ? "Rute pejalan kaki ditampilkan di peta." : ""}
+        {routePoints.length > 1 ? "Rute ditampilkan di peta." : ""}
       </span>
     </div>
   );

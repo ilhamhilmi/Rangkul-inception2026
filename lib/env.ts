@@ -14,12 +14,14 @@ import { z } from "zod";
 const DEFAULT_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const DEFAULT_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
-const DEFAULT_OSRM_URL = "https://routing.openstreetmap.de/routed-foot";
+const DEFAULT_OSRM_URL = "https://router.project-osrm.org/route/v1";
+const DEFAULT_OSRM_PROFILE = "driving";
 
 const mapEnvSchema = z.object({
   tileUrl: z.string().min(1),
   attribution: z.string().min(1),
   osrmUrl: z.string().min(1),
+  osrmProfile: z.string().min(1),
 });
 
 /**
@@ -30,6 +32,7 @@ export const mapEnv = mapEnvSchema.parse({
   tileUrl: process.env.NEXT_PUBLIC_MAP_TILE_URL || DEFAULT_TILE_URL,
   attribution: process.env.NEXT_PUBLIC_MAP_ATTRIBUTION || DEFAULT_ATTRIBUTION,
   osrmUrl: process.env.NEXT_PUBLIC_OSRM_URL || DEFAULT_OSRM_URL,
+  osrmProfile: process.env.NEXT_PUBLIC_OSRM_PROFILE || DEFAULT_OSRM_PROFILE,
 });
 
 const publicEnvSchema = z

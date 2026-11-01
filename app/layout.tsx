@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   applicationName: "Rangkul",
   title: {
-    default: "Rangkul — Membantu Sesama, Ruang untuk Semua",
+    default: "Rangkul — Aksesibilitas & Komunitas Disabilitas Indonesia",
     template: "%s | Rangkul",
   },
   description,
@@ -48,12 +48,12 @@ export const metadata: Metadata = {
     type: "website",
     locale: "id_ID",
     siteName: "Rangkul",
-    title: "Rangkul — Membantu Sesama, Ruang untuk Semua",
+    title: "Rangkul — Aksesibilitas & Komunitas Disabilitas Indonesia",
     description,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Rangkul — Membantu Sesama, Ruang untuk Semua",
+    title: "Rangkul — Aksesibilitas & Komunitas Disabilitas Indonesia",
     description,
   },
   robots: {

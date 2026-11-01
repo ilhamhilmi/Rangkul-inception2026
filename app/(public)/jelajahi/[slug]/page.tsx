@@ -44,7 +44,7 @@ export async function generateMetadata({
 
   return {
     title: place.name,
-    description: `Info aksesibilitas ${place.name} di ${placeLocationLabel(place)}: ${place.photos.length} foto lokasi dan rute navigasi pejalan kaki.`,
+    description: `Info aksesibilitas ${place.name} di ${placeLocationLabel(place)}: ${place.photos.length} foto lokasi dan rute navigasi.`,
   };
 }
 

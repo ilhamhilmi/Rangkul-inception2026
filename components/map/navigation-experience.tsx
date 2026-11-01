@@ -36,8 +36,9 @@ type VoiceMode = "off" | "on";
 type RouteStatus = "idle" | "loading" | "ready" | "error";
 
 const LOCATION_UPDATE_METERS = 5;
-const ROUTE_REFRESH_METERS = 80;
-const OFF_ROUTE_METERS = 35;
+const ROUTE_REFRESH_METERS = 150;
+const OFF_ROUTE_METERS = 60;
+const OFF_ROUTE_CONFIRMATIONS = 2;
 
 type NavigationProgress = {
   activeStepIndex: number;
@@ -130,6 +131,7 @@ export function NavigationExperience({ place }: { place: PlaceDetail }) {
   const lastRouteOriginRef = useRef<Coordinate | null>(null);
   const routeAbortRef = useRef<AbortController | null>(null);
   const lastAnnouncedRef = useRef<string | null>(null);
+  const offRouteStreakRef = useRef(0);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
@@ -195,15 +197,25 @@ export function NavigationExperience({ place }: { place: PlaceDetail }) {
     const movedFar =
       !previousOrigin ||
       haversineMeters(previousOrigin, origin) > ROUTE_REFRESH_METERS;
-    const offRoute = route
-      ? (locateOnRoute(origin, route.geometry)?.distanceToRouteMeters ?? 0) >
-        OFF_ROUTE_METERS
-      : false;
+    const offRoute =
+      route !== null &&
+      (locateOnRoute(origin, route.geometry)?.distanceToRouteMeters ?? 0) >
+        OFF_ROUTE_METERS;
+
+    // Satu sampel GPS yang meleset tidak cukup untuk membuang rute: tunggu
+    // beberapa sampel berturut-turut supaya garis tidak dihitung ulang terus
+    // dan terlihat berputar.
+    offRouteStreakRef.current = offRoute ? offRouteStreakRef.current + 1 : 0;
+    const confirmedOffRoute =
+      offRouteStreakRef.current >= OFF_ROUTE_CONFIRMATIONS;
+
     const fetching = Boolean(
       routeAbortRef.current && !routeAbortRef.current.signal.aborted,
     );
 
-    if (!movedFar && !offRoute && (route || fetching)) return;
+    if (!movedFar && !confirmedOffRoute && (route || fetching)) return;
+
+    offRouteStreakRef.current = 0;
 
     // Abort hanya saat memulai permintaan rute baru. Cleanup effect ini tidak
     // membatalkan fetch yang sedang berjalan setiap kali GPS bergerak 5 m.
@@ -414,8 +426,8 @@ export function NavigationExperience({ place }: { place: PlaceDetail }) {
               Navigasi live
             </h2>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-800">
-              <WalkIcon className="h-3.5 w-3.5" />
-              Pejalan kaki
+              <RouteIcon className="h-3.5 w-3.5" />
+              Rute OSRM
             </span>
           </div>
           <p className="mt-1.5 flex items-start gap-1.5 text-sm leading-relaxed text-ink-muted">
@@ -476,7 +488,7 @@ export function NavigationExperience({ place }: { place: PlaceDetail }) {
                   aria-hidden="true"
                   className="h-4 w-4 animate-spin rounded-full border-2 border-primary-300 border-t-primary-700"
                 />
-                Menghitung rute pejalan kaki…
+                Menghitung rute…
               </p>
             ) : (
               <p className="flex items-start gap-2 text-sm leading-relaxed text-ink-muted">
@@ -500,7 +512,7 @@ export function NavigationExperience({ place }: { place: PlaceDetail }) {
             <div className="rounded-card bg-surface-muted/70 p-3.5">
               <dt className="flex items-center gap-1.5 text-xs font-medium text-ink-muted">
                 <ClockIcon className="h-3.5 w-3.5 text-primary-700" />
-                Estimasi jalan
+                Estimasi perjalanan
               </dt>
               <dd className="mt-1 text-lg font-bold text-ink">
                 {durationLabel}
@@ -519,8 +531,7 @@ export function NavigationExperience({ place }: { place: PlaceDetail }) {
             <div className="mt-3 rounded-card border border-warning-600/30 bg-warning-50 px-3.5 py-3 text-sm leading-relaxed text-warning-700">
               <p className="flex items-start gap-2">
                 <AlertIcon className="mt-0.5 h-4 w-4 shrink-0" />
-                Rute pejalan kaki gagal dihitung. Periksa koneksi internet, lalu
-                coba lagi.
+                Rute gagal dihitung. Periksa koneksi internet, lalu coba lagi.
               </p>
               <Button
                 type="button"
