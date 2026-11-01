@@ -43,7 +43,7 @@ export function ConfirmDialog({
       onClick={(event) => {
         if (event.target === dialogRef.current) onCancel();
       }}
-      className="w-[calc(100%-2rem)] max-w-md rounded-sheet border border-line bg-surface p-0 text-ink shadow-lifted backdrop:bg-ink/60 backdrop:backdrop-blur-sm"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-sheet border border-line bg-surface p-0 text-ink shadow-lifted backdrop:bg-ink/60 backdrop:backdrop-blur-sm"
     >
       <div className="p-5 sm:p-6">
         <h2

@@ -6,7 +6,6 @@ import type { EventStatus } from "@prisma/client";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
-  archiveEventAction,
   cancelEventAction,
   closeEventAction,
   deleteEventAction,
@@ -214,23 +213,6 @@ export function EventManageActions({
             Batalkan kegiatan
           </Button>
         ) : null}
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          disabled={isPending}
-          onClick={() =>
-            run(archiveEventAction, {
-              title: "Arsipkan kegiatan?",
-              description:
-                "Kegiatan akan hilang dari halaman publik dan tidak dapat diubah lagi.",
-              confirmLabel: "Arsipkan",
-            })
-          }
-        >
-          Arsipkan
-        </Button>
 
         {message ? (
           <p role="alert" className="w-full text-xs text-danger-700">

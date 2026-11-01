@@ -502,3 +502,43 @@ export async function revokeOrganizerAction(
     };
   }
 }
+
+export async function deleteVolunteerEventAction(
+  eventId: string,
+): Promise<AdminActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.profile) return auth.error;
+
+  const parsedId = idSchema.safeParse(eventId);
+  if (!parsedId.success) {
+    return { ok: false, message: "ID kegiatan tidak valid." };
+  }
+
+  try {
+    const event = await prisma.volunteerEvent.findUnique({
+      where: { id: parsedId.data },
+      select: { id: true, slug: true },
+    });
+
+    if (!event) {
+      return { ok: false, message: "Kegiatan tidak ditemukan." };
+    }
+
+    // shortcut: cover di storage tidak ikut dihapus, bersihkan manual bila perlu.
+    await prisma.volunteerEvent.delete({ where: { id: event.id } });
+
+    revalidatePath("/admin");
+    revalidatePath("/admin/kegiatan");
+    revalidatePath("/volunteer");
+    revalidatePath(`/volunteer/${event.slug}`);
+    revalidatePath("/dashboard/kegiatan");
+    revalidatePath("/profil");
+
+    return { ok: true, message: "Kegiatan dihapus." };
+  } catch {
+    return {
+      ok: false,
+      message: "Kegiatan belum bisa dihapus. Coba lagi beberapa saat.",
+    };
+  }
+}

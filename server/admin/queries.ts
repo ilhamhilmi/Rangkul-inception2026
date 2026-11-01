@@ -152,6 +152,27 @@ export async function getPendingVolunteerEvents() {
   });
 }
 
+/** Kegiatan tayang terbaru, dipakai admin untuk menurunkan kegiatan bermasalah. */
+export async function getRecentVolunteerEvents(limit = 12) {
+  await connection();
+
+  return prisma.volunteerEvent.findMany({
+    where: { status: { in: ["PUBLISHED", "CLOSED"] }, archivedAt: null },
+    include: {
+      organizer: { select: { name: true, email: true } },
+      _count: {
+        select: {
+          registrations: {
+            where: { status: { in: ["PENDING", "CONFIRMED"] } },
+          },
+        },
+      },
+    },
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+    take: limit,
+  });
+}
+
 /**
  * Postingan tempat yang ditahan moderasi otomatis (`PENDING`) atau ditolak
  * (`REJECTED`). Admin memutuskan terbit atau tolak dari antrean ini.

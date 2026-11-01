@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 
+import { DeleteVolunteerEventButton } from "@/components/admin/delete-volunteer-event-button";
 import { EventReviewActions } from "@/components/admin/event-review-actions";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -17,7 +19,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EVENT_CATEGORY_LABELS } from "@/lib/volunteer/categories";
 import { coverUrlFor } from "@/lib/volunteer/data";
 import { formatEventSchedule } from "@/lib/volunteer/format";
-import { getPendingVolunteerEvents } from "@/server/admin/queries";
+import {
+  getPendingVolunteerEvents,
+  getRecentVolunteerEvents,
+} from "@/server/admin/queries";
 
 export const metadata: Metadata = {
   title: "Approval Kegiatan Volunteer",
@@ -48,7 +53,10 @@ function AdminEventsSkeleton() {
 }
 
 async function AdminEventsContent() {
-  const events = await getPendingVolunteerEvents();
+  const [events, published] = await Promise.all([
+    getPendingVolunteerEvents(),
+    getRecentVolunteerEvents(),
+  ]);
 
   return (
     <div className="container-page py-8 lg:py-10">
@@ -115,6 +123,12 @@ async function AdminEventsContent() {
                       <Badge tone="primary">
                         {EVENT_CATEGORY_LABELS[event.category]}
                       </Badge>
+                      <div className="ml-auto">
+                        <DeleteVolunteerEventButton
+                          eventId={event.id}
+                          title={event.title}
+                        />
+                      </div>
                     </div>
 
                     <h2 className="mt-2 text-xl font-semibold tracking-tight text-ink">
@@ -202,6 +216,57 @@ async function AdminEventsContent() {
           })}
         </div>
       )}
+
+      <section className="mt-10" aria-labelledby="kegiatan-tayang">
+        <h2
+          id="kegiatan-tayang"
+          className="text-lg font-semibold tracking-tight text-ink"
+        >
+          Kegiatan tayang terbaru
+        </h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Hapus kegiatan yang melanggar pedoman. Pendaftaran peserta ikut
+          terhapus.
+        </p>
+
+        {published.length === 0 ? (
+          <p className="mt-4 rounded-card border border-line bg-surface px-4 py-6 text-center text-sm text-ink-muted">
+            Belum ada kegiatan tayang.
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-line rounded-card border border-line bg-surface shadow-xs">
+            {published.map((event) => (
+              <li
+                key={event.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-ink">
+                    <Link
+                      href={`/volunteer/${event.slug}`}
+                      className="underline-offset-4 hover:text-primary-800 hover:underline"
+                    >
+                      {event.title}
+                    </Link>
+                  </p>
+                  <p className="mt-0.5 text-xs text-ink-muted">
+                    {event.organizer.name} ({event.organizer.email}) ·{" "}
+                    {formatEventSchedule(
+                      event.startsAt.toISOString(),
+                      event.endsAt.toISOString(),
+                    )}{" "}
+                    · {event._count.registrations}/{event.slots} peserta
+                  </p>
+                </div>
+                <DeleteVolunteerEventButton
+                  eventId={event.id}
+                  title={event.title}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
